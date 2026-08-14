@@ -1,4 +1,5 @@
 import { requireTenant } from "@/lib/authz";
+import { PasswordForm } from "@/components/password-form";
 import { ProfileForm } from "@/components/profile-form";
 
 export default async function SettingsPage() {
@@ -23,6 +24,14 @@ export default async function SettingsPage() {
           firstName={user.firstName}
           lastName={user.lastName}
         />
+      </section>
+
+      <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-medium text-slate-900">Password</h2>
+        <p className="mt-1 mb-6 text-sm text-slate-600">
+          Change the password used to sign in to this account.
+        </p>
+        <PasswordForm />
       </section>
     </div>
   );
