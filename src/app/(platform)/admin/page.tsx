@@ -2,7 +2,12 @@ import Link from "next/link";
 import { enterTenantAction } from "@/app/(platform)/admin/actions";
 import { prisma } from "@/lib/db";
 
-export default async function AdminTenantsPage() {
+export default async function AdminTenantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ created?: string }>;
+}) {
+  const { created } = await searchParams;
   const tenants = await prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -29,6 +34,15 @@ export default async function AdminTenantsPage() {
           Create tenant
         </Link>
       </div>
+
+      {created === "1" ? (
+        <p
+          className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+          role="status"
+        >
+          Tenant and admin user created.
+        </p>
+      ) : null}
 
       <div className="mt-8 overflow-hidden rounded-lg border border-slate-200 bg-white">
         {tenants.length === 0 ? (

@@ -24,14 +24,6 @@ export function CreateTenantForm() {
           {state.error}
         </p>
       ) : null}
-      {state.success ? (
-        <p
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          {state.success}
-        </p>
-      ) : null}
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-slate-900">

@@ -14,7 +14,6 @@ import { hashPassword } from "@/lib/password";
 
 export type TenantActionState = {
   error?: string;
-  success?: string;
   fieldErrors?: Record<string, string[]>;
 };
 
@@ -112,7 +111,7 @@ export async function createTenantAction(
   }
 
   revalidatePath("/admin");
-  return { success: "Tenant and admin user created." };
+  redirect("/admin?created=1");
 }
 
 export async function enterTenantAction(formData: FormData) {
