@@ -79,15 +79,23 @@ export default async function AdminTenantsPage({
                     {tenant.createdAt.toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <form action={enterTenantAction}>
-                      <input type="hidden" name="tenantId" value={tenant.id} />
-                      <button
-                        type="submit"
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Link
+                        href={`/admin/tenants/${tenant.id}`}
                         className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
                       >
-                        Open
-                      </button>
-                    </form>
+                        Manage
+                      </Link>
+                      <form action={enterTenantAction}>
+                        <input type="hidden" name="tenantId" value={tenant.id} />
+                        <button
+                          type="submit"
+                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
+                        >
+                          Open
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -140,3 +140,76 @@ export async function exitTenantAction() {
   await clearActingTenantId();
   redirect("/admin");
 }
+
+export type ResetPasswordActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Record<string, string[]>;
+};
+
+const resetTenantAdminPasswordSchema = z.object({
+  tenantId: z.string().min(1),
+  userId: z.string().min(1),
+  newPassword: z.string().min(8, "Password must be at least 8 characters"),
+  confirmPassword: z.string().min(1, "Confirm the new password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+export async function resetTenantAdminPasswordAction(
+  _prev: ResetPasswordActionState,
+  formData: FormData,
+): Promise<ResetPasswordActionState> {
+  await requireRole(Role.SUPER_ADMIN);
+
+  const parsed = resetTenantAdminPasswordSchema.safeParse({
+    tenantId: formData.get("tenantId"),
+    userId: formData.get("userId"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return {
+      error: "Check the form and try again.",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { tenantId, userId, newPassword } = parsed.data;
+
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      tenantId,
+      role: Role.ADMIN,
+    },
+    select: { id: true, email: true },
+  });
+
+  if (!user) {
+    return { error: "That tenant admin could not be found." };
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  try {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      prisma.passwordResetToken.deleteMany({
+        where: { userId: user.id },
+      }),
+    ]);
+  } catch {
+    return { error: "Could not reset the password. Please try again." };
+  }
+
+  revalidatePath(`/admin/tenants/${tenantId}`);
+  return {
+    success: `Password updated for ${user.email}. Share the new temporary password securely.`,
+  };
+}
