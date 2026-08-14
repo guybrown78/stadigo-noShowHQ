@@ -91,7 +91,10 @@ Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe 
 
 ## Password reset
 
-Use **Forgot password** on the login page. In local development the reset URL is printed to the **server console** (no email provider configured yet).
+Self-serve email reset is not enabled yet.
+
+- Signed-in users can change their own password in **Settings**.
+- Tenant admins who are locked out should ask the platform owner; a SUPER_ADMIN can set a temporary password from **Tenants → Manage**.
 
 ## Production (Vercel + Neon)
 

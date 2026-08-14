@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { LoginForm } from "@/components/login-form";
@@ -14,17 +13,7 @@ export default async function LoginPage() {
   return (
     <AuthShell
       title="Sign in"
-      footer={
-        <>
-          Need a password reset?{" "}
-          <Link
-            href="/forgot-password"
-            className="font-medium text-slate-900 underline-offset-2 hover:underline"
-          >
-            Reset it here
-          </Link>
-        </>
-      }
+      footer="Need a password reset? Ask your NoShowHQ platform administrator."
     >
       <LoginForm />
     </AuthShell>

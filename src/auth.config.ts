@@ -1,11 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
-const authRoutes = ["/login", "/forgot-password", "/reset-password"];
-
 function isAuthRoute(pathname: string) {
-  return authRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
+  return pathname === "/login" || pathname.startsWith("/login/");
 }
 
 function isProtectedRoute(pathname: string) {
