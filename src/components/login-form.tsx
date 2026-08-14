@@ -1,22 +1,55 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { loginAction, type ActionState } from "@/app/(auth)/actions";
-
-const initial: ActionState = {};
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export function LoginForm() {
-  const [state, formAction, pending] = useActionState(loginAction, initial);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setPending(true);
+
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "")
+      .trim()
+      .toLowerCase();
+    const password = String(form.get("password") ?? "");
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (!result || result.error) {
+        setError("Invalid email or password.");
+        return;
+      }
+
+      router.replace("/");
+      router.refresh();
+    } catch {
+      setError("Could not sign in. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
-    <form action={formAction} className="space-y-4">
-      {state.error ? (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error ? (
         <p
           className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
           role="alert"
         >
-          {state.error}
+          {error}
         </p>
       ) : null}
 
@@ -35,9 +68,6 @@ export function LoginForm() {
           required
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
         />
-        {state.fieldErrors?.email ? (
-          <p className="mt-1 text-sm text-red-700">{state.fieldErrors.email[0]}</p>
-        ) : null}
       </div>
 
       <div>
@@ -55,11 +85,6 @@ export function LoginForm() {
           required
           className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
         />
-        {state.fieldErrors?.password ? (
-          <p className="mt-1 text-sm text-red-700">
-            {state.fieldErrors.password[0]}
-          </p>
-        ) : null}
       </div>
 
       <button

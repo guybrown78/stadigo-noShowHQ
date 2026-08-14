@@ -1,65 +1,17 @@
 "use server";
 
-import { AuthError } from "next-auth";
-import { redirect } from "next/navigation";
 import { z } from "zod";
-import { signIn, signOut } from "@/auth";
+import { signOut } from "@/auth";
 import { clearActingTenantId } from "@/lib/acting-tenant";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 import { generateRawToken, hashToken } from "@/lib/tokens";
-import { landingPathForRole } from "@/lib/authz";
-import { Role } from "@prisma/client";
-
-const loginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
 
 export type ActionState = {
   error?: string;
   success?: string;
   fieldErrors?: Record<string, string[]>;
 };
-
-export async function loginAction(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
-  });
-
-  if (!parsed.success) {
-    return {
-      error: "Check the form and try again.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const email = parsed.data.email.toLowerCase().trim();
-
-  try {
-    await signIn("credentials", {
-      email,
-      password: parsed.data.password,
-      redirect: false,
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Invalid email or password." };
-    }
-    throw error;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { role: true },
-  });
-
-  redirect(landingPathForRole(user?.role ?? Role.ADMIN));
-}
 
 export async function logoutAction() {
   await clearActingTenantId();
