@@ -93,8 +93,26 @@ Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe 
 
 Use **Forgot password** on the login page. In local development the reset URL is printed to the **server console** (no email provider configured yet).
 
-## Production notes (later)
+## Production (Vercel + Neon)
 
-- Host on **Vercel**; set `AUTH_SECRET`, `AUTH_URL`, and `DATABASE_URL`.
-- Use **Neon** pooled connection string for the app; configure Prisma `directUrl` for migrations when needed.
+Connecting Neon to Vercel only sets a database URL. It does **not** copy local users or apply Prisma tables. The production build now runs `prisma migrate deploy` and will seed a SUPER_ADMIN if those env vars are set.
+
+In the Vercel project → **Settings → Environment Variables**, set:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Neon **pooled** URL (host usually contains `-pooler`). If Prisma errors about prepared statements, append `&pgbouncer=true`. |
+| `DIRECT_URL` | Neon **unpooled / direct** URL (no `-pooler`). Required for migrations. |
+| `AUTH_SECRET` | `openssl rand -base64 32` (do not reuse the local secret if you prefer not to) |
+| `AUTH_URL` | `https://stadigo-noshowhq.vercel.app` (or your custom domain) |
+| `AUTH_TRUST_HOST` | `true` |
+| `SUPER_ADMIN_EMAIL` | Email you will sign in with on production |
+| `SUPER_ADMIN_PASSWORD` | At least 8 characters |
+| `SUPER_ADMIN_FIRST_NAME` | Optional, default `Super` |
+| `SUPER_ADMIN_LAST_NAME` | Optional, default `Admin` |
+
+Then **redeploy**. Local accounts (including `super@noshowhq.local`) do not exist on Neon until seeded.
+
+The Neon Vercel integration often also exposes `POSTGRES_URL_NON_POOLING` — copy that value into `DIRECT_URL`.
+
 - Add **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) when file uploads are built.
