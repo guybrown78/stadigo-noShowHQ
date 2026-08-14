@@ -93,8 +93,9 @@ Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe 
 
 Self-serve email reset is not enabled yet.
 
-- Signed-in users can change their own password in **Settings**.
+- Signed-in users can change their own password in **Profile** (account menu).
 - Tenant admins who are locked out should ask the platform owner; a SUPER_ADMIN can set a temporary password from **Tenants → Manage**.
+- Organisation defaults live under **Settings** (account menu).
 
 ## Production (Vercel + Neon)
 

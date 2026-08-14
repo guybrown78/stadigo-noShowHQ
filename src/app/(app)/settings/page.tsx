@@ -1,38 +1,10 @@
-import { requireTenant } from "@/lib/authz";
-import { PasswordForm } from "@/components/password-form";
-import { ProfileForm } from "@/components/profile-form";
+import { PlaceholderPage } from "@/components/placeholder-page";
 
-export default async function SettingsPage() {
-  const user = await requireTenant();
-
+export default function SettingsPage() {
   return (
-    <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-        Settings
-      </h1>
-      <p className="mt-2 text-slate-600">
-        Manage your personal profile details for this organisation.
-      </p>
-
-      <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-medium text-slate-900">My Profile</h2>
-        <p className="mt-1 mb-6 text-sm text-slate-600">
-          Update how your name appears across NoShowHQ.
-        </p>
-        <ProfileForm
-          email={user.email}
-          firstName={user.firstName}
-          lastName={user.lastName}
-        />
-      </section>
-
-      <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-medium text-slate-900">Password</h2>
-        <p className="mt-1 mb-6 text-sm text-slate-600">
-          Change the password used to sign in to this account.
-        </p>
-        <PasswordForm />
-      </section>
-    </div>
+    <PlaceholderPage
+      title="Settings"
+      description="Configure organisation defaults and preferences that NoShowHQ will use across this tenant."
+    />
   );
 }

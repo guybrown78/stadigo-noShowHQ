@@ -12,7 +12,8 @@ function isProtectedRoute(pathname: string) {
     pathname.startsWith("/events") ||
     pathname.startsWith("/ledger") ||
     pathname.startsWith("/absence") ||
-    pathname.startsWith("/settings")
+    pathname.startsWith("/settings") ||
+    pathname.startsWith("/profile")
   );
 }
 

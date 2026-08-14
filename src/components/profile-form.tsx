@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import {
   updateProfileAction,
   type ProfileActionState,
-} from "@/app/(app)/settings/actions";
+} from "@/app/profile/actions";
 
 const initial: ProfileActionState = {};
 

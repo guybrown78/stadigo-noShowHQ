@@ -7,6 +7,8 @@ const navItems = [
   { href: "/admin/tenants/new", label: "New tenant" },
 ];
 
+const accountMenuItems = [{ href: "/profile", label: "Profile" }];
+
 export function PlatformShell({
   user,
   children,
@@ -24,6 +26,7 @@ export function PlatformShell({
       brandHref="/admin"
       brandSubtitle="Platform administration"
       navItems={navItems}
+      accountMenuItems={accountMenuItems}
       user={user}
     >
       {children}

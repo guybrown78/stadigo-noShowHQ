@@ -9,6 +9,10 @@ const navItems = [
   { href: "/events", label: "Events" },
   { href: "/ledger", label: "Ledger" },
   { href: "/absence/new", label: "Log Absence" },
+];
+
+const accountMenuItems = [
+  { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -36,6 +40,7 @@ export function AppShell({
       brandHref="/dashboard"
       brandSubtitle={tenant.name}
       navItems={navItems}
+      accountMenuItems={accountMenuItems}
       user={user}
       banner={
         isActingAsTenant ? (

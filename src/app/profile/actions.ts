@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireTenant } from "@/lib/authz";
+import { requireAuth } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
@@ -29,7 +29,7 @@ export async function updateProfileAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
-  const user = await requireTenant();
+  const user = await requireAuth();
 
   const parsed = profileSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -56,8 +56,9 @@ export async function updateProfileAction(
     return { error: "Could not save your profile. Please try again." };
   }
 
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   revalidatePath("/dashboard");
+  revalidatePath("/admin");
   return { success: "Profile updated." };
 }
 
@@ -80,7 +81,7 @@ export async function updatePasswordAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
-  const sessionUser = await requireTenant();
+  const sessionUser = await requireAuth();
 
   const parsed = passwordSchema.safeParse({
     currentPassword: formData.get("currentPassword"),
@@ -131,6 +132,6 @@ export async function updatePasswordAction(
     return { error: "Could not update your password. Please try again." };
   }
 
-  revalidatePath("/settings");
+  revalidatePath("/profile");
   return { success: "Password updated." };
 }
