@@ -7,11 +7,14 @@
     "build": "prisma generate && prisma migrate deploy && tsx scripts/create-super-admin.ts --from-env && next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "create-super-admin": "tsx scripts/create-super-admin.ts"
+    "create-super-admin": "tsx scripts/create-super-admin.ts",
+    "provision-event-catalog": "tsx scripts/provision-event-catalog.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
@@ -33,7 +36,9 @@
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.9",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=22"
