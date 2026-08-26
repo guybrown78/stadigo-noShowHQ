@@ -13,32 +13,46 @@ enum Role {
   ADMIN
 }
 
+enum EventStatus {
+  PLANNED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
+  id            String         @id @default(cuid())
+  name          String
+  slug          String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users         User[]
+  eventTypes    EventType[]
+  eventSubtypes EventSubtype[]
+  venues        Venue[]
+  events        Event[]
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  firstName     String
-  lastName      String
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String
-  role          Role
-  tenantId      String?
-  tenant        Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  accounts      Account[]
-  sessions      Session[]
+  id                  String               @id @default(cuid())
+  name                String?
+  firstName           String
+  lastName            String
+  email               String               @unique
+  emailVerified       DateTime?
+  image               String?
+  passwordHash        String
+  role                Role
+  tenantId            String?
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  accounts            Account[]
+  sessions            Session[]
   passwordResetTokens PasswordResetToken[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  eventsCreated       Event[]              @relation("EventCreatedBy")
+  eventsUpdated       Event[]              @relation("EventUpdatedBy")
+  eventsDeleted       Event[]              @relation("EventDeletedBy")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@index([tenantId])
 }
@@ -86,4 +100,102 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model EventType {
+  id        String         @id @default(cuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  name      String
+  code      String
+  active    Boolean        @default(true)
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  subtypes  EventSubtype[]
+  events    Event[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, code])
+  @@index([tenantId, active])
+}
+
+model EventSubtype {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  eventTypeId String
+  eventType   EventType @relation(fields: [eventTypeId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  name        String
+  code        String
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  events      Event[]
+
+  @@unique([id, eventTypeId])
+  @@unique([tenantId, eventTypeId, code])
+  @@index([tenantId, eventTypeId, active])
+}
+
+model Venue {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  name           String
+  nameNormalized String
+  addressLine1   String?
+  townCity       String?
+  postcode       String?
+  timezone       String   @default("Europe/London")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  events         Event[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, nameNormalized])
+  @@index([tenantId, active])
+  @@index([tenantId, name])
+}
+
+model Event {
+  id               String       @id @default(cuid())
+  tenantId         String
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  reference        String?
+  name             String
+  eventTypeId      String
+  eventType        EventType    @relation(fields: [eventTypeId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  eventSubtypeId   String
+  eventSubtype     EventSubtype @relation(fields: [eventSubtypeId, eventTypeId], references: [id, eventTypeId], onDelete: Restrict)
+  venueId          String
+  venue            Venue        @relation(fields: [venueId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  eventDate        DateTime     @db.Date
+  briefingTime     String?
+  startTime        String?
+  endTime          String?
+  endsNextDay      Boolean      @default(false)
+  staffRequired    Int
+  warningFillRate  Int          @default(90)
+  criticalFillRate Int          @default(85)
+  status           EventStatus  @default(PLANNED)
+  notes            String?      @db.VarChar(2000)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  createdById      String
+  createdBy        User         @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById      String
+  updatedBy        User         @relation("EventUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedAt        DateTime?
+  deletedById      String?
+  deletedBy        User?        @relation("EventDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, deletedAt, eventDate])
+  @@index([tenantId, status])
+  @@index([tenantId, eventTypeId])
+  @@index([tenantId, name])
+  @@index([tenantId, reference])
 }

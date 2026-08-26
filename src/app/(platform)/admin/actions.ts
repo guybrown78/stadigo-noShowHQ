@@ -11,6 +11,7 @@ import {
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { provisionTenantEventCatalog } from "@/lib/events/provision";
 
 export type TenantActionState = {
   error?: string;
@@ -105,6 +106,8 @@ export async function createTenantAction(
           tenantId: tenant.id,
         },
       });
+
+      await provisionTenantEventCatalog(tx, tenant);
     });
   } catch {
     return { error: "Could not create the tenant. Please try again." };
