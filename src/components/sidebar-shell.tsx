@@ -10,6 +10,8 @@ export type SidebarNavItem = {
   label: string;
   /** Match only this exact path. Default matches the path or nested routes. */
   exact?: boolean;
+  /** Additional path prefixes treated as active, e.g. venues under Settings. */
+  alsoMatch?: string[];
 };
 
 export type AccountMenuItem = {
@@ -99,11 +101,18 @@ export function SidebarShell({
     };
   }, [accountOpen]);
 
+  function pathMatches(prefix: string) {
+    return pathname === prefix || pathname.startsWith(`${prefix}/`);
+  }
+
   function isActive(item: SidebarNavItem) {
     if (item.exact) {
       return pathname === item.href;
     }
-    return pathname === item.href || pathname.startsWith(`${item.href}/`);
+    if (pathMatches(item.href)) {
+      return true;
+    }
+    return (item.alsoMatch ?? []).some((prefix) => pathMatches(prefix));
   }
 
   const displayName = `${user.firstName} ${user.lastName}`.trim();

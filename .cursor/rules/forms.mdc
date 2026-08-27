@@ -1,0 +1,17 @@
+---
+description: Forms must share Zod rules, disable native browser validation, and show inline field errors.
+globs: src/components/**/*.tsx,src/app/**/actions.ts,src/lib/**/schema.ts
+alwaysApply: false
+---
+
+# Form validation
+
+Every data-entry form uses the same client and server Zod schema, `noValidate`, and the shared field-error UI. Do not rely on native browser validation bubbles.
+
+- Put rules in a shared schema module with a `parse*FormData(formData)` helper.
+- Validate in the server action with that helper. Use `FORM_CHECK_MESSAGE` and `flattenFieldErrors` from `@/lib/form`.
+- Wrap the server action with `withClientValidation(parse, action)` in the client form so the same schema runs before the request.
+- Use `FieldError`, `FormAlert`, `FormSuccess`, and `controlClassName` from `@/components/form`.
+- Set `aria-invalid` and `aria-describedby` on invalid controls. Required labels keep a red asterisk.
+- Confirm/delete/logout forms with no typed fields only need `FormAlert` for action failures.
+- Filter/search GET forms are not data-entry forms; do not add this pattern there.

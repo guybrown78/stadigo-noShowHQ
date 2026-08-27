@@ -3,43 +3,24 @@
 import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import {
   clearActingTenantId,
   setActingTenantId,
 } from "@/lib/acting-tenant";
 import { requireRole } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { hashPassword } from "@/lib/password";
 import { provisionTenantEventCatalog } from "@/lib/events/provision";
+import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
+import { hashPassword } from "@/lib/password";
+import {
+  parseCreateTenantFormData,
+  parseResetTenantAdminPasswordFormData,
+} from "@/lib/tenants/schema";
 
 export type TenantActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
 };
-
-const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-const createTenantSchema = z.object({
-  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .min(2, "Slug must be at least 2 characters")
-    .max(60)
-    .regex(slugRegex, "Use lowercase letters, numbers, and hyphens only"),
-  adminFirstName: z
-    .string()
-    .trim()
-    .min(1, "First name is required")
-    .max(50),
-  adminLastName: z.string().trim().min(1, "Last name is required").max(50),
-  adminEmail: z.string().trim().email("Enter a valid email address"),
-  adminPassword: z
-    .string()
-    .min(8, "Password must be at least 8 characters"),
-});
 
 export async function createTenantAction(
   _prev: TenantActionState,
@@ -47,19 +28,12 @@ export async function createTenantAction(
 ): Promise<TenantActionState> {
   await requireRole(Role.SUPER_ADMIN);
 
-  const parsed = createTenantSchema.safeParse({
-    name: formData.get("name"),
-    slug: formData.get("slug"),
-    adminFirstName: formData.get("adminFirstName"),
-    adminLastName: formData.get("adminLastName"),
-    adminEmail: formData.get("adminEmail"),
-    adminPassword: formData.get("adminPassword"),
-  });
+  const parsed = parseCreateTenantFormData(formData);
 
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
     };
   }
 
@@ -150,33 +124,18 @@ export type ResetPasswordActionState = {
   fieldErrors?: Record<string, string[]>;
 };
 
-const resetTenantAdminPasswordSchema = z.object({
-  tenantId: z.string().min(1),
-  userId: z.string().min(1),
-  newPassword: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(1, "Confirm the new password"),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
 export async function resetTenantAdminPasswordAction(
   _prev: ResetPasswordActionState,
   formData: FormData,
 ): Promise<ResetPasswordActionState> {
   await requireRole(Role.SUPER_ADMIN);
 
-  const parsed = resetTenantAdminPasswordSchema.safeParse({
-    tenantId: formData.get("tenantId"),
-    userId: formData.get("userId"),
-    newPassword: formData.get("newPassword"),
-    confirmPassword: formData.get("confirmPassword"),
-  });
+  const parsed = parseResetTenantAdminPasswordFormData(formData);
 
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
     };
   }
 

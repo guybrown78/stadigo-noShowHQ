@@ -14,7 +14,7 @@ export default function VenueNotFound() {
         href="/settings/events"
         className="mt-6 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
       >
-        Back to event settings
+        Back to venues
       </Link>
     </div>
   );

@@ -1,11 +1,14 @@
 "use client";
 
-import { useActionState, useId } from "react";
+import { useActionState, useId, useMemo } from "react";
 import {
   createVenueAction,
   updateVenueAction,
   type VenueActionState,
 } from "@/app/(app)/settings/actions";
+import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import { parseVenueFormData } from "@/lib/events/schema";
+import { withClientValidation } from "@/lib/form";
 
 export type VenueFormInitialValues = {
   name?: string;
@@ -17,21 +20,6 @@ export type VenueFormInitialValues = {
 
 const initialState: VenueActionState = {};
 
-function FieldError({
-  id,
-  messages,
-}: {
-  id: string;
-  messages?: string[];
-}) {
-  if (!messages?.length) return null;
-  return (
-    <p id={id} className="mt-1 text-sm text-red-700">
-      {messages[0]}
-    </p>
-  );
-}
-
 export function VenueForm({
   mode,
   venueId,
@@ -42,7 +30,14 @@ export function VenueForm({
   initialValues?: VenueFormInitialValues;
 }) {
   const action = mode === "create" ? createVenueAction : updateVenueAction;
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const validatedAction = useMemo(
+    () => withClientValidation(parseVenueFormData, action),
+    [action],
+  );
+  const [state, formAction, pending] = useActionState(
+    validatedAction,
+    initialState,
+  );
   const formId = useId();
 
   function errorId(name: string) {
@@ -56,14 +51,7 @@ export function VenueForm({
         <input type="hidden" name="active" value="on" />
       ) : null}
 
-      {state.error ? (
-        <p
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
+      <FormAlert>{state.error}</FormAlert>
 
       <div>
         <label
@@ -82,7 +70,7 @@ export function VenueForm({
           aria-required="true"
           aria-invalid={Boolean(state.fieldErrors?.name)}
           aria-describedby={state.fieldErrors?.name ? errorId("name") : undefined}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+          className={controlClassName("w-full")}
         />
         <FieldError id={errorId("name")} messages={state.fieldErrors?.name} />
       </div>
@@ -103,7 +91,7 @@ export function VenueForm({
           aria-describedby={
             state.fieldErrors?.addressLine1 ? errorId("address") : undefined
           }
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+          className={controlClassName("w-full")}
         />
         <FieldError
           id={errorId("address")}
@@ -125,7 +113,10 @@ export function VenueForm({
             maxLength={120}
             defaultValue={initialValues?.townCity ?? ""}
             aria-invalid={Boolean(state.fieldErrors?.townCity)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-describedby={
+              state.fieldErrors?.townCity ? errorId("town") : undefined
+            }
+            className={controlClassName("w-full")}
           />
           <FieldError
             id={errorId("town")}
@@ -145,7 +136,10 @@ export function VenueForm({
             autoComplete="postal-code"
             defaultValue={initialValues?.postcode ?? ""}
             aria-invalid={Boolean(state.fieldErrors?.postcode)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-describedby={
+              state.fieldErrors?.postcode ? errorId("postcode") : undefined
+            }
+            className={controlClassName("w-full")}
           />
           <FieldError
             id={errorId("postcode")}

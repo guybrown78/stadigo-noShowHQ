@@ -14,12 +14,12 @@ Key fields: `name`, optional tenant-unique `reference`, `eventDate` (`DATE`, Eur
 ### EventType / EventSubtype
 Per-tenant taxonomy, seeded when a tenant is provisioned (and on first Events visit for existing tenants). Subtypes belong to one type. The database enforces the pairing with a composite foreign key `(eventSubtypeId, eventTypeId)`.
 
-Default types: Sporting, Music and Entertainment, Festival, Community and Gathering, Other.
+Default types: Sporting, Music and Entertainment, Festival, Community and Gathering, Other. Sporting includes football, rugby, cricket, boxing/MMA, horse racing, marathon/road race, motorsport, tennis, and other.
 
 ### Venue
 Per-tenant venue. Names are unique after trimming and lowercasing (`nameNormalized`). Known Centre Circle venues are seeded for tenants whose name/slug matches Centre Circle.
 
-Manage the list in **Settings → Event settings**: add, edit name/address/postcode, and mark a venue inactive so it stays on past events but is hidden from the add-event form. When a search on the event form finds no match, you can create a venue there; it is saved with the event and reused next time. Inline create reuses an existing match instead of inserting a duplicate.
+Manage the list from **Events → Venues** (also linked from Settings): add, edit name/address/postcode, and mark a venue inactive so it stays on past events but is hidden from the add-event form. When a search on the event form finds no match, you can create a venue there; it is saved with the event and reused next time. Inline create reuses an existing match instead of inserting a duplicate.
 
 ### EventImport
 Audit record for a bulk upload. Stores the initiator, sanitised filename, file hash, preflight counts, venue resolution counts, created counts, status and timestamps. Child `EventImportRow` and `EventImportVenue` rows hold mapping and validation results for review. The raw spreadsheet is not stored.

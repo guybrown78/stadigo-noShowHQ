@@ -7,12 +7,12 @@ export default function NewVenuePage() {
   return (
     <div>
       <p className="text-sm text-slate-500">
-        <Link href="/settings" className="hover:underline">
-          Settings
+        <Link href="/events" className="hover:underline">
+          Events
         </Link>
         <span aria-hidden="true"> / </span>
         <Link href="/settings/events" className="hover:underline">
-          Event settings
+          Venues
         </Link>
         <span aria-hidden="true"> / </span>
         Add venue

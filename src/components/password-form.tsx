@@ -1,104 +1,120 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId, useMemo } from "react";
 import {
   updatePasswordAction,
   type ProfileActionState,
 } from "@/app/profile/actions";
+import {
+  FieldError,
+  FormAlert,
+  FormSuccess,
+  controlClassName,
+} from "@/components/form";
+import { parsePasswordFormData } from "@/lib/account/schema";
+import { withClientValidation } from "@/lib/form";
 
 const initial: ProfileActionState = {};
 
 export function PasswordForm() {
+  const formId = useId();
+  const validatedAction = useMemo(
+    () => withClientValidation(parsePasswordFormData, updatePasswordAction),
+    [],
+  );
   const [state, formAction, pending] = useActionState(
-    updatePasswordAction,
+    validatedAction,
     initial,
   );
 
+  function errorId(name: string) {
+    return `${formId}-${name}-error`;
+  }
+
   return (
-    <form action={formAction} className="max-w-lg space-y-4">
-      {state.error ? (
-        <p
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          {state.success}
-        </p>
-      ) : null}
+    <form action={formAction} className="max-w-lg space-y-4" noValidate>
+      <FormAlert>{state.error}</FormAlert>
+      <FormSuccess>{state.success}</FormSuccess>
 
       <div>
         <label
-          htmlFor="currentPassword"
+          htmlFor={`${formId}-currentPassword`}
           className="mb-1 block text-sm font-medium text-slate-700"
         >
           Current password
         </label>
         <input
-          id="currentPassword"
+          id={`${formId}-currentPassword`}
           name="currentPassword"
           type="password"
           autoComplete="current-password"
           required
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+          aria-invalid={Boolean(state.fieldErrors?.currentPassword)}
+          aria-describedby={
+            state.fieldErrors?.currentPassword
+              ? errorId("currentPassword")
+              : undefined
+          }
+          className={controlClassName("w-full")}
         />
-        {state.fieldErrors?.currentPassword ? (
-          <p className="mt-1 text-sm text-red-700">
-            {state.fieldErrors.currentPassword[0]}
-          </p>
-        ) : null}
+        <FieldError
+          id={errorId("currentPassword")}
+          messages={state.fieldErrors?.currentPassword}
+        />
       </div>
 
       <div>
         <label
-          htmlFor="newPassword"
+          htmlFor={`${formId}-newPassword`}
           className="mb-1 block text-sm font-medium text-slate-700"
         >
           New password
         </label>
         <input
-          id="newPassword"
+          id={`${formId}-newPassword`}
           name="newPassword"
           type="password"
           autoComplete="new-password"
           required
           minLength={8}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+          aria-invalid={Boolean(state.fieldErrors?.newPassword)}
+          aria-describedby={
+            state.fieldErrors?.newPassword ? errorId("newPassword") : undefined
+          }
+          className={controlClassName("w-full")}
         />
-        {state.fieldErrors?.newPassword ? (
-          <p className="mt-1 text-sm text-red-700">
-            {state.fieldErrors.newPassword[0]}
-          </p>
-        ) : null}
+        <FieldError
+          id={errorId("newPassword")}
+          messages={state.fieldErrors?.newPassword}
+        />
       </div>
 
       <div>
         <label
-          htmlFor="confirmPassword"
+          htmlFor={`${formId}-confirmPassword`}
           className="mb-1 block text-sm font-medium text-slate-700"
         >
           Confirm new password
         </label>
         <input
-          id="confirmPassword"
+          id={`${formId}-confirmPassword`}
           name="confirmPassword"
           type="password"
           autoComplete="new-password"
           required
           minLength={8}
-          className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+          aria-invalid={Boolean(state.fieldErrors?.confirmPassword)}
+          aria-describedby={
+            state.fieldErrors?.confirmPassword
+              ? errorId("confirmPassword")
+              : undefined
+          }
+          className={controlClassName("w-full")}
         />
-        {state.fieldErrors?.confirmPassword ? (
-          <p className="mt-1 text-sm text-red-700">
-            {state.fieldErrors.confirmPassword[0]}
-          </p>
-        ) : null}
+        <FieldError
+          id={errorId("confirmPassword")}
+          messages={state.fieldErrors?.confirmPassword}
+        />
       </div>
 
       <button

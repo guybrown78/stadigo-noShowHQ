@@ -8,6 +8,7 @@ import {
   updateEventAction,
   type EventActionState,
 } from "@/app/(app)/events/actions";
+import { FieldError, FormAlert, controlClassName } from "@/components/form";
 import {
   DEFAULT_CRITICAL_FILL_RATE,
   DEFAULT_WARNING_FILL_RATE,
@@ -21,6 +22,8 @@ import {
   minuteOptions,
   splitTime,
 } from "@/lib/events/dates";
+import { parseEventFormData } from "@/lib/events/schema";
+import { withClientValidation } from "@/lib/form";
 
 export type EventFormTypeOption = {
   id: string;
@@ -74,8 +77,9 @@ function HourMinuteFields({
   const { hour, minute } = splitTime(value);
   const hours = hourOptions();
   const minutes = minuteOptions(value);
-  const selectClass =
-    "min-w-[4.5rem] rounded-md border border-slate-300 bg-white px-2 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2";
+  const selectClass = controlClassName(
+    "min-w-[4.5rem] bg-white disabled:bg-slate-50 disabled:text-slate-500",
+  );
 
   function commit(nextHour: string, nextMinute: string) {
     onChange(joinTime(nextHour, nextMinute));
@@ -147,21 +151,6 @@ function HourMinuteFields({
 
 const initialState: EventActionState = {};
 
-function FieldError({
-  id,
-  messages,
-}: {
-  id: string;
-  messages?: string[];
-}) {
-  if (!messages?.length) return null;
-  return (
-    <p id={id} className="mt-1 text-sm text-red-700">
-      {messages[0]}
-    </p>
-  );
-}
-
 export function EventForm({
   mode,
   eventId,
@@ -176,7 +165,14 @@ export function EventForm({
   initialValues?: EventFormInitialValues;
 }) {
   const action = mode === "create" ? createEventAction : updateEventAction;
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const validatedAction = useMemo(
+    () => withClientValidation(parseEventFormData, action),
+    [action],
+  );
+  const [state, formAction, pending] = useActionState(
+    validatedAction,
+    initialState,
+  );
   const formId = useId();
 
   const [eventTypeId, setEventTypeId] = useState(
@@ -233,14 +229,7 @@ export function EventForm({
     <form action={formAction} className="space-y-8" noValidate>
       {eventId ? <input type="hidden" name="eventId" value={eventId} /> : null}
 
-      {state.error ? (
-        <p
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <FormAlert>{state.error}</FormAlert> : null}
 
       <fieldset className="space-y-4">
         <legend className="text-base font-semibold text-slate-900">
@@ -261,7 +250,7 @@ export function EventForm({
             aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.name)}
             aria-describedby={state.fieldErrors?.name ? errorId("name") : undefined}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            className={controlClassName("w-full")}
           />
           <FieldError id={errorId("name")} messages={state.fieldErrors?.name} />
         </div>
@@ -277,7 +266,7 @@ export function EventForm({
             defaultValue={initialValues?.reference ?? ""}
             aria-invalid={Boolean(state.fieldErrors?.reference)}
             aria-describedby={state.fieldErrors?.reference ? errorId("reference") : undefined}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            className={controlClassName("w-full")}
           />
           <FieldError id={errorId("reference")} messages={state.fieldErrors?.reference} />
         </div>
@@ -306,7 +295,7 @@ export function EventForm({
                     : "",
                 );
               }}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              className={controlClassName("w-full bg-white")}
             >
               <option value="">Select type</option>
               {types.map((type) => (
@@ -332,7 +321,9 @@ export function EventForm({
               aria-invalid={Boolean(state.fieldErrors?.eventSubtypeId)}
               aria-describedby={state.fieldErrors?.eventSubtypeId ? errorId("subtype") : undefined}
               onChange={(event) => setEventSubtypeId(event.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2 disabled:bg-slate-50 disabled:text-slate-500"
+              className={controlClassName(
+                "w-full bg-white disabled:bg-slate-50 disabled:text-slate-500",
+              )}
             >
               <option value="">
                 {eventTypeId ? "Select subtype" : "Select a type first"}
@@ -358,7 +349,7 @@ export function EventForm({
             defaultValue={initialValues?.status ?? "PLANNED"}
             aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.status)}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2 sm:max-w-xs"
+            className={controlClassName("w-full bg-white sm:max-w-xs")}
           >
             {EVENT_STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -385,7 +376,7 @@ export function EventForm({
             value={venueQuery}
             onChange={(event) => setVenueQuery(event.target.value)}
             placeholder="Filter by venue name or postcode"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            className={controlClassName("w-full")}
           />
         </div>
 
@@ -394,7 +385,7 @@ export function EventForm({
             <input type="hidden" name="venueId" value="" />
             <p className="text-sm font-medium text-slate-900">New venue</p>
             <p className="text-sm text-slate-600">
-              This venue is saved with the event and added to Event settings for
+              This venue is saved with the event and added to the venue list for
               next time.
             </p>
             <div>
@@ -412,7 +403,7 @@ export function EventForm({
                 aria-required="true"
                 aria-invalid={Boolean(state.fieldErrors?.newVenueName)}
                 aria-describedby={state.fieldErrors?.newVenueName ? errorId("newVenue") : undefined}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+                className={controlClassName("w-full bg-white")}
               />
               <FieldError id={errorId("newVenue")} messages={state.fieldErrors?.newVenueName} />
             </div>
@@ -425,7 +416,7 @@ export function EventForm({
                 name="newVenueAddressLine1"
                 maxLength={160}
                 aria-invalid={Boolean(state.fieldErrors?.newVenueAddressLine1)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+                className={controlClassName("w-full bg-white")}
               />
               <FieldError
                 id={errorId("newAddress")}
@@ -441,7 +432,7 @@ export function EventForm({
                   id={`${formId}-new-town`}
                   name="newVenueTownCity"
                   maxLength={120}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+                  className={controlClassName("w-full bg-white")}
                 />
                 <FieldError
                   id={errorId("newTown")}
@@ -456,7 +447,7 @@ export function EventForm({
                   id={`${formId}-new-postcode`}
                   name="newVenuePostcode"
                   autoComplete="postal-code"
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+                  className={controlClassName("w-full bg-white")}
                 />
               </div>
             </div>
@@ -482,7 +473,7 @@ export function EventForm({
                 aria-required="true"
                 aria-invalid={Boolean(state.fieldErrors?.venueId)}
                 aria-describedby={state.fieldErrors?.venueId ? errorId("venue") : undefined}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+                className={controlClassName("w-full bg-white")}
               >
                 <option value="">Select venue</option>
                 {filteredVenues.map((venue) => (
@@ -528,7 +519,7 @@ export function EventForm({
             <p className="mt-2 text-xs text-slate-500">
               Manage the full venue list in{" "}
               <Link href="/settings/events" className="font-medium underline">
-                Event settings
+                Venues
               </Link>
               .
             </p>
@@ -548,7 +539,7 @@ export function EventForm({
             aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.eventDate)}
             aria-describedby={state.fieldErrors?.eventDate ? errorId("date") : undefined}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2 sm:max-w-xs"
+            className={controlClassName("w-full sm:max-w-xs")}
           />
           <FieldError id={errorId("date")} messages={state.fieldErrors?.eventDate} />
         </div>
@@ -676,7 +667,7 @@ export function EventForm({
             aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.staffRequired)}
             aria-describedby={state.fieldErrors?.staffRequired ? errorId("staff") : undefined}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2 sm:max-w-xs"
+            className={controlClassName("w-full sm:max-w-xs")}
           />
           <FieldError id={errorId("staff")} messages={state.fieldErrors?.staffRequired} />
         </div>
@@ -698,7 +689,7 @@ export function EventForm({
               defaultValue={initialValues?.warningFillRate ?? DEFAULT_WARNING_FILL_RATE}
               aria-required="true"
               aria-invalid={Boolean(state.fieldErrors?.warningFillRate)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              className={controlClassName("w-full")}
             />
             <FieldError id={errorId("warning")} messages={state.fieldErrors?.warningFillRate} />
           </div>
@@ -719,7 +710,7 @@ export function EventForm({
               aria-required="true"
               aria-invalid={Boolean(state.fieldErrors?.criticalFillRate)}
               aria-describedby={state.fieldErrors?.criticalFillRate ? errorId("critical") : undefined}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              className={controlClassName("w-full")}
             />
             <FieldError id={errorId("critical")} messages={state.fieldErrors?.criticalFillRate} />
           </div>
@@ -739,7 +730,7 @@ export function EventForm({
             maxLength={2000}
             defaultValue={initialValues?.notes ?? ""}
             aria-invalid={Boolean(state.fieldErrors?.notes)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            className={controlClassName("w-full")}
           />
           <FieldError id={errorId("notes")} messages={state.fieldErrors?.notes} />
         </div>

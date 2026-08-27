@@ -14,6 +14,7 @@ import { eventListQuerySchema, type EventListQuery } from "@/lib/events/schema";
 import { eventsListHref } from "@/lib/events/url";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
+import { EventsSectionNav } from "@/components/events/events-section-nav";
 
 export const metadata = { title: "Events" };
 
@@ -88,6 +89,7 @@ export default async function EventsPage({
           </Link>
         </div>
       </div>
+      <EventsSectionNav current="events" />
 
       {deleted ? (
         <p
@@ -266,6 +268,12 @@ export default async function EventsPage({
                   className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
                 >
                   Import events
+                </Link>
+                <Link
+                  href="/settings/events"
+                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Venues
                 </Link>
               </div>
             </>

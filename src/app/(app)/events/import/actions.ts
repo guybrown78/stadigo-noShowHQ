@@ -12,34 +12,29 @@ import {
   confirmImportVenues,
   createImportFromUpload,
 } from "@/lib/events/import/service";
+import { parseImportUploadFormData } from "@/lib/events/import/upload";
+import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
 
 export type ImportActionState = {
   error?: string;
+  fieldErrors?: Record<string, string[]>;
 };
-
-async function readUploadFile(formData: FormData): Promise<
-  | { ok: true; fileName: string; bytes: Uint8Array }
-  | { ok: false; error: string }
-> {
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Choose an .xlsx or CSV file to upload." };
-  }
-  const buffer = Buffer.from(await file.arrayBuffer());
-  return { ok: true, fileName: file.name, bytes: buffer };
-}
 
 export async function uploadImportAction(
   _prev: ImportActionState,
   formData: FormData,
 ): Promise<ImportActionState> {
   const user = await requireTenant();
-  const uploaded = await readUploadFile(formData);
-  if (!uploaded.ok) {
-    return { error: uploaded.error };
+  const parsed = parseImportUploadFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
   }
 
-  const replaceImportId = String(formData.get("replaceImportId") ?? "");
+  const bytes = new Uint8Array(await parsed.data.file.arrayBuffer());
+  const replaceImportId = parsed.data.replaceImportId;
   if (replaceImportId) {
     try {
       await cancelImport(prisma, {
@@ -58,8 +53,8 @@ export async function uploadImportAction(
     const result = await createImportFromUpload(prisma, {
       tenantId: user.tenantId,
       userId: user.id,
-      fileName: uploaded.fileName,
-      bytes: uploaded.bytes,
+      fileName: parsed.data.file.name,
+      bytes,
     });
     if (!result.ok) {
       return { error: result.error };

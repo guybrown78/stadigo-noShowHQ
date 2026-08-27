@@ -1,10 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo } from "react";
 import {
   resetTenantAdminPasswordAction,
   type ResetPasswordActionState,
 } from "@/app/(platform)/admin/actions";
+import {
+  FieldError,
+  FormAlert,
+  FormSuccess,
+  controlClassName,
+} from "@/components/form";
+import { withClientValidation } from "@/lib/form";
+import { parseResetTenantAdminPasswordFormData } from "@/lib/tenants/schema";
 
 const initial: ResetPasswordActionState = {};
 
@@ -17,35 +25,33 @@ export function ResetAdminPasswordForm({
   userId: string;
   userLabel: string;
 }) {
+  const validatedAction = useMemo(
+    () =>
+      withClientValidation(
+        parseResetTenantAdminPasswordFormData,
+        resetTenantAdminPasswordAction,
+      ),
+    [],
+  );
   const [state, formAction, pending] = useActionState(
-    resetTenantAdminPasswordAction,
+    validatedAction,
     initial,
   );
 
   return (
-    <form action={formAction} className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4">
+    <form
+      action={formAction}
+      className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4"
+      noValidate
+    >
       <input type="hidden" name="tenantId" value={tenantId} />
       <input type="hidden" name="userId" value={userId} />
       <p className="text-sm font-medium text-slate-900">
         Reset password for {userLabel}
       </p>
 
-      {state.error ? (
-        <p
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
-      {state.success ? (
-        <p
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          {state.success}
-        </p>
-      ) : null}
+      <FormAlert>{state.error}</FormAlert>
+      <FormSuccess>{state.success}</FormSuccess>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
@@ -62,13 +68,18 @@ export function ResetAdminPasswordForm({
             autoComplete="new-password"
             required
             minLength={8}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.newPassword)}
+            aria-describedby={
+              state.fieldErrors?.newPassword
+                ? `newPassword-${userId}-error`
+                : undefined
+            }
+            className={controlClassName("w-full bg-white")}
           />
-          {state.fieldErrors?.newPassword ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.newPassword[0]}
-            </p>
-          ) : null}
+          <FieldError
+            id={`newPassword-${userId}-error`}
+            messages={state.fieldErrors?.newPassword}
+          />
         </div>
         <div>
           <label
@@ -84,13 +95,18 @@ export function ResetAdminPasswordForm({
             autoComplete="new-password"
             required
             minLength={8}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.confirmPassword)}
+            aria-describedby={
+              state.fieldErrors?.confirmPassword
+                ? `confirmPassword-${userId}-error`
+                : undefined
+            }
+            className={controlClassName("w-full bg-white")}
           />
-          {state.fieldErrors?.confirmPassword ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.confirmPassword[0]}
-            </p>
-          ) : null}
+          <FieldError
+            id={`confirmPassword-${userId}-error`}
+            messages={state.fieldErrors?.confirmPassword}
+          />
         </div>
       </div>
 
