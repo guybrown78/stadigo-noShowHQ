@@ -1,29 +1,34 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId, useMemo } from "react";
 import {
   createTenantAction,
   type TenantActionState,
 } from "@/app/(platform)/admin/actions";
+import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import { withClientValidation } from "@/lib/form";
+import { parseCreateTenantFormData } from "@/lib/tenants/schema";
 
 const initial: TenantActionState = {};
 
 export function CreateTenantForm() {
+  const formId = useId();
+  const validatedAction = useMemo(
+    () => withClientValidation(parseCreateTenantFormData, createTenantAction),
+    [],
+  );
   const [state, formAction, pending] = useActionState(
-    createTenantAction,
+    validatedAction,
     initial,
   );
 
+  function errorId(name: string) {
+    return `${formId}-${name}-error`;
+  }
+
   return (
-    <form action={formAction} className="max-w-xl space-y-4">
-      {state.error ? (
-        <p
-          className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
+    <form action={formAction} className="max-w-xl space-y-4" noValidate>
+      <FormAlert>{state.error}</FormAlert>
 
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-slate-900">
@@ -31,42 +36,42 @@ export function CreateTenantForm() {
         </legend>
         <div>
           <label
-            htmlFor="name"
+            htmlFor={`${formId}-name`}
             className="mb-1 block text-sm font-medium text-slate-700"
           >
             Name
           </label>
           <input
-            id="name"
+            id={`${formId}-name`}
             name="name"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.name)}
+            aria-describedby={
+              state.fieldErrors?.name ? errorId("name") : undefined
+            }
+            className={controlClassName("w-full")}
           />
-          {state.fieldErrors?.name ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.name[0]}
-            </p>
-          ) : null}
+          <FieldError id={errorId("name")} messages={state.fieldErrors?.name} />
         </div>
         <div>
           <label
-            htmlFor="slug"
+            htmlFor={`${formId}-slug`}
             className="mb-1 block text-sm font-medium text-slate-700"
           >
             Slug
           </label>
           <input
-            id="slug"
+            id={`${formId}-slug`}
             name="slug"
             required
             placeholder="acme-events"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.slug)}
+            aria-describedby={
+              state.fieldErrors?.slug ? errorId("slug") : undefined
+            }
+            className={controlClassName("w-full")}
           />
-          {state.fieldErrors?.slug ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.slug[0]}
-            </p>
-          ) : null}
+          <FieldError id={errorId("slug")} messages={state.fieldErrors?.slug} />
         </div>
       </fieldset>
 
@@ -77,73 +82,101 @@ export function CreateTenantForm() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label
-              htmlFor="adminFirstName"
+              htmlFor={`${formId}-adminFirstName`}
               className="mb-1 block text-sm font-medium text-slate-700"
             >
               First name
             </label>
             <input
-              id="adminFirstName"
+              id={`${formId}-adminFirstName`}
               name="adminFirstName"
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              aria-invalid={Boolean(state.fieldErrors?.adminFirstName)}
+              aria-describedby={
+                state.fieldErrors?.adminFirstName
+                  ? errorId("adminFirstName")
+                  : undefined
+              }
+              className={controlClassName("w-full")}
+            />
+            <FieldError
+              id={errorId("adminFirstName")}
+              messages={state.fieldErrors?.adminFirstName}
             />
           </div>
           <div>
             <label
-              htmlFor="adminLastName"
+              htmlFor={`${formId}-adminLastName`}
               className="mb-1 block text-sm font-medium text-slate-700"
             >
               Last name
             </label>
             <input
-              id="adminLastName"
+              id={`${formId}-adminLastName`}
               name="adminLastName"
               required
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              aria-invalid={Boolean(state.fieldErrors?.adminLastName)}
+              aria-describedby={
+                state.fieldErrors?.adminLastName
+                  ? errorId("adminLastName")
+                  : undefined
+              }
+              className={controlClassName("w-full")}
+            />
+            <FieldError
+              id={errorId("adminLastName")}
+              messages={state.fieldErrors?.adminLastName}
             />
           </div>
         </div>
         <div>
           <label
-            htmlFor="adminEmail"
+            htmlFor={`${formId}-adminEmail`}
             className="mb-1 block text-sm font-medium text-slate-700"
           >
             Email
           </label>
           <input
-            id="adminEmail"
+            id={`${formId}-adminEmail`}
             name="adminEmail"
             type="email"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.adminEmail)}
+            aria-describedby={
+              state.fieldErrors?.adminEmail ? errorId("adminEmail") : undefined
+            }
+            className={controlClassName("w-full")}
           />
-          {state.fieldErrors?.adminEmail ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.adminEmail[0]}
-            </p>
-          ) : null}
+          <FieldError
+            id={errorId("adminEmail")}
+            messages={state.fieldErrors?.adminEmail}
+          />
         </div>
         <div>
           <label
-            htmlFor="adminPassword"
+            htmlFor={`${formId}-adminPassword`}
             className="mb-1 block text-sm font-medium text-slate-700"
           >
             Temporary password
           </label>
           <input
-            id="adminPassword"
+            id={`${formId}-adminPassword`}
             name="adminPassword"
             type="password"
             required
             minLength={8}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            aria-invalid={Boolean(state.fieldErrors?.adminPassword)}
+            aria-describedby={
+              state.fieldErrors?.adminPassword
+                ? errorId("adminPassword")
+                : undefined
+            }
+            className={controlClassName("w-full")}
           />
-          {state.fieldErrors?.adminPassword ? (
-            <p className="mt-1 text-sm text-red-700">
-              {state.fieldErrors.adminPassword[0]}
-            </p>
-          ) : null}
+          <FieldError
+            id={errorId("adminPassword")}
+            messages={state.fieldErrors?.adminPassword}
+          />
         </div>
       </fieldset>
 

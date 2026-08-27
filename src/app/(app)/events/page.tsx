@@ -14,6 +14,7 @@ import { eventListQuerySchema, type EventListQuery } from "@/lib/events/schema";
 import { eventsListHref } from "@/lib/events/url";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
+import { EventsSectionNav } from "@/components/events/events-section-nav";
 
 export const metadata = { title: "Events" };
 
@@ -73,13 +74,22 @@ export default async function EventsPage({
             recorded against the right fixture later.
           </p>
         </div>
-        <Link
-          href="/events/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Add event
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/events/import"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Import events
+          </Link>
+          <Link
+            href="/events/new"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Add event
+          </Link>
+        </div>
       </div>
+      <EventsSectionNav current="events" />
 
       {deleted ? (
         <p
@@ -246,12 +256,26 @@ export default async function EventsPage({
                 Add your first event to start tracking fixtures, venues, and
                 staffing requirements.
               </p>
-              <Link
-                href="/events/new"
-                className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Add your first event
-              </Link>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link
+                  href="/events/new"
+                  className="inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Add your first event
+                </Link>
+                <Link
+                  href="/events/import"
+                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Import events
+                </Link>
+                <Link
+                  href="/settings/events"
+                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Venues
+                </Link>
+              </div>
             </>
           )}
         </div>

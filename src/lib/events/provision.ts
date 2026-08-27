@@ -21,7 +21,10 @@ export async function provisionTenantEventCatalog(
           code: typeSeed.code,
         },
       },
-      update: {},
+      update: {
+        name: typeSeed.name,
+        sortOrder: typeIndex,
+      },
       create: {
         tenantId: tenant.id,
         name: typeSeed.name,
@@ -40,7 +43,10 @@ export async function provisionTenantEventCatalog(
             code: subtypeSeed.code,
           },
         },
-        update: {},
+        update: {
+          name: subtypeSeed.name,
+          sortOrder: subtypeIndex,
+        },
         create: {
           tenantId: tenant.id,
           eventTypeId: eventType.id,

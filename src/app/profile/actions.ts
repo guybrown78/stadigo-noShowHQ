@@ -1,9 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
+import {
+  parsePasswordFormData,
+  parseProfileFormData,
+} from "@/lib/account/schema";
 import { requireAuth } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
 import { hashPassword, verifyPassword } from "@/lib/password";
 
 export type ProfileActionState = {
@@ -12,34 +16,18 @@ export type ProfileActionState = {
   fieldErrors?: Record<string, string[]>;
 };
 
-const profileSchema = z.object({
-  firstName: z
-    .string()
-    .trim()
-    .min(1, "First name is required")
-    .max(50, "First name is too long"),
-  lastName: z
-    .string()
-    .trim()
-    .min(1, "Last name is required")
-    .max(50, "Last name is too long"),
-});
-
 export async function updateProfileAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
   const user = await requireAuth();
 
-  const parsed = profileSchema.safeParse({
-    firstName: formData.get("firstName"),
-    lastName: formData.get("lastName"),
-  });
+  const parsed = parseProfileFormData(formData);
 
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
     };
   }
 
@@ -62,37 +50,18 @@ export async function updateProfileAction(
   return { success: "Profile updated." };
 }
 
-const passwordSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z.string().min(8, "Password must be at least 8 characters"),
-    confirmPassword: z.string().min(1, "Confirm your new password"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-  .refine((data) => data.currentPassword !== data.newPassword, {
-    message: "Choose a password that is different from your current one",
-    path: ["newPassword"],
-  });
-
 export async function updatePasswordAction(
   _prev: ProfileActionState,
   formData: FormData,
 ): Promise<ProfileActionState> {
   const sessionUser = await requireAuth();
 
-  const parsed = passwordSchema.safeParse({
-    currentPassword: formData.get("currentPassword"),
-    newPassword: formData.get("newPassword"),
-    confirmPassword: formData.get("confirmPassword"),
-  });
+  const parsed = parsePasswordFormData(formData);
 
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
     };
   }
 

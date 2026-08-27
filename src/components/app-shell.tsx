@@ -6,7 +6,7 @@ import { SidebarShell } from "@/components/sidebar-shell";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/staff", label: "Staff" },
-  { href: "/events", label: "Events" },
+  { href: "/events", label: "Events", alsoMatch: ["/settings/events"] },
   { href: "/ledger", label: "Ledger" },
   { href: "/absence/new", label: "Log Absence" },
 ];

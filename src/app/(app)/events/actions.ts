@@ -6,6 +6,7 @@ import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { EventAccessError } from "@/lib/events/errors";
 import { flattenFieldErrors, parseEventFormData } from "@/lib/events/schema";
+import { FORM_CHECK_MESSAGE } from "@/lib/form";
 import { createEvent, deleteEvent, updateEvent } from "@/lib/events/service";
 
 export type EventActionState = {
@@ -22,7 +23,7 @@ export async function createEventAction(
 
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
+      error: FORM_CHECK_MESSAGE,
       fieldErrors: flattenFieldErrors(parsed.error),
     };
   }
@@ -54,7 +55,7 @@ export async function updateEventAction(
   const parsed = parseEventFormData(formData);
   if (!parsed.success) {
     return {
-      error: "Check the form and try again.",
+      error: FORM_CHECK_MESSAGE,
       fieldErrors: flattenFieldErrors(parsed.error),
     };
   }

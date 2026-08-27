@@ -33,3 +33,29 @@ export function venueSettingsHref(
   const qs = params.toString();
   return qs ? `/settings/events?${qs}` : "/settings/events";
 }
+
+export function importErrorsHref(
+  importId: string,
+  query: { q?: string; page?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  const qs = params.toString();
+  return qs
+    ? `/events/import/${importId}/errors?${qs}`
+    : `/events/import/${importId}/errors`;
+}
+
+export function importConfirmHref(
+  importId: string,
+  query: { page?: number; error?: string } = {},
+): string {
+  const params = new URLSearchParams();
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  if (query.error) params.set("error", query.error);
+  const qs = params.toString();
+  return qs
+    ? `/events/import/${importId}/confirm?${qs}`
+    : `/events/import/${importId}/confirm`;
+}

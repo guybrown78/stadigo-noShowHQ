@@ -90,7 +90,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 | `SUPER_ADMIN` | `/admin` platform area — list/create tenants and initial admins; **Open** a tenant to view its app shell |
 | `ADMIN` | Tenant shell — `/dashboard`, `/staff`, `/events`, `/ledger`, `/absence/new`, `/settings` |
 
-Events are tenant-isolated records (type, subtype, venue, date, staffing, risk thresholds). See [docs/events.md](docs/events.md). New tenants receive the standard type/subtype catalogue automatically; existing tenants are filled in on first visit to Events, or via `npm run provision-event-catalog`. Venues are managed in **Settings → Event settings**, and can also be added from the create-event form when a search finds no match.
+Events are tenant-isolated records (type, subtype, venue, date, staffing, risk thresholds). See [docs/events.md](docs/events.md). New tenants receive the standard type/subtype catalogue automatically; existing tenants are filled in on first visit to Events, or via `npm run provision-event-catalog`. Venues are managed from **Events → Venues** (also linked from Settings), and can also be added from the create-event form when a search finds no match.
 
 Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe not-found response.
 

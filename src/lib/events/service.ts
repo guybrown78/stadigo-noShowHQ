@@ -1,13 +1,8 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { DEFAULT_TIMEZONE } from "@/lib/events/catalog";
 import { parseLocalDate } from "@/lib/events/dates";
-import {
-  normalizeUkPostcode,
-  normalizeVenueName,
-  normalizeVenueNameKey,
-} from "@/lib/events/normalize";
 import { EventAccessError } from "@/lib/events/errors";
 import type { EventInput } from "@/lib/events/schema";
+import { findOrCreateVenue } from "@/lib/events/venues";
 
 export { EventAccessError };
 
@@ -28,7 +23,7 @@ function uniqueTarget(error: Prisma.PrismaClientKnownRequestError): string[] {
   return [];
 }
 
-async function assertTypeAndSubtype(
+export async function assertTypeAndSubtype(
   db: DbClient,
   tenantId: string,
   eventTypeId: string,
@@ -75,63 +70,20 @@ async function resolveVenue(
   | { ok: false; fieldErrors: Record<string, string[]> }
 > {
   if (input.newVenueName) {
-    const name = normalizeVenueName(input.newVenueName);
-    const nameNormalized = normalizeVenueNameKey(name);
-    const postcode = input.newVenuePostcode
-      ? normalizeUkPostcode(input.newVenuePostcode)
-      : null;
-
-    const existing = await db.venue.findUnique({
-      where: {
-        tenantId_nameNormalized: { tenantId, nameNormalized },
+    const created = await findOrCreateVenue(db, {
+      tenantId,
+      input: {
+        name: input.newVenueName,
+        addressLine1: input.newVenueAddressLine1,
+        townCity: input.newVenueTownCity,
+        postcode: input.newVenuePostcode,
       },
+      enrichInactive: true,
     });
-
-    if (existing) {
-      if (!existing.active) {
-        await db.venue.update({
-          where: { id: existing.id },
-          data: {
-            active: true,
-            postcode: postcode ?? existing.postcode,
-            addressLine1: input.newVenueAddressLine1 ?? existing.addressLine1,
-            townCity: input.newVenueTownCity ?? existing.townCity,
-          },
-        });
-      }
-      return { ok: true, venueId: existing.id };
+    if (!created.ok) {
+      return { ok: false, fieldErrors: created.fieldErrors };
     }
-
-    try {
-      const created = await db.venue.create({
-        data: {
-          tenantId,
-          name,
-          nameNormalized,
-          addressLine1: input.newVenueAddressLine1,
-          townCity: input.newVenueTownCity,
-          postcode,
-          timezone: DEFAULT_TIMEZONE,
-          active: true,
-        },
-      });
-      return { ok: true, venueId: created.id };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      ) {
-        const raced = await db.venue.findUnique({
-          where: {
-            tenantId_nameNormalized: { tenantId, nameNormalized },
-          },
-        });
-        if (raced) {
-          return { ok: true, venueId: raced.id };
-        }
-      }
-      throw error;
-    }
+    return { ok: true, venueId: created.venueId };
   }
 
   if (!input.venueId) {
@@ -155,7 +107,7 @@ async function resolveVenue(
   return { ok: true, venueId: venue.id };
 }
 
-function eventWriteData(input: EventInput, venueId: string) {
+export function eventWriteData(input: EventInput, venueId: string) {
   const eventDate = parseLocalDate(input.eventDate);
   if (!eventDate) {
     throw new Error("Invalid event date");
@@ -220,6 +172,81 @@ export async function createEvent(
     return { ok: true, id: event.id };
   } catch (error) {
     return mapWriteError(error);
+  }
+}
+
+export async function createEventsBatch(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    items: { input: EventInput; venueId: string }[];
+  },
+): Promise<
+  | { ok: true; ids: string[] }
+  | { ok: false; error: string; fieldErrors?: Record<string, string[]> }
+> {
+  const taxonomyPairs = new Map<string, { typeId: string; subtypeId: string }>();
+  const venueIds = new Set<string>();
+  for (const item of params.items) {
+    taxonomyPairs.set(
+      `${item.input.eventTypeId}:${item.input.eventSubtypeId}`,
+      {
+        typeId: item.input.eventTypeId,
+        subtypeId: item.input.eventSubtypeId,
+      },
+    );
+    venueIds.add(item.venueId);
+  }
+
+  for (const pair of taxonomyPairs.values()) {
+    const taxonomy = await assertTypeAndSubtype(
+      db,
+      params.tenantId,
+      pair.typeId,
+      pair.subtypeId,
+    );
+    if (!taxonomy.ok) {
+      return {
+        ok: false,
+        error: "Check the form and try again.",
+        fieldErrors: taxonomy.fieldErrors,
+      };
+    }
+  }
+
+  const venues = await db.venue.findMany({
+    where: {
+      tenantId: params.tenantId,
+      id: { in: [...venueIds] },
+      active: true,
+    },
+    select: { id: true },
+  });
+  if (venues.length !== venueIds.size) {
+    return {
+      ok: false,
+      error: "Check the form and try again.",
+      fieldErrors: { venueId: ["Select a valid venue"] },
+    };
+  }
+
+  try {
+    const created = await db.event.createManyAndReturn({
+      data: params.items.map((item) => ({
+        tenantId: params.tenantId,
+        ...eventWriteData(item.input, item.venueId),
+        createdById: params.userId,
+        updatedById: params.userId,
+      })),
+      select: { id: true },
+    });
+    return { ok: true, ids: created.map((row) => row.id) };
+  } catch (error) {
+    const mapped = mapWriteError(error);
+    return mapped.ok
+      ? { ok: false, error: "Could not save the event. Please try again." }
+      : mapped;
   }
 }
 

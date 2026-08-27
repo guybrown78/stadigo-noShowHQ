@@ -6,8 +6,9 @@ import { listVenuesForSettings } from "@/lib/events/queries";
 import { ensureTenantEventCatalog } from "@/lib/events/provision";
 import { venueListQuerySchema, type VenueListQuery } from "@/lib/events/schema";
 import { venueSettingsHref } from "@/lib/events/url";
+import { EventsSectionNav } from "@/components/events/events-section-nav";
 
-export const metadata = { title: "Event settings" };
+export const metadata = { title: "Venues" };
 
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
@@ -41,21 +42,21 @@ export default async function EventSettingsPage({
   return (
     <div>
       <p className="text-sm text-slate-500">
-        <Link href="/settings" className="hover:underline">
-          Settings
+        <Link href="/events" className="hover:underline">
+          Events
         </Link>
         <span aria-hidden="true"> / </span>
-        Event settings
+        Venues
       </p>
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Event settings
+            Venues
           </h1>
           <p className="mt-2 max-w-2xl text-slate-600">
-            Venues saved here appear when you create or edit an event. You can
-            also add a venue from the event form if you cannot find it in the
-            list.
+            Venues saved here appear when you create, edit, or import events.
+            You can also add a venue from the event form if you cannot find it
+            in the list.
           </p>
         </div>
         <Link
@@ -65,6 +66,7 @@ export default async function EventSettingsPage({
           Add venue
         </Link>
       </div>
+      <EventsSectionNav current="venues" />
 
       {created ? (
         <p

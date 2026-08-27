@@ -229,18 +229,4 @@ export function parseEventFormData(formData: FormData) {
   });
 }
 
-export function flattenFieldErrors(
-  error: z.ZodError,
-): Record<string, string[]> {
-  const { fieldErrors, formErrors } = error.flatten();
-  const result: Record<string, string[]> = {};
-  for (const [key, messages] of Object.entries(fieldErrors)) {
-    if (Array.isArray(messages) && messages.length > 0) {
-      result[key] = messages;
-    }
-  }
-  if (formErrors.length > 0) {
-    result.form = formErrors;
-  }
-  return result;
-}
+export { flattenFieldErrors } from "@/lib/form";
