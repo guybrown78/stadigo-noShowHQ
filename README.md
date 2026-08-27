@@ -77,7 +77,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 | `npm run start` | Run production server |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
-| `npm run test` | Vitest (schema + tenant-isolation event tests; needs local Postgres) |
+| `npm run test` | Vitest (schema + tenant-isolation event and staff tests; needs local Postgres) |
 | `npm run db:migrate` | Create/apply Prisma migrations |
 | `npm run db:generate` | Generate Prisma Client |
 | `npm run create-super-admin` | Provision platform owner |
@@ -91,6 +91,8 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 | `ADMIN` | Tenant shell — `/dashboard`, `/staff`, `/events`, `/ledger`, `/absence/new`, `/settings` |
 
 Events are tenant-isolated records (type, subtype, venue, date, staffing, risk thresholds). See [docs/events.md](docs/events.md). New tenants receive the standard type/subtype catalogue automatically; existing tenants are filled in on first visit to Events, or via `npm run provision-event-catalog`. Venues are managed from **Events → Venues** (also linked from Settings), and can also be added from the create-event form when a search finds no match.
+
+Staff are tenant-isolated operational records (staff ID, name, role, department, manager, employment and probation status, clearance summary). See [docs/staff.md](docs/staff.md). Creating a staff member does not create a login. New tenants receive a 90-day probation default; the staff form can override duration or end date per person.
 
 Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe not-found response.
 
