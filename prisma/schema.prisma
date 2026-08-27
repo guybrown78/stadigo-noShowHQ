@@ -21,17 +21,20 @@ enum EventStatus {
 }
 
 model Tenant {
-  id            String         @id @default(cuid())
-  name          String
-  slug          String         @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  users         User[]
-  eventTypes    EventType[]
-  eventSubtypes EventSubtype[]
-  venues        Venue[]
-  events        Event[]
-  eventImports  EventImport[]
+  id                    String                  @id @default(cuid())
+  name                  String
+  slug                  String                  @unique
+  defaultProbationDays  Int                     @default(90)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  users                 User[]
+  eventTypes            EventType[]
+  eventSubtypes         EventSubtype[]
+  venues                Venue[]
+  events                Event[]
+  eventImports          EventImport[]
+  staff                 Staff[]
+  staffProbationHistory StaffProbationHistory[]
 }
 
 model User {
@@ -53,6 +56,10 @@ model User {
   eventsUpdated           Event[]              @relation("EventUpdatedBy")
   eventsDeleted           Event[]              @relation("EventDeletedBy")
   eventImportsUploaded    EventImport[]        @relation("EventImportUploadedBy")
+  staffCreated            Staff[]              @relation("StaffCreatedBy")
+  staffUpdated            Staff[]              @relation("StaffUpdatedBy")
+  staffDeleted            Staff[]              @relation("StaffDeletedBy")
+  staffProbationActions   StaffProbationHistory[] @relation("StaffProbationActedBy")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -302,4 +309,100 @@ model EventImportVenue {
 
   @@unique([importId, nameNormalized])
   @@index([tenantId])
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  MONITORING
+  CONTACT_REQUIRED
+  DISABLED
+  INACTIVE
+}
+
+enum ProbationStatus {
+  NOT_APPLICABLE
+  IN_PROGRESS
+  PASSED
+  EXTENDED
+}
+
+enum SecurityClearanceStatus {
+  NOT_REQUIRED
+  PENDING
+  VALID
+  EXPIRED
+  NOT_RECORDED
+}
+
+enum StaffProbationAction {
+  STARTED
+  END_DATE_OVERRIDDEN
+  EXTENDED
+  PASSED
+  STATUS_CHANGED
+}
+
+model Staff {
+  id                           String                   @id @default(cuid())
+  tenantId                     String
+  tenant                       Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  staffIdNumber                String
+  staffIdNormalized            String
+  firstName                    String
+  lastName                     String
+  email                        String?
+  phone                        String?
+  department                   String?
+  roleTitle                    String
+  managerStaffId               String?
+  manager                      Staff?                   @relation("StaffManager", fields: [managerStaffId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  directReports                Staff[]                  @relation("StaffManager")
+  employmentStatus             EmploymentStatus         @default(ACTIVE)
+  startDate                    DateTime?                @db.Date
+  probationLengthDays          Int?
+  probationEndDate             DateTime?                @db.Date
+  probationEndDateOverridden   Boolean                  @default(false)
+  probationStatus              ProbationStatus          @default(NOT_APPLICABLE)
+  probationReviewDueDate       DateTime?                @db.Date
+  securityClearanceStatus      SecurityClearanceStatus  @default(NOT_RECORDED)
+  securityClearanceExpiryDate  DateTime?                @db.Date
+  notes                        String?                  @db.VarChar(2000)
+  createdAt                    DateTime                 @default(now())
+  updatedAt                    DateTime                 @updatedAt
+  createdById                  String
+  createdBy                    User                     @relation("StaffCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById                  String
+  updatedBy                    User                     @relation("StaffUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  deletedAt                    DateTime?
+  deletedById                  String?
+  deletedBy                    User?                    @relation("StaffDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  probationHistory             StaffProbationHistory[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, staffIdNormalized])
+  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, employmentStatus])
+  @@index([tenantId, department])
+  @@index([tenantId, probationStatus])
+  @@index([tenantId, securityClearanceStatus])
+  @@index([tenantId, deletedAt])
+  @@index([managerStaffId])
+}
+
+model StaffProbationHistory {
+  id              String               @id @default(cuid())
+  tenantId        String
+  tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  staffId         String
+  staff           Staff                @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  action          StaffProbationAction
+  previousEndDate DateTime?            @db.Date
+  newEndDate      DateTime?            @db.Date
+  notes           String?              @db.VarChar(2000)
+  createdAt       DateTime             @default(now())
+  actedById       String
+  actedBy         User                 @relation("StaffProbationActedBy", fields: [actedById], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, staffId, createdAt])
+  @@index([staffId])
 }
