@@ -43,6 +43,102 @@ export function venueRecordData(tenantId: string, input: VenueInput) {
   };
 }
 
+export async function findOrCreateVenue(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    input: {
+      name: string;
+      addressLine1?: string | null;
+      townCity?: string | null;
+      postcode?: string | null;
+    };
+    enrichInactive?: boolean;
+  },
+): Promise<
+  | { ok: true; venueId: string; created: boolean }
+  | { ok: false; fieldErrors: Record<string, string[]> }
+> {
+  const name = normalizeVenueName(params.input.name);
+  const nameNormalized = normalizeVenueNameKey(name);
+  const postcode = params.input.postcode
+    ? normalizeUkPostcode(params.input.postcode)
+    : null;
+
+  const existing = await db.venue.findUnique({
+    where: {
+      tenantId_nameNormalized: {
+        tenantId: params.tenantId,
+        nameNormalized,
+      },
+    },
+  });
+
+  if (existing) {
+    if (!existing.active) {
+      await db.venue.update({
+        where: { id: existing.id },
+        data: {
+          active: true,
+          ...(params.enrichInactive
+            ? {
+                postcode: postcode ?? existing.postcode,
+                addressLine1:
+                  params.input.addressLine1 ?? existing.addressLine1,
+                townCity: params.input.townCity ?? existing.townCity,
+              }
+            : {}),
+        },
+      });
+    }
+    return { ok: true, venueId: existing.id, created: false };
+  }
+
+  try {
+    const created = await db.venue.create({
+      data: {
+        tenantId: params.tenantId,
+        name,
+        nameNormalized,
+        addressLine1: params.input.addressLine1 ?? null,
+        townCity: params.input.townCity ?? null,
+        postcode,
+        timezone: DEFAULT_TIMEZONE,
+        active: true,
+      },
+      select: { id: true },
+    });
+    return { ok: true, venueId: created.id, created: true };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const raced = await db.venue.findUnique({
+        where: {
+          tenantId_nameNormalized: {
+            tenantId: params.tenantId,
+            nameNormalized,
+          },
+        },
+      });
+      if (raced) {
+        if (!raced.active) {
+          await db.venue.update({
+            where: { id: raced.id },
+            data: { active: true },
+          });
+        }
+        return { ok: true, venueId: raced.id, created: false };
+      }
+    }
+    return {
+      ok: false,
+      fieldErrors: { name: ["Could not save the venue. Please try again."] },
+    };
+  }
+}
+
 export async function getVenueForTenant(
   db: DbClient,
   tenantId: string,

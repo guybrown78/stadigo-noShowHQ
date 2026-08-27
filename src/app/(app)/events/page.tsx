@@ -73,12 +73,20 @@ export default async function EventsPage({
             recorded against the right fixture later.
           </p>
         </div>
-        <Link
-          href="/events/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Add event
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/events/import"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Import events
+          </Link>
+          <Link
+            href="/events/new"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Add event
+          </Link>
+        </div>
       </div>
 
       {deleted ? (
@@ -246,12 +254,20 @@ export default async function EventsPage({
                 Add your first event to start tracking fixtures, venues, and
                 staffing requirements.
               </p>
-              <Link
-                href="/events/new"
-                className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Add your first event
-              </Link>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link
+                  href="/events/new"
+                  className="inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Add your first event
+                </Link>
+                <Link
+                  href="/events/import"
+                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Import events
+                </Link>
+              </div>
             </>
           )}
         </div>

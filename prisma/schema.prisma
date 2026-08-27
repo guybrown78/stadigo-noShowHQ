@@ -31,6 +31,7 @@ model Tenant {
   eventSubtypes EventSubtype[]
   venues        Venue[]
   events        Event[]
+  eventImports  EventImport[]
 }
 
 model User {
@@ -48,9 +49,10 @@ model User {
   accounts            Account[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
-  eventsCreated       Event[]              @relation("EventCreatedBy")
-  eventsUpdated       Event[]              @relation("EventUpdatedBy")
-  eventsDeleted       Event[]              @relation("EventDeletedBy")
+  eventsCreated           Event[]              @relation("EventCreatedBy")
+  eventsUpdated           Event[]              @relation("EventUpdatedBy")
+  eventsDeleted           Event[]              @relation("EventDeletedBy")
+  eventImportsUploaded    EventImport[]        @relation("EventImportUploadedBy")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -152,7 +154,9 @@ model Venue {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  events         Event[]
+  events              Event[]
+  importVenuesMatched EventImportVenue[] @relation("EventImportVenueMatched")
+  importVenuesCreated EventImportVenue[] @relation("EventImportVenueCreated")
 
   @@unique([id, tenantId])
   @@unique([tenantId, nameNormalized])
@@ -191,6 +195,7 @@ model Event {
   deletedAt        DateTime?
   deletedById      String?
   deletedBy        User?        @relation("EventDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  importRows       EventImportRow[]
 
   @@unique([tenantId, reference])
   @@index([tenantId, deletedAt, eventDate])
@@ -198,4 +203,103 @@ model Event {
   @@index([tenantId, eventTypeId])
   @@index([tenantId, name])
   @@index([tenantId, reference])
+}
+
+enum EventImportStatus {
+  UPLOADED
+  VALIDATION_FAILED
+  AWAITING_VENUE_CONFIRMATION
+  VENUES_CONFIRMED
+  AWAITING_EVENT_CONFIRMATION
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum EventImportRowStatus {
+  VALID
+  INVALID
+  IGNORED
+}
+
+enum EventImportVenueOutcome {
+  MATCHED
+  NEW
+  AMBIGUOUS
+}
+
+model EventImport {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  uploadedById       String
+  uploadedBy         User              @relation("EventImportUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  originalFileName   String
+  fileHash           String
+  totalRows          Int               @default(0)
+  validRows          Int               @default(0)
+  invalidRows        Int               @default(0)
+  ignoredRows        Int               @default(0)
+  matchedVenueCount  Int               @default(0)
+  newVenueCount      Int               @default(0)
+  createdVenueCount  Int               @default(0)
+  createdEventCount  Int               @default(0)
+  duplicateEventCount Int              @default(0)
+  status             EventImportStatus @default(UPLOADED)
+  failureReason      String?
+  uploadedAt         DateTime          @default(now())
+  venueConfirmedAt   DateTime?
+  completedAt        DateTime?
+  failedAt           DateTime?
+  cancelledAt        DateTime?
+  rows               EventImportRow[]
+  venues             EventImportVenue[]
+
+  @@index([tenantId, uploadedAt])
+  @@index([tenantId, status])
+  @@index([tenantId, fileHash])
+  @@index([uploadedById])
+}
+
+model EventImportRow {
+  id               String              @id @default(cuid())
+  importId         String
+  import           EventImport         @relation(fields: [importId], references: [id], onDelete: Cascade)
+  tenantId         String
+  sourceRowNumber  Int
+  raw              Json
+  normalized       Json?
+  fieldErrors      Json?
+  eventTypeId      String?
+  eventSubtypeId   String?
+  venueKey         String?
+  createdEventId   String?
+  createdEvent     Event?              @relation(fields: [createdEventId], references: [id], onDelete: SetNull)
+  status           EventImportRowStatus
+
+  @@unique([importId, sourceRowNumber])
+  @@index([importId, status])
+  @@index([tenantId])
+}
+
+model EventImportVenue {
+  id               String                   @id @default(cuid())
+  importId         String
+  import           EventImport              @relation(fields: [importId], references: [id], onDelete: Cascade)
+  tenantId         String
+  nameNormalized   String
+  importedName     String
+  addressLine1     String?
+  townCity         String?
+  postcode         String?
+  outcome          EventImportVenueOutcome
+  matchedVenueId   String?
+  matchedVenue     Venue?                   @relation("EventImportVenueMatched", fields: [matchedVenueId], references: [id], onDelete: Restrict)
+  createdVenueId   String?
+  createdVenue     Venue?                   @relation("EventImportVenueCreated", fields: [createdVenueId], references: [id], onDelete: Restrict)
+  inactiveMatch    Boolean                  @default(false)
+  eventRowCount    Int
+
+  @@unique([importId, nameNormalized])
+  @@index([tenantId])
 }
