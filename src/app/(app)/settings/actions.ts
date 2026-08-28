@@ -8,6 +8,12 @@ import { EventAccessError } from "@/lib/events/errors";
 import { flattenFieldErrors, parseVenueFormData } from "@/lib/events/schema";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
 import { createVenue, updateVenue } from "@/lib/events/venues";
+import { StaffAccessError } from "@/lib/staff/errors";
+import {
+  flattenFieldErrors as flattenStaffFieldErrors,
+  parseTenantProbationSettingsFormData,
+} from "@/lib/staff/review-schema";
+import { updateTenantProbationDefault } from "@/lib/staff/settings";
 
 export type VenueActionState = {
   error?: string;
@@ -79,6 +85,44 @@ export async function updateVenueAction(
     redirect("/settings/events?updated=1");
   } catch (error) {
     if (error instanceof EventAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export type ProbationSettingsActionState = {
+  error?: string;
+  fieldErrors?: Record<string, string[]>;
+};
+
+export async function updateProbationSettingsAction(
+  _prev: ProbationSettingsActionState,
+  formData: FormData,
+): Promise<ProbationSettingsActionState> {
+  const user = await requireTenant();
+  const parsed = parseTenantProbationSettingsFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenStaffFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    const result = await updateTenantProbationDefault(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      days: parsed.data.defaultProbationDays,
+    });
+    if (!result.ok) {
+      return { error: result.error, fieldErrors: result.fieldErrors };
+    }
+    revalidatePath("/settings/probation");
+    revalidatePath("/staff/new");
+    redirect("/settings/probation?updated=1");
+  } catch (error) {
+    if (error instanceof StaffAccessError) {
       notFound();
     }
     throw error;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { StaffForm } from "@/components/staff/staff-form";
+import { StaffSectionNav } from "@/components/staff/staff-section-nav";
 import { getTenantProbationDefault } from "@/lib/staff/queries";
 
 export const metadata = { title: "Add staff member" };
@@ -22,6 +23,7 @@ export default async function NewStaffPage() {
         <span aria-hidden="true"> / </span>
         Add staff member
       </p>
+      <StaffSectionNav current="directory" />
       <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
         Add staff member
       </h1>

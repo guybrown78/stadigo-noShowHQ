@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StaffForm } from "@/components/staff/staff-form";
+import { StaffSectionNav } from "@/components/staff/staff-section-nav";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { formatLocalDateIso } from "@/lib/events/dates";
@@ -38,6 +39,18 @@ export default async function EditStaffPage({
       ? getStaffManagerOption(prisma, user.tenantId, staff.managerStaffId)
       : Promise.resolve(null),
   ]);
+  const active = staff.probations.find((row) => row.completedAt === null);
+  const latest = active ?? staff.probations[0] ?? null;
+  const probationLock = latest
+    ? {
+        kind: (active ? "active" : "completed") as "active" | "completed",
+        durationSource: latest.durationSource,
+        effectiveDurationDays: latest.effectiveDurationDays,
+        startDate: formatLocalDateIso(latest.startDate),
+        currentEndDate: formatLocalDateIso(latest.currentEndDate),
+        reviewDueDate: formatLocalDateIso(latest.reviewDueDate),
+      }
+    : null;
 
   const name = formatStaffName(staff);
 
@@ -54,6 +67,7 @@ export default async function EditStaffPage({
         <span aria-hidden="true"> / </span>
         Edit
       </p>
+      <StaffSectionNav current="directory" />
       <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
         Edit staff member
       </h1>
@@ -93,6 +107,7 @@ export default async function EditStaffPage({
               : "",
             notes: staff.notes,
           }}
+          probationLock={probationLock}
         />
       </div>
     </div>

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { DeleteStaffDialog } from "@/components/staff/delete-staff-dialog";
 import {
   EmploymentStatusBadge,
-  ProbationStatusBadge,
+  ProbationLifecycleBadge,
 } from "@/components/staff/staff-status-badge";
+import { StaffSectionNav } from "@/components/staff/staff-section-nav";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { formatLocalDateDisplay } from "@/lib/events/dates";
+import { londonTodayIso } from "@/lib/events/dates";
 import {
   EMPLOYMENT_STATUSES,
   PROBATION_STATUSES,
@@ -18,11 +19,14 @@ import {
   EMPLOYMENT_STATUS_LABELS,
   formatStaffName,
   PROBATION_STATUS_LABELS,
+  probationUrgencyCaption,
 } from "@/lib/staff/display";
+import { deriveProbationLifecycle } from "@/lib/staff/lifecycle";
 import {
   listDepartmentsForTenant,
   listStaffForTenant,
 } from "@/lib/staff/queries";
+import { countOpenProbationTasks, reconcileTenantProbationWork } from "@/lib/staff/tasks";
 import {
   staffListQuerySchema,
   type StaffListQuery,
@@ -36,18 +40,62 @@ function first(value: string | string[] | undefined): string {
   return value ?? "";
 }
 
+function StaffProbationSummary({
+  member,
+  todayIso,
+}: {
+  member: {
+    probationStatus: (typeof PROBATION_STATUSES)[number];
+    probationEndDate: Date | null;
+    probationReviewDueDate: Date | null;
+  };
+  todayIso: string;
+}) {
+  if (member.probationStatus === "NOT_APPLICABLE") {
+    return <span className="text-slate-500">—</span>;
+  }
+  const lifecycle = deriveProbationLifecycle({
+    status: member.probationStatus,
+    completedAt:
+      member.probationStatus === "PASSED" ||
+      member.probationStatus === "NOT_CONTINUED"
+        ? member.probationEndDate
+        : null,
+    reviewDueDate: member.probationReviewDueDate,
+    currentEndDate: member.probationEndDate,
+    todayIso,
+  });
+  if (!lifecycle) return <span className="text-slate-500">—</span>;
+  const caption = probationUrgencyCaption(
+    lifecycle,
+    member.probationReviewDueDate,
+    member.probationEndDate,
+    todayIso,
+  );
+  return (
+    <div>
+      <ProbationLifecycleBadge lifecycle={lifecycle} />
+      {caption ? (
+        <div className="mt-1 text-xs text-slate-500">{caption}</div>
+      ) : null}
+    </div>
+  );
+}
+
 export default async function StaffPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await requireTenant();
+  await reconcileTenantProbationWork(prisma, user.tenantId);
   const raw = await searchParams;
   const parsedQuery = staffListQuerySchema.safeParse({
     q: first(raw.q),
     employmentStatus: first(raw.employmentStatus),
     department: first(raw.department),
     probationStatus: first(raw.probationStatus),
+    probationLifecycle: first(raw.probationLifecycle),
     clearanceStatus: first(raw.clearanceStatus),
     page: first(raw.page) || "1",
   });
@@ -58,15 +106,18 @@ export default async function StaffPage({
         employmentStatus: "",
         department: "",
         probationStatus: "",
+        probationLifecycle: "",
         clearanceStatus: "",
         page: 1,
       };
 
-  const [departments, list] = await Promise.all([
+  const [departments, list, openCount] = await Promise.all([
     listDepartmentsForTenant(prisma, user.tenantId),
     listStaffForTenant(prisma, user.tenantId, query),
+    countOpenProbationTasks(prisma, user.tenantId),
   ]);
 
+  const todayIso = londonTodayIso();
   const { staff, total, page, pageCount } = list;
   const deleted = first(raw.deleted) === "1";
   const hasFilters = Boolean(
@@ -74,6 +125,7 @@ export default async function StaffPage({
       query.employmentStatus ||
       query.department ||
       query.probationStatus ||
+      query.probationLifecycle ||
       query.clearanceStatus,
   );
 
@@ -96,6 +148,7 @@ export default async function StaffPage({
           Add staff member
         </Link>
       </div>
+      <StaffSectionNav current="directory" probationCount={openCount} />
 
       {deleted ? (
         <p
@@ -189,6 +242,24 @@ export default async function StaffPage({
                   {PROBATION_STATUS_LABELS[status]}
                 </option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="staff-probation-lifecycle"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
+              Probation urgency
+            </label>
+            <select
+              id="staff-probation-lifecycle"
+              name="probationLifecycle"
+              defaultValue={query.probationLifecycle}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            >
+              <option value="">All</option>
+              <option value="review_due">Review due</option>
+              <option value="overdue">Overdue</option>
             </select>
           </div>
           <div>
@@ -313,21 +384,10 @@ export default async function StaffPage({
                       <EmploymentStatusBadge status={member.employmentStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      {member.probationStatus === "NOT_APPLICABLE" ? (
-                        <span className="text-slate-500">—</span>
-                      ) : (
-                        <div>
-                          <ProbationStatusBadge
-                            status={member.probationStatus}
-                          />
-                          {member.probationEndDate ? (
-                            <div className="mt-1 text-xs text-slate-500">
-                              Ends{" "}
-                              {formatLocalDateDisplay(member.probationEndDate)}
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
+                      <StaffProbationSummary
+                        member={member}
+                        todayIso={todayIso}
+                      />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -382,12 +442,10 @@ export default async function StaffPage({
                 </div>
                 {member.probationStatus !== "NOT_APPLICABLE" ? (
                   <div className="mt-3">
-                    <ProbationStatusBadge status={member.probationStatus} />
-                    {member.probationEndDate ? (
-                      <p className="mt-1 text-sm text-slate-500">
-                        Ends {formatLocalDateDisplay(member.probationEndDate)}
-                      </p>
-                    ) : null}
+                    <StaffProbationSummary
+                      member={member}
+                      todayIso={todayIso}
+                    />
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">

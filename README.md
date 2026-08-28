@@ -82,6 +82,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 | `npm run db:generate` | Generate Prisma Client |
 | `npm run create-super-admin` | Provision platform owner |
 | `npm run provision-event-catalog` | Seed event types/subtypes (and Centre Circle venues) for existing tenants |
+| `npm run reconcile-probation` | Backfill legacy probation rows and create missing in-app tasks |
 
 ## Roles
 
@@ -92,7 +93,9 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 
 Events are tenant-isolated records (type, subtype, venue, date, staffing, risk thresholds). See [docs/events.md](docs/events.md). New tenants receive the standard type/subtype catalogue automatically; existing tenants are filled in on first visit to Events, or via `npm run provision-event-catalog`. Venues are managed from **Events → Venues** (also linked from Settings), and can also be added from the create-event form when a search finds no match.
 
-Staff are tenant-isolated operational records (staff ID, name, role, department, manager, employment and probation status, clearance summary). See [docs/staff.md](docs/staff.md). Creating a staff member does not create a login. New tenants receive a 90-day probation default; the staff form can override duration or end date per person.
+Staff are tenant-isolated operational records (staff ID, name, role, department, manager, employment status, clearance summary, and a tenant-safe probation workflow). See [docs/staff.md](docs/staff.md). Creating a staff member does not create a login. New tenants receive a 90-day probation default under **Settings → Probation**; changing it applies to staff created afterwards only. Due and overdue reviews are chased in-app from **Staff → Probation** (no email or SMS).
+
+Run `npm run reconcile-probation` (or the daily `/api/cron/probation-reconcile` cron with `CRON_SECRET`) to backfill legacy dates and create missing in-app tasks.
 
 Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe not-found response.
 
@@ -121,6 +124,7 @@ In the Vercel project → **Settings → Environment Variables**, set:
 | `SUPER_ADMIN_PASSWORD` | At least 8 characters |
 | `SUPER_ADMIN_FIRST_NAME` | Optional, default `Super` |
 | `SUPER_ADMIN_LAST_NAME` | Optional, default `Admin` |
+| `CRON_SECRET` | Bearer token for `/api/cron/probation-reconcile` (optional locally; set in production) |
 
 Then **redeploy**. Local accounts (including `super@noshowhq.local`) do not exist on Neon until seeded.
 

@@ -5,8 +5,15 @@ import {
   SecurityClearanceStatus,
   type PrismaClient,
 } from "@prisma/client";
+import { londonTodayIso, parseLocalDate } from "@/lib/events/dates";
 import { StaffAccessError } from "@/lib/staff/errors";
-import { STAFF_PAGE_SIZE, MANAGER_SEARCH_LIMIT } from "@/lib/staff/catalog";
+import {
+  STAFF_PAGE_SIZE,
+  MANAGER_SEARCH_LIMIT,
+  PROBATION_QUEUE_PAGE_SIZE,
+  PROBATION_REVIEW_LEAD_DAYS,
+} from "@/lib/staff/catalog";
+import { addCalendarDays } from "@/lib/staff/probation";
 import type { StaffListQuery } from "@/lib/staff/schema";
 
 export { STAFF_PAGE_SIZE, MANAGER_SEARCH_LIMIT };
@@ -20,6 +27,14 @@ export const staffDetailInclude = {
       lastName: true,
       deletedAt: true,
       employmentStatus: true,
+    },
+  },
+  probations: {
+    orderBy: { createdAt: "desc" as const },
+    include: {
+      tasks: {
+        orderBy: { dueAt: "desc" as const },
+      },
     },
   },
   probationHistory: {
@@ -50,6 +65,8 @@ const staffListSelect = {
   employmentStatus: true,
   probationStatus: true,
   probationEndDate: true,
+  probationReviewDueDate: true,
+  startDate: true,
 } satisfies Prisma.StaffSelect;
 
 export type ManagerOption = {
@@ -92,6 +109,25 @@ function listWhere(
   query: StaffListQuery,
 ): Prisma.StaffWhereInput {
   const search = query.q.trim();
+  const today = parseLocalDate(londonTodayIso());
+
+  let probationFilter: Prisma.StaffWhereInput = {};
+  if (query.probationLifecycle === "review_due" && today) {
+    probationFilter = {
+      probationStatus: { in: ["IN_PROGRESS", "EXTENDED"] },
+      probationReviewDueDate: { lte: today },
+      probationEndDate: { gte: today },
+    };
+  } else if (query.probationLifecycle === "overdue" && today) {
+    probationFilter = {
+      probationStatus: { in: ["IN_PROGRESS", "EXTENDED"] },
+      probationEndDate: { lt: today },
+    };
+  } else if (query.probationStatus) {
+    probationFilter = {
+      probationStatus: query.probationStatus as ProbationStatus,
+    };
+  }
 
   return {
     tenantId,
@@ -100,9 +136,7 @@ function listWhere(
       ? { employmentStatus: query.employmentStatus as EmploymentStatus }
       : {}),
     ...(query.department ? { department: query.department } : {}),
-    ...(query.probationStatus
-      ? { probationStatus: query.probationStatus as ProbationStatus }
-      : {}),
+    ...probationFilter,
     ...(query.clearanceStatus
       ? {
           securityClearanceStatus:
@@ -229,4 +263,124 @@ export async function getStaffManagerOption(
     },
   });
   return staff;
+}
+
+const queueStaffSelect = {
+  id: true,
+  status: true,
+  startDate: true,
+  currentEndDate: true,
+  reviewDueDate: true,
+  completedAt: true,
+  staff: {
+    select: {
+      id: true,
+      staffIdNumber: true,
+      firstName: true,
+      lastName: true,
+      roleTitle: true,
+      department: true,
+    },
+  },
+  tasks: {
+    where: { state: { in: ["OPEN", "ACKNOWLEDGED", "SNOOZED"] as const } },
+    orderBy: { dueAt: "desc" as const },
+    take: 1,
+  },
+} satisfies Prisma.StaffProbationSelect;
+
+export type ProbationQueueItem = Prisma.StaffProbationGetPayload<{
+  select: typeof queueStaffSelect;
+}>;
+
+async function listQueueSection(
+  db: PrismaClient,
+  tenantId: string,
+  where: Prisma.StaffProbationWhereInput,
+  orderBy: Prisma.StaffProbationOrderByWithRelationInput[],
+) {
+  const [total, items] = await Promise.all([
+    db.staffProbation.count({ where: { tenantId, ...where } }),
+    db.staffProbation.findMany({
+      where: { tenantId, ...where },
+      select: queueStaffSelect,
+      orderBy,
+      take: PROBATION_QUEUE_PAGE_SIZE,
+    }),
+  ]);
+  return { total, items };
+}
+
+export async function listProbationQueue(
+  db: PrismaClient,
+  tenantId: string,
+  todayIso = londonTodayIso(),
+) {
+  const today = parseLocalDate(todayIso);
+  if (!today) {
+    return {
+      overdue: { total: 0, items: [] as ProbationQueueItem[] },
+      reviewDue: { total: 0, items: [] as ProbationQueueItem[] },
+      upcoming: { total: 0, items: [] as ProbationQueueItem[] },
+    };
+  }
+
+  const upcomingUntil = addCalendarDays(today, PROBATION_REVIEW_LEAD_DAYS);
+  const unresolved = {
+    completedAt: null,
+    status: { in: ["IN_PROGRESS" as const, "EXTENDED" as const] },
+  };
+
+  const [overdue, reviewDue, upcoming] = await Promise.all([
+    listQueueSection(
+      db,
+      tenantId,
+      { ...unresolved, currentEndDate: { lt: today } },
+      [{ currentEndDate: "asc" }, { staff: { lastName: "asc" } }],
+    ),
+    listQueueSection(
+      db,
+      tenantId,
+      {
+        ...unresolved,
+        reviewDueDate: { lte: today },
+        currentEndDate: { gte: today },
+      },
+      [{ reviewDueDate: "asc" }, { staff: { lastName: "asc" } }],
+    ),
+    listQueueSection(
+      db,
+      tenantId,
+      {
+        ...unresolved,
+        reviewDueDate: { gt: today, lte: upcomingUntil },
+      },
+      [{ reviewDueDate: "asc" }, { staff: { lastName: "asc" } }],
+    ),
+  ]);
+
+  return { overdue, reviewDue, upcoming, todayIso };
+}
+
+export function currentProbation(staff: StaffDetail) {
+  return (
+    staff.probations.find((row) => row.completedAt === null) ??
+    staff.probations[0] ??
+    null
+  );
+}
+
+export function currentOpenTask(staff: StaffDetail) {
+  const probation = currentProbation(staff);
+  if (!probation) return null;
+  const open = probation.tasks.filter(
+    (task) =>
+      task.state === "OPEN" ||
+      task.state === "ACKNOWLEDGED" ||
+      task.state === "SNOOZED",
+  );
+  if (open.length === 0) return null;
+  return (
+    open.find((task) => task.type === "OVERDUE_ESCALATION") ?? open[0] ?? null
+  );
 }

@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useId, useMemo, useState } from "react";
 import type {
   EmploymentStatus,
+  ProbationDurationSource,
   ProbationStatus,
   SecurityClearanceStatus,
 } from "@prisma/client";
@@ -20,13 +22,14 @@ import {
 import { withClientValidation } from "@/lib/form";
 import {
   EMPLOYMENT_STATUSES,
-  PROBATION_STATUSES,
   SECURITY_CLEARANCE_STATUSES,
+  clearanceStatusRequiresExpiry,
 } from "@/lib/staff/catalog";
 import {
   CLEARANCE_STATUS_LABELS,
+  DURATION_SOURCE_LABELS,
   EMPLOYMENT_STATUS_LABELS,
-  PROBATION_STATUS_LABELS,
+  formatDurationSource,
 } from "@/lib/staff/display";
 import {
   calculatedProbationEndDate,
@@ -57,6 +60,15 @@ export type StaffFormInitialValues = {
   notes?: string | null;
 };
 
+export type StaffFormProbationLock = {
+  kind: "active" | "completed";
+  durationSource: ProbationDurationSource;
+  effectiveDurationDays: number | null;
+  startDate: string | null;
+  currentEndDate: string | null;
+  reviewDueDate: string | null;
+};
+
 const initialState: StaffActionState = {};
 
 export function StaffForm({
@@ -65,12 +77,14 @@ export function StaffForm({
   defaultProbationDays,
   initialManager,
   initialValues,
+  probationLock,
 }: {
   mode: "create" | "edit";
   staffId?: string;
   defaultProbationDays: number;
   initialManager?: ManagerOption | null;
   initialValues?: StaffFormInitialValues;
+  probationLock?: StaffFormProbationLock | null;
 }) {
   const action = mode === "create" ? createStaffAction : updateStaffAction;
   const validatedAction = useMemo(
@@ -124,8 +138,13 @@ export function StaffForm({
     displayedEnd && applyProbation
       ? calculatedReviewDueDate(displayedEnd)
       : null;
-  const needsExpiry =
-    clearanceStatus === "VALID" || clearanceStatus === "EXPIRED";
+  const sourceLabel = overrideEndDate
+    ? DURATION_SOURCE_LABELS.MANUAL_END_DATE
+    : parsedOverride
+      ? `Individual override, ${parsedOverride} days`
+      : `Tenant default, ${defaultProbationDays} days`;
+  const locked = Boolean(probationLock);
+  const needsExpiry = clearanceStatusRequiresExpiry(clearanceStatus);
 
   function errorId(name: string) {
     return `${formId}-${name}-error`;
@@ -384,84 +403,118 @@ export function StaffForm({
           />
         </div>
         <div className="flex items-start gap-2">
-          <input
-            id={`${formId}-apply-probation`}
-            name="applyProbation"
-            type="checkbox"
-            checked={applyProbation}
-            onChange={(event) => setApplyProbation(event.target.checked)}
-            className="mt-1"
-          />
-          <label
-            htmlFor={`${formId}-apply-probation`}
-            className="text-sm text-slate-800"
-          >
-            Apply probation
-          </label>
+          {locked ? (
+            <>
+              <input type="hidden" name="applyProbation" value="on" />
+              <input
+                type="hidden"
+                name="probationStatus"
+                value={initialValues?.probationStatus ?? "IN_PROGRESS"}
+              />
+            </>
+          ) : (
+            <>
+              <input
+                id={`${formId}-apply-probation`}
+                name="applyProbation"
+                type="checkbox"
+                checked={applyProbation}
+                onChange={(event) => setApplyProbation(event.target.checked)}
+                className="mt-1"
+              />
+              <label
+                htmlFor={`${formId}-apply-probation`}
+                className="text-sm text-slate-800"
+              >
+                Apply probation
+              </label>
+            </>
+          )}
         </div>
-        {applyProbation ? (
+        {locked && probationLock ? (
+          <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <p>
+              Effective rule:{" "}
+              <span className="font-medium text-slate-900">
+                {formatDurationSource(
+                  probationLock.durationSource,
+                  probationLock.effectiveDurationDays,
+                )}
+              </span>
+              . This snapshot does not change if the organisation default is
+              edited later.
+            </p>
+            <p>
+              Start {probationLock.startDate ?? "—"}; end{" "}
+              {probationLock.currentEndDate ?? "—"}; review due{" "}
+              {probationLock.reviewDueDate ?? "—"}.
+            </p>
+            {probationLock.kind === "active" && staffId ? (
+              <p className="flex flex-wrap gap-3">
+                <Link
+                  href={`/staff/${staffId}/probation/review`}
+                  className="font-medium text-slate-900 underline"
+                >
+                  Review probation
+                </Link>
+                <Link
+                  href={`/staff/${staffId}/probation/amend`}
+                  className="font-medium text-slate-900 underline"
+                >
+                  Amend end date
+                </Link>
+              </p>
+            ) : (
+              <p>
+                This probation cycle is complete. Decisions are not edited here.
+                Use{" "}
+                <Link
+                  href={`/staff/${staffId}`}
+                  className="font-medium text-slate-900 underline"
+                >
+                  Start probation again
+                </Link>{" "}
+                on the staff record if they should go back on probation.
+              </p>
+            )}
+          </div>
+        ) : applyProbation ? (
           <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm text-slate-600">
-              Tenant default duration is{" "}
-              <span className="font-medium text-slate-900">
-                {defaultProbationDays} days
-              </span>
-              {parsedOverride
-                ? ". A per-staff override is being used."
-                : ". Leave the override blank to use this default."}
+              Effective source:{" "}
+              <span className="font-medium text-slate-900">{sourceLabel}</span>
+              . This value is stored when you save and will not change if the
+              organisation default is edited later.
             </p>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor={`${formId}-duration`}
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
-                  Duration override (days)
-                </label>
-                <input
-                  id={`${formId}-duration`}
-                  name="probationLengthDays"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={730}
-                  value={durationOverride}
-                  onChange={(event) => setDurationOverride(event.target.value)}
-                  aria-invalid={Boolean(state.fieldErrors?.probationLengthDays)}
-                  className={controlClassName("w-full bg-white")}
-                />
-                <FieldError
-                  id={errorId("duration")}
-                  messages={state.fieldErrors?.probationLengthDays}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor={`${formId}-probation-status`}
-                  className="mb-1 block text-sm font-medium text-slate-700"
-                >
-                  Probation status
-                </label>
-                <select
-                  id={`${formId}-probation-status`}
-                  name="probationStatus"
-                  defaultValue={initialValues?.probationStatus ?? "IN_PROGRESS"}
-                  className={controlClassName("w-full bg-white")}
-                >
-                  {PROBATION_STATUSES.filter(
-                    (status) => status !== "NOT_APPLICABLE",
-                  ).map((status) => (
-                    <option key={status} value={status}>
-                      {PROBATION_STATUS_LABELS[status]}
-                    </option>
-                  ))}
-                </select>
-                <FieldError
-                  id={errorId("probationStatus")}
-                  messages={state.fieldErrors?.probationStatus}
-                />
-              </div>
+            <div>
+              <label
+                htmlFor={`${formId}-duration`}
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
+                Individual duration override (days)
+              </label>
+              <input
+                id={`${formId}-duration`}
+                name="probationLengthDays"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={730}
+                value={durationOverride}
+                onChange={(event) => setDurationOverride(event.target.value)}
+                aria-invalid={Boolean(state.fieldErrors?.probationLengthDays)}
+                className={controlClassName("w-full max-w-xs bg-white")}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Leave blank to use the tenant default of {defaultProbationDays}{" "}
+                days.
+              </p>
+              <FieldError
+                id={errorId("duration")}
+                messages={state.fieldErrors?.probationLengthDays}
+              />
             </div>
+            <input type="hidden" name="probationStatus" value="IN_PROGRESS" />
             <p className="text-sm text-slate-700">
               Calculated end date:{" "}
               {calculatedEnd

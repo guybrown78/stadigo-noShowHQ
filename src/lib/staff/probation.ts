@@ -1,5 +1,5 @@
-import type { ProbationStatus } from "@prisma/client";
-import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
+import type { ProbationDurationSource, ProbationStatus } from "@prisma/client";
+import { parseLocalDate } from "@/lib/events/dates";
 import {
   DEFAULT_PROBATION_DAYS,
   PROBATION_REVIEW_LEAD_DAYS,
@@ -11,6 +11,10 @@ export function addCalendarDays(date: Date, days: number): Date {
   const next = new Date(date.getTime());
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+export function calendarDaysBetween(start: Date, end: Date): number {
+  return Math.round((end.getTime() - start.getTime()) / 86_400_000);
 }
 
 export function calculatedProbationEndDate(
@@ -37,6 +41,9 @@ export type ResolvedProbation = {
   probationEndDateOverridden: boolean;
   probationStatus: ProbationStatus;
   probationReviewDueDate: Date | null;
+  durationSource: ProbationDurationSource | null;
+  effectiveDurationDays: number | null;
+  startDate: Date | null;
 };
 
 export type ResolveProbationInput = {
@@ -45,9 +52,7 @@ export type ResolveProbationInput = {
   durationOverride: number | null;
   overrideEndDate: boolean;
   endDateOverride: string | null;
-  requestedStatus: ProbationStatus;
   tenantDefaultDays: number;
-  todayIso: string;
 };
 
 export function resolveProbation(
@@ -64,26 +69,33 @@ export function resolveProbation(
         probationEndDateOverridden: false,
         probationStatus: "NOT_APPLICABLE",
         probationReviewDueDate: null,
+        durationSource: null,
+        effectiveDurationDays: null,
+        startDate: null,
       },
     };
   }
 
   const fieldErrors: Record<string, string[]> = {};
   const startDate = input.startDate ? parseLocalDate(input.startDate) : null;
-  if (input.startDate && !startDate) {
+  if (!input.startDate) {
+    fieldErrors.startDate = ["Enter a start date"];
+  } else if (!startDate) {
     fieldErrors.startDate = ["Enter a valid start date"];
   }
 
-  const duration =
-    input.durationOverride ??
-    (input.tenantDefaultDays > 0
+  const tenantDefault =
+    input.tenantDefaultDays > 0
       ? input.tenantDefaultDays
-      : DEFAULT_PROBATION_DAYS);
+      : DEFAULT_PROBATION_DAYS;
+  const duration = input.durationOverride ?? tenantDefault;
 
   let endDate: Date | null = null;
   const overridden = input.overrideEndDate;
+  let durationSource: ProbationDurationSource = "TENANT_DEFAULT";
 
   if (overridden) {
+    durationSource = "MANUAL_END_DATE";
     if (!input.endDateOverride) {
       fieldErrors.probationEndDate = ["Enter a probation end date"];
     } else {
@@ -93,11 +105,11 @@ export function resolveProbation(
       }
     }
   } else if (startDate) {
+    durationSource =
+      input.durationOverride != null
+        ? "INDIVIDUAL_OVERRIDE"
+        : "TENANT_DEFAULT";
     endDate = calculatedProbationEndDate(startDate, duration);
-  } else {
-    fieldErrors.startDate = [
-      "Enter a start date, or set a probation end date",
-    ];
   }
 
   if (startDate && endDate && endDate.getTime() < startDate.getTime()) {
@@ -106,38 +118,28 @@ export function resolveProbation(
     ];
   }
 
-  let status: ProbationStatus = input.requestedStatus;
-  if (status === "NOT_APPLICABLE") {
-    status = "IN_PROGRESS";
-  }
-
-  if (status === "EXTENDED") {
-    if (!endDate) {
-      fieldErrors.probationEndDate = [
-        "Extended probation needs a future end date",
-      ];
-    } else if (formatLocalDateIso(endDate) <= input.todayIso) {
-      fieldErrors.probationEndDate = [
-        "Extended probation needs a future end date",
-      ];
-    }
-  }
-
   if (Object.keys(fieldErrors).length > 0) {
     return { ok: false, fieldErrors };
   }
 
-  const reviewDue =
-    status === "PASSED" || !endDate ? null : calculatedReviewDueDate(endDate);
+  const effectiveDurationDays =
+    durationSource === "MANUAL_END_DATE" && startDate && endDate
+      ? calendarDaysBetween(startDate, endDate)
+      : duration;
 
   return {
     ok: true,
     value: {
-      probationLengthDays: input.durationOverride,
+      probationLengthDays: effectiveDurationDays,
       probationEndDate: endDate,
       probationEndDateOverridden: overridden,
-      probationStatus: status,
-      probationReviewDueDate: reviewDue,
+      probationStatus: "IN_PROGRESS",
+      probationReviewDueDate: endDate
+        ? calculatedReviewDueDate(endDate)
+        : null,
+      durationSource,
+      effectiveDurationDays,
+      startDate,
     },
   };
 }

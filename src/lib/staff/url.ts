@@ -15,6 +15,9 @@ export function staffListHref(
   if (merged.probationStatus) {
     params.set("probationStatus", merged.probationStatus);
   }
+  if (merged.probationLifecycle) {
+    params.set("probationLifecycle", merged.probationLifecycle);
+  }
   if (merged.clearanceStatus) {
     params.set("clearanceStatus", merged.clearanceStatus);
   }
