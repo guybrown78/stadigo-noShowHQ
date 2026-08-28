@@ -15,6 +15,18 @@ export default function SettingsPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <Link
+          href="/settings/probation"
+          className="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50"
+        >
+          <h2 className="text-base font-semibold text-slate-900">
+            Probation
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Set the default probation length used when new staff records are
+            created. Changing it does not rewrite existing dates.
+          </p>
+        </Link>
+        <Link
           href="/settings/events"
           className="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50"
         >

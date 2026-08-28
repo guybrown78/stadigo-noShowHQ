@@ -52,11 +52,20 @@ describe("staffInputSchema", () => {
     }
   });
 
-  it("rejects a missing staff ID after trim", () => {
-    const parsed = staffInputSchema.safeParse(
-      validInput({ staffIdNumber: "   " }),
-    );
-    expect(parsed.success).toBe(false);
+  it("rejects missing staff ID, first name, last name, and role", () => {
+    for (const field of [
+      "staffIdNumber",
+      "firstName",
+      "lastName",
+      "roleTitle",
+    ] as const) {
+      const parsed = staffInputSchema.safeParse(validInput({ [field]: "  " }));
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        const paths = parsed.error.issues.map((issue) => issue.path.join("."));
+        expect(paths).toContain(field);
+      }
+    }
   });
 
   it("normalises email to lowercase", () => {
@@ -103,13 +112,36 @@ describe("staffInputSchema", () => {
   });
 
   it("requires clearance expiry for VALID and EXPIRED", () => {
-    const parsed = staffInputSchema.safeParse(
-      validInput({ securityClearanceStatus: "VALID" }),
-    );
-    expect(parsed.success).toBe(false);
-    if (!parsed.success) {
-      const paths = parsed.error.issues.map((issue) => issue.path.join("."));
-      expect(paths).toContain("securityClearanceExpiryDate");
+    for (const status of ["VALID", "EXPIRED"] as const) {
+      const parsed = staffInputSchema.safeParse(
+        validInput({ securityClearanceStatus: status }),
+      );
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        const paths = parsed.error.issues.map((issue) => issue.path.join("."));
+        expect(paths).toContain("securityClearanceExpiryDate");
+      }
+    }
+  });
+
+  it("does not require clearance expiry for other statuses", () => {
+    for (const status of ["NOT_RECORDED", "NOT_REQUIRED", "PENDING"] as const) {
+      const parsed = staffInputSchema.safeParse(
+        validInput({ securityClearanceStatus: status }),
+      );
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  it("accepts VALID and EXPIRED when an expiry date is provided", () => {
+    for (const status of ["VALID", "EXPIRED"] as const) {
+      const parsed = staffInputSchema.safeParse(
+        validInput({
+          securityClearanceStatus: status,
+          securityClearanceExpiryDate: "2026-12-31",
+        }),
+      );
+      expect(parsed.success).toBe(true);
     }
   });
 

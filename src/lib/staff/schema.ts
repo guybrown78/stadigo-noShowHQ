@@ -5,6 +5,7 @@ import {
   MAX_PROBATION_DAYS,
   PROBATION_STATUSES,
   SECURITY_CLEARANCE_STATUSES,
+  clearanceStatusRequiresExpiry,
 } from "@/lib/staff/catalog";
 import { emptyToNull, normalizePersonName, normalizeStaffIdNumber } from "@/lib/staff/normalize";
 
@@ -116,8 +117,7 @@ export const staffInputSchema = z
   })
   .superRefine((data, ctx) => {
     if (
-      (data.securityClearanceStatus === "VALID" ||
-        data.securityClearanceStatus === "EXPIRED") &&
+      clearanceStatusRequiresExpiry(data.securityClearanceStatus) &&
       !data.securityClearanceExpiryDate
     ) {
       ctx.addIssue({
@@ -139,15 +139,11 @@ export const staffInputSchema = z
       });
     }
 
-    if (
-      data.applyProbation &&
-      !data.overrideProbationEndDate &&
-      !data.startDate
-    ) {
+    if (data.applyProbation && !data.startDate) {
       ctx.addIssue({
         code: "custom",
         path: ["startDate"],
-        message: "Enter a start date, or set a probation end date",
+        message: "Enter a start date",
       });
     }
   });
@@ -163,6 +159,10 @@ export const staffListQuerySchema = z.object({
   department: z.string().trim().optional().default(""),
   probationStatus: z
     .enum(["", ...PROBATION_STATUSES])
+    .optional()
+    .default(""),
+  probationLifecycle: z
+    .enum(["", "review_due", "overdue"])
     .optional()
     .default(""),
   clearanceStatus: z

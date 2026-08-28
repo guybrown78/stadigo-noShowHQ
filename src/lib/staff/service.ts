@@ -2,16 +2,20 @@ import {
   EmploymentStatus,
   Prisma,
   type PrismaClient,
-  type StaffProbationAction,
 } from "@prisma/client";
-import { londonTodayIso, parseLocalDate } from "@/lib/events/dates";
+import { parseLocalDate } from "@/lib/events/dates";
+import { clearanceStatusRequiresExpiry } from "@/lib/staff/catalog";
 import { StaffAccessError } from "@/lib/staff/errors";
 import {
   normalizeStaffIdKey,
   normalizeStaffIdNumber,
 } from "@/lib/staff/normalize";
-import { resolveProbation, type ResolvedProbation } from "@/lib/staff/probation";
-import { getTenantProbationDefault } from "@/lib/staff/queries";
+import type { ResolvedProbation } from "@/lib/staff/probation";
+import {
+  findActiveProbation,
+  resolveStaffProbationInput,
+  startStaffProbation,
+} from "@/lib/staff/probation-service";
 import type { StaffInput } from "@/lib/staff/schema";
 
 export { StaffAccessError };
@@ -56,6 +60,33 @@ function isDuplicateStaffIdError(error: unknown): boolean {
       part.includes("staffIdNormalized") ||
       part.includes("Staff_tenantId_staffIdNormalized"),
   );
+}
+
+function mandatoryFieldErrors(
+  input: StaffInput,
+): Record<string, string[]> | undefined {
+  const fieldErrors: Record<string, string[]> = {};
+  if (!input.staffIdNumber.trim()) {
+    fieldErrors.staffIdNumber = ["Staff ID is required"];
+  }
+  if (!input.firstName.trim()) {
+    fieldErrors.firstName = ["First name is required"];
+  }
+  if (!input.lastName.trim()) {
+    fieldErrors.lastName = ["Last name is required"];
+  }
+  if (input.roleTitle.trim().length < 2) {
+    fieldErrors.roleTitle = ["Role must be at least 2 characters"];
+  }
+  if (
+    clearanceStatusRequiresExpiry(input.securityClearanceStatus) &&
+    !input.securityClearanceExpiryDate
+  ) {
+    fieldErrors.securityClearanceExpiryDate = [
+      "Enter an expiry date for this clearance status",
+    ];
+  }
+  return Object.keys(fieldErrors).length > 0 ? fieldErrors : undefined;
 }
 
 async function findDuplicateStaffId(
@@ -176,7 +207,7 @@ async function assertManager(
   return { ok: true };
 }
 
-function staffWriteData(input: StaffInput, probation: ResolvedProbation) {
+function staffCoreWriteData(input: StaffInput) {
   const startDate = input.startDate ? parseLocalDate(input.startDate) : null;
   const clearanceExpiry = input.securityClearanceExpiryDate
     ? parseLocalDate(input.securityClearanceExpiryDate)
@@ -194,67 +225,40 @@ function staffWriteData(input: StaffInput, probation: ResolvedProbation) {
     managerStaffId: input.managerStaffId,
     employmentStatus: input.employmentStatus,
     startDate,
+    securityClearanceStatus: input.securityClearanceStatus,
+    securityClearanceExpiryDate: clearanceStatusRequiresExpiry(
+      input.securityClearanceStatus,
+    )
+      ? clearanceExpiry
+      : null,
+    notes: input.notes,
+  };
+}
+
+function staffWriteData(input: StaffInput, probation: ResolvedProbation) {
+  return {
+    ...staffCoreWriteData(input),
     probationLengthDays: probation.probationLengthDays,
     probationEndDate: probation.probationEndDate,
     probationEndDateOverridden: probation.probationEndDateOverridden,
     probationStatus: probation.probationStatus,
     probationReviewDueDate: probation.probationReviewDueDate,
-    securityClearanceStatus: input.securityClearanceStatus,
-    securityClearanceExpiryDate:
-      input.securityClearanceStatus === "VALID" ||
-      input.securityClearanceStatus === "EXPIRED"
-        ? clearanceExpiry
-        : null,
-    notes: input.notes,
   };
-}
-
-function probationHistoryAction(params: {
-  previousStatus: string;
-  previousEnd: Date | null;
-  previousLength: number | null;
-  nextStatus: string;
-  nextEnd: Date | null;
-  nextLength: number | null;
-}): StaffProbationAction | null {
-  const hadProbation = params.previousStatus !== "NOT_APPLICABLE";
-  const hasProbation = params.nextStatus !== "NOT_APPLICABLE";
-
-  if (!hadProbation && !hasProbation) {
-    return null;
-  }
-  if (!hadProbation && hasProbation) {
-    return "STARTED";
-  }
-  if (params.nextStatus === "PASSED" && params.previousStatus !== "PASSED") {
-    return "PASSED";
-  }
-  if (
-    params.nextStatus === "EXTENDED" &&
-    params.previousStatus !== "EXTENDED"
-  ) {
-    return "EXTENDED";
-  }
-
-  const endChanged =
-    (params.previousEnd?.getTime() ?? null) !==
-    (params.nextEnd?.getTime() ?? null);
-  const lengthChanged = params.previousLength !== params.nextLength;
-  const statusChanged = params.previousStatus !== params.nextStatus;
-
-  if (endChanged) {
-    return "END_DATE_OVERRIDDEN";
-  }
-  if (statusChanged || lengthChanged) {
-    return "STATUS_CHANGED";
-  }
-  return null;
 }
 
 export async function createStaff(
   db: DbClient,
   params: { tenantId: string; userId: string; input: StaffInput },
 ): Promise<StaffMutationResult> {
+  const missing = mandatoryFieldErrors(params.input);
+  if (missing) {
+    return {
+      ok: false,
+      error: "Check the form and try again.",
+      fieldErrors: missing,
+    };
+  }
+
   const staffIdNormalized = normalizeStaffIdKey(params.input.staffIdNumber);
   if (
     await findDuplicateStaffId(db, params.tenantId, staffIdNormalized)
@@ -282,20 +286,11 @@ export async function createStaff(
     }
   }
 
-  const tenantDefaultDays = await getTenantProbationDefault(
+  const probation = await resolveStaffProbationInput(
     db,
     params.tenantId,
+    params.input,
   );
-  const probation = resolveProbation({
-    applyProbation: params.input.applyProbation,
-    startDate: params.input.startDate,
-    durationOverride: params.input.probationLengthDays,
-    overrideEndDate: params.input.overrideProbationEndDate,
-    endDateOverride: params.input.probationEndDate,
-    requestedStatus: params.input.probationStatus,
-    tenantDefaultDays,
-    todayIso: londonTodayIso(),
-  });
   if (!probation.ok) {
     return {
       ok: false,
@@ -316,17 +311,16 @@ export async function createStaff(
         select: { id: true },
       });
 
-      if (probation.value.probationStatus !== "NOT_APPLICABLE") {
-        await tx.staffProbationHistory.create({
-          data: {
-            tenantId: params.tenantId,
-            staffId: staff.id,
-            action: "STARTED",
-            previousEndDate: null,
-            newEndDate: probation.value.probationEndDate,
-            actedById: params.userId,
-          },
+      if (params.input.applyProbation) {
+        const started = await startStaffProbation(tx, {
+          tenantId: params.tenantId,
+          userId: params.userId,
+          staffId: staff.id,
+          resolved: probation.value,
         });
+        if (!started.ok) {
+          throw new Error(started.error);
+        }
       }
 
       return staff;
@@ -366,12 +360,19 @@ export async function updateStaff(
       id: true,
       managerStaffId: true,
       probationStatus: true,
-      probationEndDate: true,
-      probationLengthDays: true,
     },
   });
   if (!existing) {
     throw new StaffAccessError();
+  }
+
+  const missing = mandatoryFieldErrors(params.input);
+  if (missing) {
+    return {
+      ok: false,
+      error: "Check the form and try again.",
+      fieldErrors: missing,
+    };
   }
 
   const staffIdNormalized = normalizeStaffIdKey(params.input.staffIdNumber);
@@ -408,59 +409,70 @@ export async function updateStaff(
     }
   }
 
-  const tenantDefaultDays = await getTenantProbationDefault(
-    db,
-    params.tenantId,
-  );
-  const probation = resolveProbation({
-    applyProbation: params.input.applyProbation,
-    startDate: params.input.startDate,
-    durationOverride: params.input.probationLengthDays,
-    overrideEndDate: params.input.overrideProbationEndDate,
-    endDateOverride: params.input.probationEndDate,
-    requestedStatus: params.input.probationStatus,
-    tenantDefaultDays,
-    todayIso: londonTodayIso(),
-  });
-  if (!probation.ok) {
+  const active = await findActiveProbation(db, params.tenantId, existing.id);
+  if (active && !params.input.applyProbation) {
     return {
       ok: false,
       error: "Check the form and try again.",
-      fieldErrors: probation.fieldErrors,
+      fieldErrors: {
+        applyProbation: [
+          "Use Review probation to record Passed, Extended, or Not continued",
+        ],
+      },
     };
   }
 
-  const historyAction = probationHistoryAction({
-    previousStatus: existing.probationStatus,
-    previousEnd: existing.probationEndDate,
-    previousLength: existing.probationLengthDays,
-    nextStatus: probation.value.probationStatus,
-    nextEnd: probation.value.probationEndDate,
-    nextLength: probation.value.probationLengthDays,
-  });
+  const shouldStart =
+    !active &&
+    params.input.applyProbation &&
+    existing.probationStatus === "NOT_APPLICABLE";
+
+  let resolved: ResolvedProbation | null = null;
+  if (shouldStart) {
+    const probation = await resolveStaffProbationInput(
+      db,
+      params.tenantId,
+      params.input,
+    );
+    if (!probation.ok) {
+      return {
+        ok: false,
+        error: "Check the form and try again.",
+        fieldErrors: probation.fieldErrors,
+      };
+    }
+    resolved = probation.value;
+  }
 
   try {
     await inTransaction(db, async (tx) => {
+      if (shouldStart && resolved) {
+        await tx.staff.update({
+          where: { id: existing.id },
+          data: {
+            ...staffWriteData(params.input, resolved),
+            updatedById: params.userId,
+          },
+        });
+        const started = await startStaffProbation(tx, {
+          tenantId: params.tenantId,
+          userId: params.userId,
+          staffId: existing.id,
+          resolved,
+        });
+        if (!started.ok) {
+          throw new Error(started.error);
+        }
+        return;
+      }
+
       await tx.staff.update({
         where: { id: existing.id },
         data: {
-          ...staffWriteData(params.input, probation.value),
+          ...staffCoreWriteData(params.input),
           updatedById: params.userId,
         },
       });
-
-      if (historyAction) {
-        await tx.staffProbationHistory.create({
-          data: {
-            tenantId: params.tenantId,
-            staffId: existing.id,
-            action: historyAction,
-            previousEndDate: existing.probationEndDate,
-            newEndDate: probation.value.probationEndDate,
-            actedById: params.userId,
-          },
-        });
-      }
     });
 
     return { ok: true, id: existing.id };

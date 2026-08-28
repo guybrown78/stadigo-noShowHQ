@@ -12,6 +12,7 @@ export type SidebarNavItem = {
   exact?: boolean;
   /** Additional path prefixes treated as active, e.g. venues under Settings. */
   alsoMatch?: string[];
+  badge?: number;
 };
 
 export type AccountMenuItem = {
@@ -146,14 +147,26 @@ export function SidebarShell({
                 <Link
                   href={item.href}
                   onClick={() => setDrawerOpen(false)}
-                  className={`block rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
                     active
                       ? "bg-slate-900 text-white"
                       : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                   aria-current={active ? "page" : undefined}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.badge ? (
+                    <span
+                      className={`inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold ${
+                        active
+                          ? "bg-white text-slate-900"
+                          : "bg-slate-900 text-white"
+                      }`}
+                      aria-label={`${item.badge} open probation tasks`}
+                    >
+                      {item.badge}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             );

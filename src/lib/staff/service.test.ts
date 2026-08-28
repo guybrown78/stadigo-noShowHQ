@@ -71,6 +71,7 @@ async function emptyListQuery() {
     employmentStatus: "",
     department: "",
     probationStatus: "",
+    probationLifecycle: "",
     clearanceStatus: "",
     page: 1,
   } as const;
@@ -83,7 +84,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const tenantIds = [tenantA?.tenant.id, tenantB?.tenant.id].filter(Boolean);
+  await prisma.staffProbationTask.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.staffProbationHistory.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
+  await prisma.staffProbation.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.staff.updateMany({
@@ -91,6 +98,10 @@ afterAll(async () => {
     data: { managerStaffId: null },
   });
   await prisma.staff.deleteMany({ where: { tenantId: { in: tenantIds } } });
+  await prisma.tenant.updateMany({
+    where: { id: { in: tenantIds } },
+    data: { defaultProbationUpdatedById: null },
+  });
   await prisma.user.deleteMany({ where: { tenantId: { in: tenantIds } } });
   await prisma.tenant.deleteMany({ where: { id: { in: tenantIds } } });
   await prisma.$disconnect();
@@ -147,6 +158,66 @@ describe("staff service", () => {
     expect(second.ok).toBe(false);
     if (!second.ok) {
       expect(second.fieldErrors?.staffIdNumber?.[0]).toMatch(/already used/i);
+    }
+
+    const retries = await prisma.staff.count({
+      where: {
+        tenantId: tenantA.tenant.id,
+        staffIdNormalized: "st-dup",
+        deletedAt: null,
+      },
+    });
+    expect(retries).toBe(1);
+  });
+
+  it("rejects a second insert of the same live staff ID at the database", async () => {
+    const created = await createStaff(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor({ staffIdNumber: "ST-IDX" }),
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    await expect(
+      prisma.staff.create({
+        data: {
+          tenantId: tenantA.tenant.id,
+          staffIdNumber: "st-idx",
+          staffIdNormalized: "st-idx",
+          firstName: "Other",
+          lastName: "Person",
+          roleTitle: "Steward",
+          createdById: tenantA.user.id,
+          updatedById: tenantA.user.id,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("does not let createStaff skip mandatory fields", async () => {
+    const result = await createStaff(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor({ staffIdNumber: "ST-EMPTY", firstName: "   " }),
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.fieldErrors?.firstName).toBeTruthy();
+    }
+
+    const clearance = await createStaff(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor({
+        staffIdNumber: "ST-CLR-REQ",
+        securityClearanceStatus: "VALID",
+        securityClearanceExpiryDate: null,
+      }),
+    });
+    expect(clearance.ok).toBe(false);
+    if (!clearance.ok) {
+      expect(clearance.fieldErrors?.securityClearanceExpiryDate).toBeTruthy();
     }
   });
 
@@ -326,60 +397,51 @@ describe("staff service", () => {
       created.id,
     );
     expect(staff.probationStatus).toBe("IN_PROGRESS");
+    expect(staff.probationLengthDays).toBe(90);
     expect(staff.probationEndDate).not.toBeNull();
     expect(formatLocalDateIso(staff.probationEndDate!)).toBe("2026-04-01");
     expect(formatLocalDateIso(staff.probationReviewDueDate!)).toBe("2026-03-04");
-    expect(staff.probationHistory[0]?.action).toBe("STARTED");
+    expect(staff.probationHistory.some((entry) => entry.action === "STARTED")).toBe(
+      true,
+    );
+    expect(staff.probations[0]?.durationSource).toBe("TENANT_DEFAULT");
+  });
 
-    const passed = await updateStaff(prisma, {
+  it("stores date-only fields as UTC midnight without shifting the calendar day", async () => {
+    const created = await createStaff(prisma, {
       tenantId: tenantA.tenant.id,
       userId: tenantA.user.id,
-      staffId: created.id,
       input: inputFor({
-        staffIdNumber: "PRB-1",
-        startDate: "2026-01-01",
+        staffIdNumber: "DATE-1",
+        startDate: "2026-01-15",
         applyProbation: true,
-        probationStatus: "PASSED",
+        probationStatus: "IN_PROGRESS",
+        securityClearanceStatus: "VALID",
+        securityClearanceExpiryDate: "2027-06-30",
       }),
     });
-    expect(passed.ok).toBe(true);
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
 
-    const afterPass = await getStaffForTenant(
+    const staff = await getStaffForTenant(
       prisma,
       tenantA.tenant.id,
       created.id,
     );
-    expect(afterPass.probationStatus).toBe("PASSED");
-    expect(afterPass.probationReviewDueDate).toBeNull();
-    expect(
-      afterPass.probationHistory.some((entry) => entry.action === "PASSED"),
-    ).toBe(true);
-
-    const extended = await updateStaff(prisma, {
-      tenantId: tenantA.tenant.id,
-      userId: tenantA.user.id,
-      staffId: created.id,
-      input: inputFor({
-        staffIdNumber: "PRB-1",
-        startDate: "2026-01-01",
-        applyProbation: true,
-        probationStatus: "EXTENDED",
-        overrideProbationEndDate: true,
-        probationEndDate: "2027-12-01",
-      }),
-    });
-    expect(extended.ok).toBe(true);
-
-    const afterExtend = await getStaffForTenant(
-      prisma,
-      tenantA.tenant.id,
-      created.id,
+    expect(staff.startDate?.toISOString()).toBe("2026-01-15T00:00:00.000Z");
+    expect(formatLocalDateIso(staff.startDate!)).toBe("2026-01-15");
+    expect(formatLocalDateIso(staff.probationEndDate!)).toBe("2026-04-15");
+    expect(formatLocalDateIso(staff.probationReviewDueDate!)).toBe("2026-03-18");
+    expect(formatLocalDateIso(staff.securityClearanceExpiryDate!)).toBe(
+      "2027-06-30",
     );
-    expect(afterExtend.probationStatus).toBe("EXTENDED");
-    expect(formatLocalDateIso(afterExtend.probationEndDate!)).toBe("2027-12-01");
-    expect(
-      afterExtend.probationHistory.some((entry) => entry.action === "EXTENDED"),
-    ).toBe(true);
+    expect(staff.securityClearanceExpiryDate?.toISOString()).toBe(
+      "2027-06-30T00:00:00.000Z",
+    );
+    expect(formatLocalDateIso(staff.probations[0]!.startDate)).toBe("2026-01-15");
+    expect(formatLocalDateIso(staff.probations[0]!.currentEndDate)).toBe(
+      "2026-04-15",
+    );
   });
 
   it("logically deletes staff and hides them from list and get", async () => {

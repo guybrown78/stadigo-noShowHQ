@@ -3,14 +3,6 @@
 import { exitTenantAction } from "@/app/(platform)/admin/actions";
 import { SidebarShell } from "@/components/sidebar-shell";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/staff", label: "Staff" },
-  { href: "/events", label: "Events", alsoMatch: ["/settings/events"] },
-  { href: "/ledger", label: "Ledger" },
-  { href: "/absence/new", label: "Log Absence" },
-];
-
 const accountMenuItems = [
   { href: "/profile", label: "Profile" },
   { href: "/settings", label: "Settings" },
@@ -20,6 +12,7 @@ export function AppShell({
   user,
   tenant,
   isActingAsTenant,
+  staffTaskCount = 0,
   children,
 }: {
   user: {
@@ -33,8 +26,21 @@ export function AppShell({
     slug: string;
   };
   isActingAsTenant: boolean;
+  staffTaskCount?: number;
   children: React.ReactNode;
 }) {
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard" },
+    {
+      href: "/staff",
+      label: "Staff",
+      badge: staffTaskCount || undefined,
+    },
+    { href: "/events", label: "Events", alsoMatch: ["/settings/events"] },
+    { href: "/ledger", label: "Ledger" },
+    { href: "/absence/new", label: "Log Absence" },
+  ];
+
   return (
     <SidebarShell
       brandHref="/dashboard"
