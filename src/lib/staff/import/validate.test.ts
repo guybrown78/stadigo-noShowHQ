@@ -69,12 +69,13 @@ describe("staff import parse", () => {
     const data = sheet.addRow(
       STAFF_IMPORT_HEADERS.map((header) => validRow[header] ?? ""),
     );
+    // Excel stores mailto display text as nested richText; ExcelJS types `text` as string.
     data.getCell(STAFF_IMPORT_HEADERS.indexOf("Email") + 1).value = {
       text: {
         richText: [{ text: "lauren.mills@example.com" }],
       },
       hyperlink: "mailto:lauren.mills@example.com",
-    };
+    } as unknown as import("exceljs").CellValue;
     const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
     const parsed = await parseImportFile("staff.xlsx", new Uint8Array(buffer));
     expect(parsed.ok).toBe(true);
