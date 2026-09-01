@@ -38,13 +38,19 @@ export function cellToDisplayString(value: unknown, asDate = false, asTime = fal
       return record.richText
         .map((part) =>
           typeof part === "object" && part && "text" in part
-            ? String((part as { text: unknown }).text ?? "")
+            ? cellToDisplayString((part as { text: unknown }).text, asDate, asTime)
             : "",
         )
         .join("");
     }
-    if (typeof record.text === "string") {
-      return record.text;
+    if ("text" in record) {
+      const fromText = cellToDisplayString(record.text, asDate, asTime);
+      if (fromText) {
+        return fromText;
+      }
+    }
+    if (typeof record.hyperlink === "string" && record.hyperlink) {
+      return stripMailto(record.hyperlink);
     }
     if ("error" in record) {
       return "";
@@ -52,8 +58,13 @@ export function cellToDisplayString(value: unknown, asDate = false, asTime = fal
     if ("formula" in record && record.result === undefined) {
       return "";
     }
+    return "";
   }
   return String(value).trim();
+}
+
+function stripMailto(value: string): string {
+  return value.replace(/^mailto:/i, "").split("?")[0]?.trim() ?? "";
 }
 
 export function formatJsDateToIso(value: Date): string {

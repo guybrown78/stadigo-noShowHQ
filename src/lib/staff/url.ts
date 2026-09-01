@@ -26,3 +26,40 @@ export function staffListHref(
   const qs = params.toString();
   return qs ? `/staff?${qs}` : "/staff";
 }
+
+export function importErrorsHref(
+  importId: string,
+  query: { q?: string; page?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (query.q) params.set("q", query.q);
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  const qs = params.toString();
+  return qs
+    ? `/staff/import/${importId}/errors?${qs}`
+    : `/staff/import/${importId}/errors`;
+}
+
+export function importConfirmHref(
+  importId: string,
+  query: { page?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  const qs = params.toString();
+  return qs
+    ? `/staff/import/${importId}/confirm?${qs}`
+    : `/staff/import/${importId}/confirm`;
+}
+
+export function importCompleteHref(
+  importId: string,
+  query: { page?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (query.page && query.page > 1) params.set("page", String(query.page));
+  const qs = params.toString();
+  return qs
+    ? `/staff/import/${importId}/complete?${qs}`
+    : `/staff/import/${importId}/complete`;
+}
