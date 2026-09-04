@@ -141,12 +141,20 @@ export default async function StaffPage({
             operational actions can attach to the right person later.
           </p>
         </div>
-        <Link
-          href="/staff/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Add staff member
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/staff/import"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            Import staff
+          </Link>
+          <Link
+            href="/staff/new"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          >
+            Add staff member
+          </Link>
+        </div>
       </div>
       <StaffSectionNav current="directory" probationCount={openCount} />
 
@@ -329,12 +337,20 @@ export default async function StaffPage({
                 Add your first staff member so absences and operational actions
                 can attach to a reliable record.
               </p>
-              <Link
-                href="/staff/new"
-                className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                Add your first staff member
-              </Link>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link
+                  href="/staff/new"
+                  className="inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                >
+                  Add your first staff member
+                </Link>
+                <Link
+                  href="/staff/import"
+                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Import staff
+                </Link>
+              </div>
             </>
           )}
         </div>

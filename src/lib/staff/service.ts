@@ -490,6 +490,52 @@ export async function updateStaff(
   }
 }
 
+export async function linkStaffManager(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    staffId: string;
+    managerStaffId: string;
+  },
+): Promise<StaffMutationResult> {
+  const existing = await db.staff.findFirst({
+    where: {
+      id: params.staffId,
+      tenantId: params.tenantId,
+      deletedAt: null,
+    },
+    select: { id: true, managerStaffId: true },
+  });
+  if (!existing) {
+    throw new StaffAccessError();
+  }
+
+  const manager = await assertManager(db, {
+    tenantId: params.tenantId,
+    staffId: existing.id,
+    managerStaffId: params.managerStaffId,
+    currentManagerStaffId: existing.managerStaffId,
+  });
+  if (!manager.ok) {
+    return {
+      ok: false,
+      error: "Check the form and try again.",
+      fieldErrors: manager.fieldErrors,
+    };
+  }
+
+  await db.staff.update({
+    where: { id: existing.id },
+    data: {
+      managerStaffId: params.managerStaffId,
+      updatedById: params.userId,
+    },
+  });
+
+  return { ok: true, id: existing.id };
+}
+
 export async function deleteStaff(
   db: DbClient,
   params: { tenantId: string; userId: string; staffId: string },

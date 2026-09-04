@@ -37,6 +37,7 @@ model Tenant {
   events                       Event[]
   eventImports                 EventImport[]
   staff                        Staff[]
+  staffImports                 StaffImport[]
   staffProbations              StaffProbation[]
   staffProbationHistory        StaffProbationHistory[]
   staffProbationTasks          StaffProbationTask[]
@@ -64,6 +65,7 @@ model User {
   eventsUpdated           Event[]              @relation("EventUpdatedBy")
   eventsDeleted           Event[]              @relation("EventDeletedBy")
   eventImportsUploaded    EventImport[]        @relation("EventImportUploadedBy")
+  staffImportsUploaded         StaffImport[]             @relation("StaffImportUploadedBy")
   staffCreated                 Staff[]                   @relation("StaffCreatedBy")
   staffUpdated                 Staff[]                   @relation("StaffUpdatedBy")
   staffDeleted                 Staff[]                   @relation("StaffDeletedBy")
@@ -438,6 +440,7 @@ model Staff {
   probationHistory             StaffProbationHistory[]
   probationTasks               StaffProbationTask[]
   absences                     Absence[]
+  importRows                   StaffImportRow[]
 
   @@unique([id, tenantId])
   // Live uniqueness: Staff_tenantId_staffIdNormalized_alive_key
@@ -647,4 +650,71 @@ model AbsenceHistory {
 
   @@index([tenantId, absenceId, createdAt])
   @@index([absenceId])
+}
+
+enum StaffImportStatus {
+  UPLOADED
+  VALIDATION_FAILED
+  AWAITING_CONFIRMATION
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum StaffImportRowStatus {
+  VALID
+  INVALID
+  IGNORED
+}
+
+model StaffImport {
+  id                         String            @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  uploadedById               String
+  uploadedBy                 User              @relation("StaffImportUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  originalFileName           String
+  fileHash                   String
+  totalRows                  Int               @default(0)
+  validRows                  Int               @default(0)
+  invalidRows                Int               @default(0)
+  ignoredRows                Int               @default(0)
+  existingManagerMatchCount  Int               @default(0)
+  importedManagerMatchCount  Int               @default(0)
+  createdStaffCount          Int               @default(0)
+  createdProbationCount      Int               @default(0)
+  status                     StaffImportStatus @default(UPLOADED)
+  failureReason              String?
+  uploadedAt                 DateTime          @default(now())
+  confirmedAt                DateTime?
+  completedAt                DateTime?
+  failedAt                   DateTime?
+  cancelledAt                DateTime?
+  rows                       StaffImportRow[]
+
+  @@index([tenantId, uploadedAt])
+  @@index([tenantId, status])
+  @@index([tenantId, fileHash])
+  @@index([uploadedById])
+}
+
+model StaffImportRow {
+  id              String               @id @default(cuid())
+  importId        String
+  import          StaffImport          @relation(fields: [importId], references: [id], onDelete: Cascade)
+  tenantId        String
+  sourceRowNumber Int
+  raw             Json
+  normalized      Json?
+  fieldErrors     Json?
+  managerOutcome  Json?
+  probationPreview Json?
+  createdStaffId  String?
+  createdStaff    Staff?               @relation(fields: [createdStaffId], references: [id], onDelete: SetNull)
+  status          StaffImportRowStatus
+
+  @@unique([importId, sourceRowNumber])
+  @@index([importId, status])
+  @@index([tenantId])
+  @@index([createdStaffId])
 }
