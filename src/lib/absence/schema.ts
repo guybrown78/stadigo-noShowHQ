@@ -5,9 +5,15 @@ import {
   ARCHIVE_REASON_MIN_LENGTH,
   CORRECTION_REASON_MAX_LENGTH,
   CORRECTION_REASON_MIN_LENGTH,
+  DEFAULT_LEDGER_DIRECTION,
+  DEFAULT_LEDGER_SORT,
+  LEDGER_SORT_DIRECTIONS,
+  LEDGER_SORT_FIELDS,
   NOTES_MAX_LENGTH,
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
+  type LedgerSortDirection,
+  type LedgerSortField,
 } from "@/lib/absence/catalog";
 import { parseLocalDate, parseLocalTime } from "@/lib/events/dates";
 import { emptyToNull } from "@/lib/staff/normalize";
@@ -171,3 +177,106 @@ export function parseArchiveCancellationFormData(formData: FormData) {
 }
 
 export { flattenFieldErrors } from "@/lib/form";
+
+const LEDGER_SORT_FIELD_SET = new Set<string>(LEDGER_SORT_FIELDS);
+const LEDGER_SORT_DIRECTION_SET = new Set<string>(LEDGER_SORT_DIRECTIONS);
+
+function optionalLedgerDate(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return parseLocalDate(trimmed) ? trimmed : "";
+}
+
+function optionalLedgerSort(value: unknown): LedgerSortField {
+  if (typeof value === "string" && LEDGER_SORT_FIELD_SET.has(value)) {
+    return value as LedgerSortField;
+  }
+  return DEFAULT_LEDGER_SORT;
+}
+
+function optionalLedgerDirection(value: unknown): LedgerSortDirection {
+  if (typeof value === "string" && LEDGER_SORT_DIRECTION_SET.has(value)) {
+    return value as LedgerSortDirection;
+  }
+  return DEFAULT_LEDGER_DIRECTION;
+}
+
+function optionalLedgerPage(value: unknown): number {
+  const raw =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : 1;
+  if (!Number.isInteger(raw) || raw < 1) {
+    return 1;
+  }
+  return raw;
+}
+
+export const ledgerListQuerySchema = z.object({
+  q: z.string().max(160),
+  venue: z.string(),
+  eventType: z.string(),
+  reportedFrom: z.string(),
+  reportedTo: z.string(),
+  sort: z.enum(LEDGER_SORT_FIELDS),
+  direction: z.enum(LEDGER_SORT_DIRECTIONS),
+  page: z.number().int().min(1),
+  view: z.string(),
+});
+
+export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
+
+export const defaultLedgerListQuery = (): LedgerListQuery => ({
+  q: "",
+  venue: "",
+  eventType: "",
+  reportedFrom: "",
+  reportedTo: "",
+  sort: DEFAULT_LEDGER_SORT,
+  direction: DEFAULT_LEDGER_DIRECTION,
+  page: 1,
+  view: "cancellations",
+});
+
+export function parseLedgerListQuery(raw: {
+  q?: string;
+  venue?: string;
+  eventType?: string;
+  reportedFrom?: string;
+  reportedTo?: string;
+  sort?: string;
+  direction?: string;
+  page?: string;
+  view?: string;
+}): LedgerListQuery {
+  const parsed = ledgerListQuerySchema.safeParse({
+    q: typeof raw.q === "string" ? raw.q.trim().slice(0, 160) : "",
+    venue: typeof raw.venue === "string" ? raw.venue.trim() : "",
+    eventType: typeof raw.eventType === "string" ? raw.eventType.trim() : "",
+    reportedFrom: optionalLedgerDate(raw.reportedFrom),
+    reportedTo: optionalLedgerDate(raw.reportedTo),
+    sort: optionalLedgerSort(raw.sort),
+    direction: optionalLedgerDirection(raw.direction),
+    page: optionalLedgerPage(raw.page),
+    view:
+      typeof raw.view === "string" && raw.view.trim()
+        ? raw.view.trim()
+        : "cancellations",
+  });
+  return parsed.success ? parsed.data : defaultLedgerListQuery();
+}
+
+export function isLedgerDateRangeInvalid(query: LedgerListQuery): boolean {
+  return Boolean(
+    query.reportedFrom &&
+      query.reportedTo &&
+      query.reportedFrom > query.reportedTo,
+  );
+}

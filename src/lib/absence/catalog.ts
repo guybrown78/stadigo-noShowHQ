@@ -30,3 +30,18 @@ export const ARCHIVE_REASON_MAX_LENGTH = 500;
 export const ABSENCE_STAFF_SEARCH_LIMIT = 20;
 export const ABSENCE_EVENT_SEARCH_LIMIT = 20;
 export const STAFF_ABSENCE_HISTORY_PAGE_SIZE = 10;
+export const LEDGER_PAGE_SIZE = 25;
+
+export const LEDGER_SORT_FIELDS = [
+  "reported",
+  "eventDate",
+  "staff",
+  "event",
+  "notice",
+] as const;
+export const LEDGER_SORT_DIRECTIONS = ["asc", "desc"] as const;
+export const DEFAULT_LEDGER_SORT = "reported" as const;
+export const DEFAULT_LEDGER_DIRECTION = "desc" as const;
+
+export type LedgerSortField = (typeof LEDGER_SORT_FIELDS)[number];
+export type LedgerSortDirection = (typeof LEDGER_SORT_DIRECTIONS)[number];

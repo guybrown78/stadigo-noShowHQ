@@ -103,6 +103,19 @@ export function formatNoticeSummary(detail: {
   return calendar;
 }
 
+export function noticeWarningFlags(detail: {
+  isShortNotice: boolean;
+  noticeCalendarDays: number;
+  noticeMinutes: number | null;
+}): { shortNotice: boolean; retrospective: boolean } {
+  return {
+    shortNotice: detail.isShortNotice,
+    retrospective:
+      detail.noticeCalendarDays < 0 ||
+      (detail.noticeMinutes != null && detail.noticeMinutes < 0),
+  };
+}
+
 export function formatHistoryValue(field: string, value: string | null): string {
   if (value == null || value === "") {
     return "none";
