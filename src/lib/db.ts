@@ -10,18 +10,23 @@ function createPrismaClient() {
   });
 }
 
-function hasEventImportDelegate(client: PrismaClient): boolean {
-  return "eventImport" in client && Boolean(client.eventImport);
+function hasRequiredDelegates(client: PrismaClient): boolean {
+  return (
+    "eventImport" in client &&
+    Boolean(client.eventImport) &&
+    "absence" in client &&
+    Boolean(client.absence)
+  );
 }
 
 const existing = globalForPrisma.prisma;
-if (existing && !hasEventImportDelegate(existing)) {
+if (existing && !hasRequiredDelegates(existing)) {
   void existing.$disconnect();
   globalForPrisma.prisma = undefined;
 }
 
 export const prisma =
-  globalForPrisma.prisma && hasEventImportDelegate(globalForPrisma.prisma)
+  globalForPrisma.prisma && hasRequiredDelegates(globalForPrisma.prisma)
     ? globalForPrisma.prisma
     : createPrismaClient();
 

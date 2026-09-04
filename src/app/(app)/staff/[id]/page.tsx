@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DeleteStaffDialog } from "@/components/staff/delete-staff-dialog";
 import { StaffSectionNav } from "@/components/staff/staff-section-nav";
+import { StaffAbsenceHistory } from "@/components/absence/staff-absence-history";
 import {
   ClearanceStatusBadge,
   EmploymentStatusBadge,
@@ -70,6 +71,7 @@ export default async function StaffDetailPage({
     restarted?: string;
     acknowledged?: string;
     snoozed?: string;
+    absencePage?: string;
   }>;
 }) {
   const user = await requireTenant();
@@ -434,15 +436,11 @@ export default async function StaffDetailPage({
         </section>
       ) : null}
 
-      <section className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Absence history
-        </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          Absence records will attach to this staff member in a later release.
-          Nothing is recorded yet.
-        </p>
-      </section>
+      <StaffAbsenceHistory
+        tenantId={user.tenantId}
+        staffId={staff.id}
+        page={Math.max(1, Number(flash.absencePage) || 1)}
+      />
     </div>
   );
 }
