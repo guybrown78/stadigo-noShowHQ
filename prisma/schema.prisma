@@ -40,6 +40,9 @@ model Tenant {
   staffProbations              StaffProbation[]
   staffProbationHistory        StaffProbationHistory[]
   staffProbationTasks          StaffProbationTask[]
+  absences                     Absence[]
+  cancellationDetails          CancellationDetail[]
+  absenceHistory               AbsenceHistory[]
 }
 
 model User {
@@ -72,6 +75,10 @@ model User {
   staffProbationTasksAcked     StaffProbationTask[]      @relation("StaffProbationTaskAcknowledgedBy")
   staffProbationTasksSnoozed   StaffProbationTask[]      @relation("StaffProbationTaskSnoozedBy")
   staffProbationTasksResolved  StaffProbationTask[]      @relation("StaffProbationTaskResolvedBy")
+  absencesCreated              Absence[]                 @relation("AbsenceCreatedBy")
+  absencesUpdated              Absence[]                 @relation("AbsenceUpdatedBy")
+  absencesArchived             Absence[]                 @relation("AbsenceArchivedBy")
+  absenceHistoryActions        AbsenceHistory[]          @relation("AbsenceHistoryActedBy")
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
 
@@ -173,9 +180,10 @@ model Venue {
   active         Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  events              Event[]
-  importVenuesMatched EventImportVenue[] @relation("EventImportVenueMatched")
-  importVenuesCreated EventImportVenue[] @relation("EventImportVenueCreated")
+  events                  Event[]
+  importVenuesMatched     EventImportVenue[] @relation("EventImportVenueMatched")
+  importVenuesCreated     EventImportVenue[] @relation("EventImportVenueCreated")
+  cancellationSnapshots   CancellationDetail[]
 
   @@unique([id, tenantId])
   @@unique([tenantId, nameNormalized])
@@ -215,7 +223,9 @@ model Event {
   deletedById      String?
   deletedBy        User?        @relation("EventDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
   importRows       EventImportRow[]
+  absences         Absence[]
 
+  @@unique([id, tenantId])
   @@unique([tenantId, reference])
   @@index([tenantId, deletedAt, eventDate])
   @@index([tenantId, status])
@@ -427,6 +437,7 @@ model Staff {
   probations                   StaffProbation[]
   probationHistory             StaffProbationHistory[]
   probationTasks               StaffProbationTask[]
+  absences                     Absence[]
 
   @@unique([id, tenantId])
   // Live uniqueness: Staff_tenantId_staffIdNormalized_alive_key
@@ -526,4 +537,113 @@ model StaffProbationTask {
   @@index([tenantId, state, type, dueAt])
   @@index([tenantId, staffId])
   @@index([probationId, state])
+}
+
+enum AbsenceType {
+  CANCELLATION
+  AWOL
+  SICKNESS
+}
+
+enum AbsenceFollowUpType {
+  REVIEW
+}
+
+enum AbsenceFollowUpStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  NOT_REQUIRED
+}
+
+enum AbsenceRecordStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum AbsenceNoticeBasis {
+  EXACT_TIME
+  CALENDAR_DATE
+}
+
+enum AbsenceHistoryAction {
+  CREATED
+  CORRECTED
+  ARCHIVED
+}
+
+model Absence {
+  id             String                @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  staffId        String
+  staff          Staff                 @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  eventId        String?
+  event          Event?                @relation(fields: [eventId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  type           AbsenceType
+  reportedDate   DateTime              @db.Date
+  reportedTime   String?
+  reason         String                @db.VarChar(1000)
+  notes          String?               @db.VarChar(2000)
+  followUpType   AbsenceFollowUpType
+  followUpStatus AbsenceFollowUpStatus
+  recordStatus   AbsenceRecordStatus   @default(ACTIVE)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  createdById    String
+  createdBy      User                  @relation("AbsenceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById    String
+  updatedBy      User                  @relation("AbsenceUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  archivedAt     DateTime?
+  archivedById   String?
+  archivedBy     User?                 @relation("AbsenceArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  archiveReason  String?               @db.VarChar(500)
+  cancellation   CancellationDetail?
+  history        AbsenceHistory[]
+
+  @@unique([id, tenantId])
+  // Live uniqueness: Absence_tenantId_staffId_eventId_type_active_key
+  // (tenantId, staffId, eventId, type) WHERE recordStatus = ACTIVE AND eventId IS NOT NULL.
+  @@index([tenantId, staffId, recordStatus])
+  @@index([tenantId, eventId])
+  @@index([tenantId, type, recordStatus])
+  @@index([tenantId, followUpStatus, recordStatus])
+  @@index([staffId])
+}
+
+model CancellationDetail {
+  absenceId              String             @id
+  tenantId               String
+  tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence                Absence            @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  eventNameSnapshot      String
+  eventDateSnapshot      DateTime           @db.Date
+  eventStartTimeSnapshot String?
+  venueIdSnapshot        String?
+  venueSnapshot          Venue?             @relation(fields: [venueIdSnapshot, tenantId], references: [id, tenantId], onDelete: Restrict)
+  venueNameSnapshot      String?
+  noticeMinutes          Int?
+  noticeCalendarDays     Int
+  noticeBasis            AbsenceNoticeBasis
+  isShortNotice          Boolean
+
+  @@unique([absenceId, tenantId])
+  @@index([tenantId])
+}
+
+model AbsenceHistory {
+  id        String               @id @default(cuid())
+  tenantId  String
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absenceId String
+  absence   Absence              @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  action    AbsenceHistoryAction
+  reason    String?              @db.VarChar(500)
+  changes   Json?
+  createdAt DateTime             @default(now())
+  actedById String
+  actedBy   User                 @relation("AbsenceHistoryActedBy", fields: [actedById], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, absenceId, createdAt])
+  @@index([absenceId])
 }

@@ -4,7 +4,7 @@ export default function LedgerPage() {
   return (
     <PlaceholderPage
       title="Ledger"
-      description="Track absence-related charges, payments, and balances for your organisation."
+      description="Review and resolve cancellations, AWOLs, and other absence records for your organisation."
     />
   );
 }
