@@ -15,7 +15,9 @@ function hasRequiredDelegates(client: PrismaClient): boolean {
     "eventImport" in client &&
     Boolean(client.eventImport) &&
     "absence" in client &&
-    Boolean(client.absence)
+    Boolean(client.absence) &&
+    "staffImport" in client &&
+    Boolean(client.staffImport)
   );
 }
 
