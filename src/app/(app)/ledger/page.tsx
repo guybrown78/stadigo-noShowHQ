@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
 import { NoticeWarningBadges } from "@/components/absence/absence-badges";
 import { requireTenant } from "@/lib/authz";
@@ -13,6 +14,7 @@ import {
 import { formatNoticeSummary } from "@/lib/absence/display";
 import {
   isLedgerDateRangeInvalid,
+  ledgerHasActiveFilters,
   parseLedgerListQuery,
   type LedgerListQuery,
 } from "@/lib/absence/schema";
@@ -102,14 +104,17 @@ function StaffCell({ row }: { row: LedgerCancellationRow }) {
       {live ? (
         <Link
           href={`/staff/${row.staff.id}`}
-          className="font-medium text-slate-900 hover:underline"
+          className="block truncate font-medium text-slate-900 hover:underline"
+          title={name}
         >
           {name}
         </Link>
       ) : (
-        <span className="font-medium text-slate-900">{name}</span>
+        <span className="block truncate font-medium text-slate-900" title={name}>
+          {name}
+        </span>
       )}
-      <p className="font-mono text-xs text-slate-500">
+      <p className="whitespace-nowrap font-mono text-xs text-slate-500">
         {row.staff.staffIdNumber}
       </p>
     </>
@@ -126,15 +131,20 @@ function EventCell({ row }: { row: LedgerCancellationRow }) {
       {live && row.event ? (
         <Link
           href={`/events/${row.event.id}`}
-          className="font-medium text-slate-900 hover:underline"
+          className="block truncate font-medium text-slate-900 hover:underline"
+          title={name}
         >
           {name}
         </Link>
       ) : (
-        <span className="font-medium text-slate-900">{name}</span>
+        <span className="block truncate font-medium text-slate-900" title={name}>
+          {name}
+        </span>
       )}
       {reference ? (
-        <p className="font-mono text-xs text-slate-500">{reference}</p>
+        <p className="whitespace-nowrap font-mono text-xs text-slate-500">
+          {reference}
+        </p>
       ) : null}
     </>
   );
@@ -179,13 +189,11 @@ export default async function LedgerPage({
   ]);
 
   const { rows, total, activeTotal, page, pageCount } = list;
-  const hasFilters = Boolean(
-    query.q ||
-      query.venue ||
-      query.eventType ||
-      query.reportedFrom ||
-      query.reportedTo,
-  );
+  if (page !== query.page) {
+    redirect(ledgerListHref(query, { page }));
+  }
+
+  const hasFilters = ledgerHasActiveFilters(query);
   const selectedVenue = options.venues.find((venue) => venue.id === query.venue);
   const selectedType = options.eventTypes.find(
     (type) => type.id === query.eventType,
@@ -335,7 +343,7 @@ export default async function LedgerPage({
             {query.q ? ` search “${query.q}”` : ""}
             {selectedVenue ? ` · Venue ${selectedVenue.name}` : ""}
             {selectedType ? ` · Event type ${selectedType.name}` : ""}
-            {query.reportedFrom || query.reportedTo
+            {!dateRangeInvalid && (query.reportedFrom || query.reportedTo)
               ? ` · Reported ${query.reportedFrom || "…"}–${query.reportedTo || "…"}`
               : ""}
             {!selectedVenue && query.venue ? " · Venue (unknown)" : ""}
@@ -349,7 +357,7 @@ export default async function LedgerPage({
           >
             Apply filters
           </button>
-          {hasFilters || preserveSort ? (
+          {hasFilters || preserveSort || dateRangeInvalid ? (
             <Link
               href="/ledger"
               className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
@@ -404,7 +412,7 @@ export default async function LedgerPage({
             {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
           </p>
 
-          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 bg-white md:block">
+          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 bg-white xl:block">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                 <tr>
@@ -448,8 +456,13 @@ export default async function LedgerPage({
                           ? formatLocalDateDisplay(detail.eventDateSnapshot)
                           : "—"}
                       </td>
-                      <td className="max-w-[10rem] truncate px-4 py-3 text-slate-700">
-                        {detail?.venueNameSnapshot ?? "—"}
+                      <td className="max-w-[12rem] px-4 py-3 text-slate-700">
+                        <p
+                          className="truncate"
+                          title={detail?.venueNameSnapshot ?? undefined}
+                        >
+                          {detail?.venueNameSnapshot ?? "—"}
+                        </p>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
                         <NoticeCell row={row} />
@@ -474,7 +487,7 @@ export default async function LedgerPage({
             </table>
           </div>
 
-          <ul className="mt-3 space-y-3 md:hidden">
+          <ul className="mt-3 space-y-3 xl:hidden">
             {rows.map((row) => {
               const detail = row.cancellation;
               return (
@@ -500,7 +513,10 @@ export default async function LedgerPage({
                     <NoticeCell row={row} />
                   </div>
                   {detail?.venueNameSnapshot ? (
-                    <p className="mt-2 truncate text-sm text-slate-600">
+                    <p
+                      className="mt-2 text-sm text-slate-600"
+                      title={detail.venueNameSnapshot}
+                    >
                       {detail.venueNameSnapshot}
                     </p>
                   ) : null}

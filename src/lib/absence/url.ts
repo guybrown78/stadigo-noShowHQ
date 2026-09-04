@@ -29,3 +29,19 @@ export function ledgerListHref(
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";
 }
+
+export function parseAbsenceReturnOrigin(
+  value: string | undefined,
+): "staff" | null {
+  return value === "staff" ? "staff" : null;
+}
+
+export function absenceCancelHref(params: {
+  origin: "staff" | null;
+  staffId: string | null;
+}): string {
+  if (params.origin === "staff" && params.staffId) {
+    return `/staff/${params.staffId}`;
+  }
+  return "/dashboard";
+}

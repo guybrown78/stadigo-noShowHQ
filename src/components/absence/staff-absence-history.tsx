@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { FollowUpStatusBadge } from "@/components/absence/absence-badges";
 import {
   formatCalendarNotice,
   formatDurationMinutes,
@@ -69,7 +68,6 @@ export async function StaffAbsenceHistory({
                         {truncateReason(absence.reason)}
                       </p>
                     </div>
-                    <FollowUpStatusBadge status={absence.followUpStatus} />
                   </div>
                 </li>
               );

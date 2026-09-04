@@ -34,13 +34,24 @@ export function formatLocalDateIso(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+const DISPLAY_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sept",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/** Calendar dates stored as UTC midnight. Avoid Intl month names: Node and Chrome disagree on en-GB “Sept” vs “Sep”. */
 export function formatLocalDateDisplay(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  return `${date.getUTCDate()} ${DISPLAY_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
 export function parseLocalTime(value: string): string | null {

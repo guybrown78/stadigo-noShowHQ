@@ -67,7 +67,7 @@ export function ArchiveCancellationDialog({
           </h2>
           <p id={descriptionId} className="mt-2 text-sm text-slate-600">
             This record will disappear from active operational views, including
-            staff Absence History and the future Cancellation Ledger. The data
+            staff Absence History and the Cancellation Ledger. The data
             remains available for audit.
           </p>
           <form action={formAction} noValidate className="mt-4 space-y-3">

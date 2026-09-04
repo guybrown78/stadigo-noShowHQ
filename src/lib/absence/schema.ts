@@ -280,3 +280,13 @@ export function isLedgerDateRangeInvalid(query: LedgerListQuery): boolean {
       query.reportedFrom > query.reportedTo,
   );
 }
+
+export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
+  return Boolean(
+    query.q ||
+      query.venue ||
+      query.eventType ||
+      (!isLedgerDateRangeInvalid(query) &&
+        (query.reportedFrom || query.reportedTo)),
+  );
+}

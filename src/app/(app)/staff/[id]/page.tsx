@@ -221,7 +221,7 @@ export default async function StaffDetailPage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={`/absence/new?staffId=${staff.id}`}
+            href={`/absence/new?staffId=${staff.id}&from=staff`}
             className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
           >
             Log absence

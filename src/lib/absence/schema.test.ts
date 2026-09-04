@@ -5,9 +5,14 @@ import {
   parseCorrectCancellationFormData,
   parseLedgerListQuery,
   isLedgerDateRangeInvalid,
+  ledgerHasActiveFilters,
   defaultLedgerListQuery,
 } from "@/lib/absence/schema";
-import { ledgerListHref } from "@/lib/absence/url";
+import {
+  absenceCancelHref,
+  ledgerListHref,
+  parseAbsenceReturnOrigin,
+} from "@/lib/absence/url";
 import { noticeWarningFlags } from "@/lib/absence/display";
 
 function formData(overrides: Record<string, string> = {}) {
@@ -136,6 +141,15 @@ describe("ledgerListQuerySchema", () => {
     expect(parsed.reportedFrom).toBe("2026-09-20");
     expect(parsed.reportedTo).toBe("2026-09-01");
     expect(isLedgerDateRangeInvalid(parsed)).toBe(true);
+    expect(ledgerHasActiveFilters(parsed)).toBe(false);
+  });
+
+  it("treats a valid date range as an active filter", () => {
+    const parsed = parseLedgerListQuery({
+      reportedFrom: "2026-09-01",
+      reportedTo: "2026-09-20",
+    });
+    expect(ledgerHasActiveFilters(parsed)).toBe(true);
   });
 
   it("accepts unknown view values without changing list defaults", () => {
@@ -143,6 +157,23 @@ describe("ledgerListQuerySchema", () => {
     expect(parsed.view).toBe("awol");
     expect(parsed.sort).toBe("reported");
     expect(parsed.page).toBe(1);
+  });
+});
+
+describe("absenceCancelHref", () => {
+  it("returns the Staff profile only for a validated staff origin", () => {
+    expect(parseAbsenceReturnOrigin("staff")).toBe("staff");
+    expect(parseAbsenceReturnOrigin("/staff/abc")).toBeNull();
+    expect(parseAbsenceReturnOrigin("https://example.com")).toBeNull();
+    expect(
+      absenceCancelHref({ origin: "staff", staffId: "staff_1" }),
+    ).toBe("/staff/staff_1");
+    expect(absenceCancelHref({ origin: "staff", staffId: null })).toBe(
+      "/dashboard",
+    );
+    expect(absenceCancelHref({ origin: null, staffId: "staff_1" })).toBe(
+      "/dashboard",
+    );
   });
 });
 
