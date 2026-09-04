@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { FollowUpStatusBadge } from "@/components/absence/absence-badges";
 import {
   formatCalendarNotice,
   formatDurationMinutes,
@@ -30,12 +29,6 @@ export async function StaffAbsenceHistory({
         <h2 className="text-lg font-semibold text-slate-900">
           Absence history
         </h2>
-        <Link
-          href={`/absence/new?staffId=${staffId}`}
-          className="text-sm font-medium text-slate-800 underline hover:text-slate-950"
-        >
-          Log cancellation
-        </Link>
       </div>
       {total === 0 ? (
         <p className="mt-2 text-sm text-slate-600">
@@ -75,7 +68,6 @@ export async function StaffAbsenceHistory({
                         {truncateReason(absence.reason)}
                       </p>
                     </div>
-                    <FollowUpStatusBadge status={absence.followUpStatus} />
                   </div>
                 </li>
               );

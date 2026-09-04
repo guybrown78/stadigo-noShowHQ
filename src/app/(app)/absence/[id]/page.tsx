@@ -1,10 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
-import {
-  AbsenceTypeBadge,
-  FollowUpStatusBadge,
-} from "@/components/absence/absence-badges";
+import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AbsenceAccessError } from "@/lib/absence/errors";
@@ -137,7 +134,6 @@ export default async function AbsenceDetailPage({
               Cancellation
             </h1>
             <AbsenceTypeBadge type={absence.type} />
-            <FollowUpStatusBadge status={absence.followUpStatus} />
           </div>
           <p className="mt-2 text-slate-600">
             {staffName} · {eventName} ·{" "}
@@ -227,9 +223,6 @@ export default async function AbsenceDetailPage({
               Retrospective / late record
             </p>
           ) : null}
-        </Detail>
-        <Detail label="Follow-up">
-          <FollowUpStatusBadge status={absence.followUpStatus} />
         </Detail>
         <div className="sm:col-span-2">
           <dt className="text-sm font-medium text-slate-500">Reason</dt>

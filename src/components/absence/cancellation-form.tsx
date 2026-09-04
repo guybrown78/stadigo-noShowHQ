@@ -100,6 +100,7 @@ export function CancellationForm({
   defaultReportedDate,
   initialStaff,
   initialEvent,
+  cancelHref,
   initialValues,
 }: {
   mode: "create" | "edit";
@@ -107,6 +108,7 @@ export function CancellationForm({
   defaultReportedDate: string;
   initialStaff?: AbsenceStaffOption | null;
   initialEvent?: AbsenceEventOption | null;
+  cancelHref?: string;
   initialValues?: {
     reportedDate?: string;
     reportedTime?: string | null;
@@ -407,12 +409,7 @@ export function CancellationForm({
             messages={state.fieldErrors?.correctionReason}
           />
         </div>
-      ) : (
-        <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          This Cancellation will be added with follow-up pending. Follow-up will
-          be managed from the Cancellation Ledger.
-        </p>
-      )}
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <button
@@ -427,7 +424,11 @@ export function CancellationForm({
               : "Save correction"}
         </button>
         <Link
-          href={mode === "edit" && absenceId ? `/absence/${absenceId}` : "/dashboard"}
+          href={
+            mode === "edit" && absenceId
+              ? `/absence/${absenceId}`
+              : (cancelHref ?? "/dashboard")
+          }
           className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
         >
           Cancel

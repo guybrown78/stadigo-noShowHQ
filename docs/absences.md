@@ -54,14 +54,28 @@ This ticket only accepts `type = CANCELLATION`. Do not add fake AWOL or Sickness
 
 ## Archive
 
-Logical deletion: `recordStatus = ARCHIVED` plus `archivedAt` / `archivedById` / `archiveReason`. Archived records stay reachable by URL for audit. They are excluded from staff Absence History and from the future active Ledger. Hard deletion is not supported.
+Logical deletion: `recordStatus = ARCHIVED` plus `archivedAt` / `archivedById` / `archiveReason`. Archived records stay reachable by URL for audit. They are excluded from staff Absence History and from the active Ledger. Hard deletion is not supported.
+
+## Ledger
+
+`/ledger` is a tenant-scoped read-only list of **active** `CANCELLATION` records. It reads the unified Absence parent and Cancellation snapshots. It does not copy rows into a separate Ledger table, mutate records, or show payment / follow-up status.
+
+Default order is newest reported date, then reported time (`NULL` last), then `createdAt`, then `id`. Search covers Staff name/ID and Event snapshot name plus live Event reference. Filters are Venue (snapshot id), Event type (live Event), and inclusive reported-date bounds. Page size is 25.
+
+Indexes added for this view:
+
+- `Absence (tenantId, type, recordStatus, reportedDate)` — replaced the previous 3-column type/status index so the default list and date range can use one left-prefix index.
+- `CancellationDetail (tenantId, eventDateSnapshot)` — Event-date sort.
+
+AWOL and Sickness views are visible as Coming soon only.
 
 ## Routes
 
-- `/absence/new` — log a Cancellation
+- `/ledger` — active Cancellation Ledger
+- `/absence/new` — log a Cancellation (`?staffId=` preselects same-tenant Staff)
 - `/absence/[id]` — Cancellation detail
 - `/absence/[id]/edit` — correction
-- Staff profile Absence History lists active rows from this model (bounded, 10 per page)
+- Staff profile Absence History lists active rows from this model (bounded, 10 per page). The profile header has a generic Log absence action.
 
 ## Future types
 

@@ -606,7 +606,7 @@ model Absence {
   // (tenantId, staffId, eventId, type) WHERE recordStatus = ACTIVE AND eventId IS NOT NULL.
   @@index([tenantId, staffId, recordStatus])
   @@index([tenantId, eventId])
-  @@index([tenantId, type, recordStatus])
+  @@index([tenantId, type, recordStatus, reportedDate])
   @@index([tenantId, followUpStatus, recordStatus])
   @@index([staffId])
 }
@@ -629,6 +629,7 @@ model CancellationDetail {
 
   @@unique([absenceId, tenantId])
   @@index([tenantId])
+  @@index([tenantId, eventDateSnapshot])
 }
 
 model AbsenceHistory {

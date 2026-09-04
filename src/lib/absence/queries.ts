@@ -6,8 +6,15 @@ import {
 import {
   ABSENCE_EVENT_SEARCH_LIMIT,
   ABSENCE_STAFF_SEARCH_LIMIT,
+  LEDGER_PAGE_SIZE,
   STAFF_ABSENCE_HISTORY_PAGE_SIZE,
+  type LedgerSortDirection,
+  type LedgerSortField,
 } from "@/lib/absence/catalog";
+import {
+  isLedgerDateRangeInvalid,
+  type LedgerListQuery,
+} from "@/lib/absence/schema";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
   formatLocalDateIso,
@@ -15,7 +22,7 @@ import {
   parseLocalDate,
 } from "@/lib/events/dates";
 
-export { STAFF_ABSENCE_HISTORY_PAGE_SIZE };
+export { LEDGER_PAGE_SIZE, STAFF_ABSENCE_HISTORY_PAGE_SIZE };
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -87,6 +94,55 @@ export type StaffAbsenceHistoryItem = Prisma.AbsenceGetPayload<{
     cancellation: true;
   };
 }>;
+
+const ledgerListSelect = {
+  id: true,
+  type: true,
+  reportedDate: true,
+  reportedTime: true,
+  reason: true,
+  createdAt: true,
+  staff: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      staffIdNumber: true,
+      deletedAt: true,
+    },
+  },
+  event: {
+    select: {
+      id: true,
+      reference: true,
+      deletedAt: true,
+      eventType: {
+        select: { name: true },
+      },
+    },
+  },
+  cancellation: {
+    select: {
+      eventNameSnapshot: true,
+      eventDateSnapshot: true,
+      venueIdSnapshot: true,
+      venueNameSnapshot: true,
+      noticeMinutes: true,
+      noticeCalendarDays: true,
+      noticeBasis: true,
+      isShortNotice: true,
+    },
+  },
+} satisfies Prisma.AbsenceSelect;
+
+export type LedgerCancellationRow = Prisma.AbsenceGetPayload<{
+  select: typeof ledgerListSelect;
+}>;
+
+export type LedgerFilterOptions = {
+  venues: { id: string; name: string }[];
+  eventTypes: { id: string; name: string }[];
+};
 
 function parseEventSearchDate(query: string): Date | null {
   const trimmed = query.trim();
@@ -317,4 +373,177 @@ export async function findActiveDuplicateCancellation(
     },
     select: { id: true },
   });
+}
+
+function ledgerSearchWhere(search: string): Prisma.AbsenceWhereInput[] {
+  const tokens = search.split(/\s+/).filter(Boolean);
+  const clauses: Prisma.AbsenceWhereInput[] = [
+    { staff: { firstName: { contains: search, mode: "insensitive" } } },
+    { staff: { lastName: { contains: search, mode: "insensitive" } } },
+    { staff: { staffIdNumber: { contains: search, mode: "insensitive" } } },
+    {
+      cancellation: {
+        eventNameSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+    { event: { reference: { contains: search, mode: "insensitive" } } },
+  ];
+  if (tokens.length >= 2) {
+    clauses.push({
+      staff: {
+        AND: [
+          { firstName: { contains: tokens[0], mode: "insensitive" } },
+          {
+            lastName: {
+              contains: tokens.slice(1).join(" "),
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+    });
+  }
+  return clauses;
+}
+
+function ledgerListWhere(
+  tenantId: string,
+  query: LedgerListQuery,
+): Prisma.AbsenceWhereInput {
+  const search = query.q.trim();
+  const skipDates = isLedgerDateRangeInvalid(query);
+  const from = !skipDates && query.reportedFrom
+    ? parseLocalDate(query.reportedFrom)
+    : null;
+  const to = !skipDates && query.reportedTo
+    ? parseLocalDate(query.reportedTo)
+    : null;
+
+  const reportedDate: Prisma.DateTimeFilter = {};
+  if (from) {
+    reportedDate.gte = from;
+  }
+  if (to) {
+    reportedDate.lte = to;
+  }
+
+  return {
+    tenantId,
+    type: "CANCELLATION",
+    recordStatus: "ACTIVE",
+    cancellation: query.venue
+      ? { venueIdSnapshot: query.venue }
+      : { isNot: null },
+    ...(query.eventType ? { event: { eventTypeId: query.eventType } } : {}),
+    ...(Object.keys(reportedDate).length > 0 ? { reportedDate } : {}),
+    ...(search ? { OR: ledgerSearchWhere(search) } : {}),
+  };
+}
+
+function ledgerOrderBy(
+  sort: LedgerSortField,
+  direction: LedgerSortDirection,
+): Prisma.AbsenceOrderByWithRelationInput[] {
+  const idTie: Prisma.AbsenceOrderByWithRelationInput = { id: direction };
+  if (sort === "eventDate") {
+    return [{ cancellation: { eventDateSnapshot: direction } }, idTie];
+  }
+  if (sort === "staff") {
+    return [
+      { staff: { lastName: direction } },
+      { staff: { firstName: direction } },
+      idTie,
+    ];
+  }
+  if (sort === "event") {
+    return [{ cancellation: { eventNameSnapshot: direction } }, idTie];
+  }
+  if (sort === "notice") {
+    return [
+      { cancellation: { noticeCalendarDays: direction } },
+      {
+        cancellation: {
+          noticeMinutes: { sort: direction, nulls: "last" },
+        },
+      },
+      idTie,
+    ];
+  }
+  return [
+    { reportedDate: direction },
+    { reportedTime: { sort: direction, nulls: "last" } },
+    { createdAt: direction },
+    idTie,
+  ];
+}
+
+const activeCancellationWhere = (
+  tenantId: string,
+): Prisma.AbsenceWhereInput => ({
+  tenantId,
+  type: "CANCELLATION",
+  recordStatus: "ACTIVE",
+  cancellation: { isNot: null },
+});
+
+export async function listLedgerFilterOptions(
+  db: DbClient,
+  tenantId: string,
+): Promise<LedgerFilterOptions> {
+  const [venues, eventTypes] = await Promise.all([
+    db.venue.findMany({
+      where: { tenantId },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.eventType.findMany({
+      where: { tenantId },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
+  ]);
+  return { venues, eventTypes };
+}
+
+export async function listActiveCancellationsForLedger(
+  db: PrismaClient,
+  tenantId: string,
+  query: LedgerListQuery,
+): Promise<{
+  rows: LedgerCancellationRow[];
+  total: number;
+  activeTotal: number;
+  page: number;
+  pageCount: number;
+}> {
+  const where = ledgerListWhere(tenantId, query);
+  const orderBy = ledgerOrderBy(query.sort, query.direction);
+  const skip = (query.page - 1) * LEDGER_PAGE_SIZE;
+
+  const [total, activeTotal, rows] = await Promise.all([
+    db.absence.count({ where }),
+    db.absence.count({ where: activeCancellationWhere(tenantId) }),
+    db.absence.findMany({
+      where,
+      select: ledgerListSelect,
+      orderBy,
+      skip,
+      take: LEDGER_PAGE_SIZE,
+    }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE));
+  const page = Math.min(query.page, pageCount);
+  if (page !== query.page && total > 0) {
+    const adjusted = await db.absence.findMany({
+      where,
+      select: ledgerListSelect,
+      orderBy,
+      skip: (page - 1) * LEDGER_PAGE_SIZE,
+      take: LEDGER_PAGE_SIZE,
+    });
+    return { rows: adjusted, total, activeTotal, page, pageCount };
+  }
+
+  return { rows, total, activeTotal, page: query.page, pageCount };
 }

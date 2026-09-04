@@ -66,7 +66,7 @@ export default async function CorrectCancellationPage({
       </h1>
       <p className="mt-2 max-w-2xl text-slate-600">
         Changes are saved with a correction reason and remain in the audit
-        history. Follow-up status is not reset.
+        history.
       </p>
       <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
         <CancellationForm
