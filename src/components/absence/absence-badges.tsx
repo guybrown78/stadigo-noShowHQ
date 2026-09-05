@@ -1,18 +1,40 @@
 import type { AbsenceFollowUpStatus, AbsenceType } from "@prisma/client";
+import { Ban, Bed, UserX } from "lucide-react";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
 import {
   ABSENCE_TYPE_LABELS,
   FOLLOW_UP_STATUS_LABELS,
-  FOLLOW_UP_STATUS_STYLES,
   noticeWarningFlags,
 } from "@/lib/absence/display";
 
+const TYPE_TONE: Record<AbsenceType, BadgeTone> = {
+  CANCELLATION: "cancel",
+  AWOL: "awol",
+  SICKNESS: "sickness",
+};
+
+const TYPE_ICON = {
+  CANCELLATION: Ban,
+  AWOL: UserX,
+  SICKNESS: Bed,
+} as const;
+
 export function AbsenceTypeBadge({ type }: { type: AbsenceType }) {
+  const Icon = TYPE_ICON[type];
   return (
-    <span className="inline-flex rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white">
+    <Badge tone={TYPE_TONE[type]}>
+      <Icon className="size-3" aria-hidden="true" />
       {ABSENCE_TYPE_LABELS[type]}
-    </span>
+    </Badge>
   );
 }
+
+const FOLLOW_UP_TONE: Record<AbsenceFollowUpStatus, BadgeTone> = {
+  PENDING: "warning",
+  IN_PROGRESS: "info",
+  COMPLETED: "success",
+  NOT_REQUIRED: "neutral",
+};
 
 export function FollowUpStatusBadge({
   status,
@@ -20,11 +42,7 @@ export function FollowUpStatusBadge({
   status: AbsenceFollowUpStatus;
 }) {
   return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${FOLLOW_UP_STATUS_STYLES[status]}`}
-    >
-      {FOLLOW_UP_STATUS_LABELS[status]}
-    </span>
+    <Badge tone={FOLLOW_UP_TONE[status]}>{FOLLOW_UP_STATUS_LABELS[status]}</Badge>
   );
 }
 
@@ -43,15 +61,9 @@ export function NoticeWarningBadges({
   }
   return (
     <span className="mt-1 flex flex-wrap gap-1">
-      {flags.shortNotice ? (
-        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-          Short notice
-        </span>
-      ) : null}
+      {flags.shortNotice ? <Badge tone="warning">Short notice</Badge> : null}
       {flags.retrospective ? (
-        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-          Retrospective / late
-        </span>
+        <Badge tone="warning">Retrospective / late</Badge>
       ) : null}
     </span>
   );

@@ -1,4 +1,15 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { DataTable, DataTableHead } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { Banner } from "@/components/ui/banner";
+import { filterControlClassName } from "@/components/form";
+import { SegmentedNav } from "@/components/ui/segmented-nav";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { EVENT_STATUSES } from "@/lib/events/catalog";
@@ -13,6 +24,7 @@ import { ensureTenantEventCatalog } from "@/lib/events/provision";
 import { eventListQuerySchema, type EventListQuery } from "@/lib/events/schema";
 import { eventsListHref } from "@/lib/events/url";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
+import { EventRowActions } from "@/components/events/event-row-actions";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
 import { EventsSectionNav } from "@/components/events/events-section-nav";
 
@@ -64,231 +76,179 @@ export default async function EventsPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Events
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Create and maintain upcoming events so staffing and absences can be
-            recorded against the right fixture later.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/events/import"
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-          >
-            Import events
-          </Link>
-          <Link
-            href="/events/new"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Add event
-          </Link>
-        </div>
-      </div>
-      <EventsSectionNav current="events" />
+      <PageHeader
+        breadcrumbs={[
+          { href: "/dashboard", label: "Dashboard" },
+          { label: "Events" },
+        ]}
+        title="Events"
+        description="Create and maintain upcoming events so staffing and absences can be recorded against the right fixture later."
+        actions={
+          <>
+            <ButtonLink href="/events/import" variant="secondary">
+              Import events
+            </ButtonLink>
+            <ButtonLink href="/events/new" icon={Plus}>
+              Add event
+            </ButtonLink>
+          </>
+        }
+      >
+        <EventsSectionNav current="events" />
+      </PageHeader>
 
       {deleted ? (
-        <p
-          className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
+        <Banner tone="success" className="mt-6">
           Event removed from the active list.
-        </p>
+        </Banner>
       ) : null}
 
-      <form
-        method="get"
-        className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-        aria-label="Filter events"
-      >
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <label htmlFor="events-q" className="mb-1 block text-sm font-medium text-slate-700">
-              Search
-            </label>
-            {query.range !== "all" ? (
-              <input type="hidden" name="range" value={query.range} />
-            ) : null}
-            <input
-              id="events-q"
-              name="q"
-              type="search"
-              defaultValue={query.q}
-              placeholder="Name, reference, or venue"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="events-status" className="mb-1 block text-sm font-medium text-slate-700">
-              Status
-            </label>
-            <select
-              id="events-status"
-              name="status"
-              defaultValue={query.status}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All statuses</option>
-              {EVENT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {EVENT_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="events-type" className="mb-1 block text-sm font-medium text-slate-700">
-              Event type
-            </label>
-            <select
-              id="events-type"
-              name="type"
-              defaultValue={query.type}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All types</option>
-              {types.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label htmlFor="events-from" className="mb-1 block text-sm font-medium text-slate-700">
-              From date
-            </label>
-            <input
-              id="events-from"
-              name="from"
-              type="date"
-              defaultValue={query.from}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div>
-            <label htmlFor="events-to" className="mb-1 block text-sm font-medium text-slate-700">
-              To date
-            </label>
-            <input
-              id="events-to"
-              name="to"
-              type="date"
-              defaultValue={query.to}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div className="flex items-end gap-2 lg:col-span-2">
-            <button
-              type="submit"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Apply filters
-            </button>
-            {hasFilters ? (
-              <Link
-                href="/events"
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              >
-                Clear
-              </Link>
-            ) : null}
-          </div>
-        </div>
+      <form method="get" className="mt-4">
+        <FilterBar
+          ariaLabel="Filter events"
+          active={hasFilters}
+          actions={
+            <>
+              <Button type="submit" size="sm">
+                Apply filters
+              </Button>
+              {hasFilters ? (
+                <ButtonLink href="/events" variant="secondary" size="sm">
+                  Reset
+                </ButtonLink>
+              ) : null}
+            </>
+          }
+        >
+        {query.range !== "all" ? (
+          <input type="hidden" name="range" value={query.range} />
+        ) : null}
+        <FilterField label="Search" htmlFor="events-q" className="min-w-[12rem] flex-[1.3]">
+          <input
+            id="events-q"
+            name="q"
+            type="search"
+            defaultValue={query.q}
+            placeholder="Name, reference, or venue"
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        <FilterField label="Status" htmlFor="events-status">
+          <select
+            id="events-status"
+            name="status"
+            defaultValue={query.status}
+            className={filterControlClassName()}
+          >
+            <option value="">All statuses</option>
+            {EVENT_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {EVENT_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Event type" htmlFor="events-type">
+          <select
+            id="events-type"
+            name="type"
+            defaultValue={query.type}
+            className={filterControlClassName()}
+          >
+            <option value="">All types</option>
+            {types.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="From" htmlFor="events-from">
+          <input
+            id="events-from"
+            name="from"
+            type="date"
+            defaultValue={query.from}
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        <FilterField label="To" htmlFor="events-to">
+          <input
+            id="events-to"
+            name="to"
+            type="date"
+            defaultValue={query.to}
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        </FilterBar>
       </form>
 
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Quick date filters">
-        {(
-          [
-            ["all", "All"],
-            ["upcoming", "Upcoming"],
-            ["past", "Past"],
-          ] as const
-        ).map(([range, label]) => {
-          const active = query.range === range;
-          return (
-            <Link
-              key={range}
-              href={eventsListHref(query, { range, page: 1, from: "", to: "" })}
-              className={`rounded-full px-3 py-1 text-sm font-medium ${
-                active
-                  ? "bg-slate-900 text-white"
-                  : "bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50"
-              }`}
-              aria-current={active ? "page" : undefined}
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </div>
+      <SegmentedNav
+        className="mt-3"
+        label="Quick date filters"
+        items={[
+          {
+            href: eventsListHref(query, { range: "all", page: 1, from: "", to: "" }),
+            label: "All",
+            active: query.range === "all",
+          },
+          {
+            href: eventsListHref(query, {
+              range: "upcoming",
+              page: 1,
+              from: "",
+              to: "",
+            }),
+            label: "Upcoming",
+            active: query.range === "upcoming",
+          },
+          {
+            href: eventsListHref(query, { range: "past", page: 1, from: "", to: "" }),
+            label: "Past",
+            active: query.range === "past",
+          },
+        ]}
+      />
 
       {events.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          {hasFilters ? (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No events match these filters
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Try a different search, or clear the filters to see all events.
-              </p>
-              <Link
-                href="/events"
-                className="mt-4 inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              >
+        <EmptyState
+          className="mt-6"
+          title={hasFilters ? "No events match these filters" : "No events yet"}
+          description={
+            hasFilters
+              ? "Try a different search, or clear the filters to see all events."
+              : "Add your first event to start tracking fixtures, venues, and staffing requirements."
+          }
+          action={
+            hasFilters ? (
+              <ButtonLink href="/events" variant="secondary">
                 Clear filters
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No events yet
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Add your first event to start tracking fixtures, venues, and
-                staffing requirements.
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <Link
-                  href="/events/new"
-                  className="inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                >
+              </ButtonLink>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2">
+                <ButtonLink href="/events/new" icon={Plus}>
                   Add your first event
-                </Link>
-                <Link
-                  href="/events/import"
-                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
+                </ButtonLink>
+                <ButtonLink href="/events/import" variant="secondary">
                   Import events
-                </Link>
-                <Link
-                  href="/settings/events"
-                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
+                </ButtonLink>
+                <ButtonLink href="/settings/events" variant="secondary">
                   Venues
-                </Link>
+                </ButtonLink>
               </div>
-            </>
-          )}
-        </div>
+            )
+          }
+        />
       ) : (
         <>
-          <p className="mt-6 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500">
             {total} {total === 1 ? "event" : "events"}
             {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
           </p>
 
-          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 bg-white md:block">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+          <DataTable className="mt-3 hidden md:block">
+              <DataTableHead>
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Event</th>
@@ -300,7 +260,7 @@ export default async function EventsPage({
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
-              </thead>
+              </DataTableHead>
               <tbody>
                 {events.map((event) => (
                   <tr key={event.id} className="border-b border-slate-100">
@@ -341,37 +301,20 @@ export default async function EventsPage({
                       <EventStatusBadge status={event.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Link
-                          href={`/events/${event.id}`}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
-                        >
-                          View
-                        </Link>
-                        <Link
-                          href={`/events/${event.id}/edit`}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
-                        >
-                          Edit
-                        </Link>
-                        <DeleteEventDialog
-                          eventId={event.id}
-                          eventName={event.name}
-                        />
-                      </div>
+                      <EventRowActions
+                        eventId={event.id}
+                        eventName={event.name}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+          </DataTable>
 
           <ul className="mt-3 space-y-3 md:hidden">
             {events.map((event) => (
-              <li
-                key={event.id}
-                className="rounded-lg border border-slate-200 bg-white p-4"
-              >
+              <li key={event.id}>
+                <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium text-slate-500">
@@ -396,58 +339,32 @@ export default async function EventsPage({
                   Staff required: {event.staffRequired}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/events/${event.id}`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  >
+                  <ButtonLink href={`/events/${event.id}`} variant="secondary" size="sm">
                     View
-                  </Link>
-                  <Link
-                    href={`/events/${event.id}/edit`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  >
+                  </ButtonLink>
+                  <ButtonLink href={`/events/${event.id}/edit`} variant="secondary" size="sm">
                     Edit
-                  </Link>
+                  </ButtonLink>
                   <DeleteEventDialog
                     eventId={event.id}
                     eventName={event.name}
                   />
                 </div>
+                </Card>
               </li>
             ))}
           </ul>
 
-          {pageCount > 1 ? (
-            <nav
-              className="mt-6 flex items-center justify-between gap-3"
-              aria-label="Pagination"
-            >
-              {page > 1 ? (
-                <Link
-                  href={eventsListHref(query, { page: page - 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
-                  Previous
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Previous</span>
-              )}
-              <span className="text-sm text-slate-600">
-                Showing {(page - 1) * EVENT_PAGE_SIZE + 1}–
-                {Math.min(page * EVENT_PAGE_SIZE, total)} of {total}
-              </span>
-              {page < pageCount ? (
-                <Link
-                  href={eventsListHref(query, { page: page + 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
-                  Next
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Next</span>
-              )}
-            </nav>
-          ) : null}
+          <Pagination
+            className="mt-6"
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            from={(page - 1) * EVENT_PAGE_SIZE + 1}
+            to={Math.min(page * EVENT_PAGE_SIZE, total)}
+            itemLabel="events"
+            hrefForPage={(nextPage) => eventsListHref(query, { page: nextPage })}
+          />
         </>
       )}
     </div>

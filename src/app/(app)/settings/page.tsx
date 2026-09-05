@@ -1,42 +1,62 @@
 import Link from "next/link";
+import { Calendar, ShieldCheck } from "lucide-react";
+import { Card, CardBody } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata = { title: "Settings" };
 
 export default function SettingsPage() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-        Settings
-      </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
-        Configure organisation defaults and preferences that NoShowHQ will use
-        across this tenant.
-      </p>
+      <PageHeader
+        breadcrumbs={[
+          { href: "/dashboard", label: "Dashboard" },
+          { label: "Settings" },
+        ]}
+        title="Settings"
+        description="Configure organisation defaults and preferences that NoShowHQ will use across this tenant."
+      />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/settings/probation"
-          className="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50"
-        >
-          <h2 className="text-base font-semibold text-slate-900">
-            Probation
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Set the default probation length used when new staff records are
-            created. Changing it does not rewrite existing dates.
-          </p>
+        <Link href="/settings/probation" className="group">
+          <Card className="h-full transition-colors group-hover:border-primary/40">
+            <CardBody>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <ShieldCheck className="size-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Probation
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Set the default probation length used when new staff records
+                    are created. Changing it does not rewrite existing dates.
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
         </Link>
-        <Link
-          href="/settings/events"
-          className="rounded-lg border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50"
-        >
-          <h2 className="text-base font-semibold text-slate-900">
-            Venues
-          </h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Manage venues used when creating or importing events. You can also
-            open this list from Events.
-          </p>
+        <Link href="/settings/events" className="group">
+          <Card className="h-full transition-colors group-hover:border-primary/40">
+            <CardBody>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <Calendar className="size-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Venues
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Manage venues used when creating or importing events. You
+                    can also open this list from Events.
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
         </Link>
       </div>
     </div>

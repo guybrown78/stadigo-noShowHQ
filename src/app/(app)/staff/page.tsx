@@ -1,5 +1,17 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { DeleteStaffDialog } from "@/components/staff/delete-staff-dialog";
+import { StaffRowActions } from "@/components/staff/staff-row-actions";
+import { Banner } from "@/components/ui/banner";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { DataTable, DataTableHead } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { Avatar, initialsFor } from "@/components/ui/avatar";
+import { filterControlClassName } from "@/components/form";
 import {
   EmploymentStatusBadge,
   ProbationLifecycleBadge,
@@ -131,239 +143,170 @@ export default async function StaffPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Staff
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Maintain a reliable staff record for every worker so absences and
-            operational actions can attach to the right person later.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/staff/import"
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-          >
-            Import staff
-          </Link>
-          <Link
-            href="/staff/new"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Add staff member
-          </Link>
-        </div>
-      </div>
-      <StaffSectionNav current="directory" probationCount={openCount} />
+      <PageHeader
+        breadcrumbs={[
+          { href: "/dashboard", label: "Dashboard" },
+          { label: "Staff" },
+        ]}
+        title="Staff Directory"
+        description="Maintain a reliable staff record for every worker so absences and operational actions can attach to the right person later."
+        actions={
+          <>
+            <ButtonLink href="/staff/import" variant="secondary">
+              Import staff
+            </ButtonLink>
+            <ButtonLink href="/staff/new" icon={Plus}>
+              Add staff member
+            </ButtonLink>
+          </>
+        }
+      >
+        <StaffSectionNav current="directory" probationCount={openCount} />
+      </PageHeader>
 
       {deleted ? (
-        <p
-          className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
+        <Banner tone="success" className="mt-6">
           Staff member removed from the active directory.
-        </p>
+        </Banner>
       ) : null}
 
-      <form
-        method="get"
-        className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-        aria-label="Filter staff"
-      >
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="lg:col-span-3">
-            <label
-              htmlFor="staff-q"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Search
-            </label>
-            <input
-              id="staff-q"
-              name="q"
-              type="search"
-              defaultValue={query.q}
-              placeholder="Staff ID, first name, or last name"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="staff-employment"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Employment status
-            </label>
-            <select
-              id="staff-employment"
-              name="employmentStatus"
-              defaultValue={query.employmentStatus}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All statuses</option>
-              {EMPLOYMENT_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {EMPLOYMENT_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="staff-department"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Department
-            </label>
-            <select
-              id="staff-department"
-              name="department"
-              defaultValue={query.department}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All departments</option>
-              {departments.map((department) => (
-                <option key={department} value={department}>
-                  {department}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="staff-probation"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Probation status
-            </label>
-            <select
-              id="staff-probation"
-              name="probationStatus"
-              defaultValue={query.probationStatus}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All probation statuses</option>
-              {PROBATION_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {PROBATION_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="staff-probation-lifecycle"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Probation urgency
-            </label>
-            <select
-              id="staff-probation-lifecycle"
-              name="probationLifecycle"
-              defaultValue={query.probationLifecycle}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All</option>
-              <option value="review_due">Review due</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="staff-clearance"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Security clearance
-            </label>
-            <select
-              id="staff-clearance"
-              name="clearanceStatus"
-              defaultValue={query.clearanceStatus}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All clearance statuses</option>
-              {SECURITY_CLEARANCE_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {CLEARANCE_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end gap-2">
-            <button
-              type="submit"
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Apply filters
-            </button>
-            {hasFilters ? (
-              <Link
-                href="/staff"
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              >
-                Clear
-              </Link>
-            ) : null}
-          </div>
-        </div>
+      <form method="get" className="mt-4">
+        <FilterBar
+          ariaLabel="Filter staff"
+          active={hasFilters}
+          actions={
+            <>
+              <Button type="submit" size="sm">
+                Apply filters
+              </Button>
+              {hasFilters ? (
+                <ButtonLink href="/staff" variant="secondary" size="sm">
+                  Reset
+                </ButtonLink>
+              ) : null}
+            </>
+          }
+        >
+        <FilterField label="Search" htmlFor="staff-q" className="min-w-[12rem] flex-[1.3]">
+          <input
+            id="staff-q"
+            name="q"
+            type="search"
+            defaultValue={query.q}
+            placeholder="Staff ID or name"
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        <FilterField label="Employment" htmlFor="staff-employment">
+          <select
+            id="staff-employment"
+            name="employmentStatus"
+            defaultValue={query.employmentStatus}
+            className={filterControlClassName()}
+          >
+            <option value="">All statuses</option>
+            {EMPLOYMENT_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {EMPLOYMENT_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Department" htmlFor="staff-department">
+          <select
+            id="staff-department"
+            name="department"
+            defaultValue={query.department}
+            className={filterControlClassName()}
+          >
+            <option value="">All departments</option>
+            {departments.map((department) => (
+              <option key={department} value={department}>
+                {department}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Probation" htmlFor="staff-probation">
+          <select
+            id="staff-probation"
+            name="probationStatus"
+            defaultValue={query.probationStatus}
+            className={filterControlClassName()}
+          >
+            <option value="">All</option>
+            {PROBATION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {PROBATION_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Urgency" htmlFor="staff-probation-lifecycle">
+          <select
+            id="staff-probation-lifecycle"
+            name="probationLifecycle"
+            defaultValue={query.probationLifecycle}
+            className={filterControlClassName()}
+          >
+            <option value="">All</option>
+            <option value="review_due">Review due</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </FilterField>
+        <FilterField label="Clearance" htmlFor="staff-clearance">
+          <select
+            id="staff-clearance"
+            name="clearanceStatus"
+            defaultValue={query.clearanceStatus}
+            className={filterControlClassName()}
+          >
+            <option value="">All</option>
+            {SECURITY_CLEARANCE_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {CLEARANCE_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        </FilterBar>
       </form>
 
       {staff.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          {hasFilters ? (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No staff match these filters
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Try a different search, or clear the filters to see the full
-                directory.
-              </p>
-              <Link
-                href="/staff"
-                className="mt-4 inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              >
+        <EmptyState
+          className="mt-6"
+          title={hasFilters ? "No staff match these filters" : "No staff yet"}
+          description={
+            hasFilters
+              ? "Try a different search, or clear the filters to see the full directory."
+              : "Add your first staff member so absences and operational actions can attach to a reliable record."
+          }
+          action={
+            hasFilters ? (
+              <ButtonLink href="/staff" variant="secondary">
                 Clear filters
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No staff yet
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Add your first staff member so absences and operational actions
-                can attach to a reliable record.
-              </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <Link
-                  href="/staff/new"
-                  className="inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                >
+              </ButtonLink>
+            ) : (
+              <div className="flex flex-wrap justify-center gap-2">
+                <ButtonLink href="/staff/new" icon={Plus}>
                   Add your first staff member
-                </Link>
-                <Link
-                  href="/staff/import"
-                  className="inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
+                </ButtonLink>
+                <ButtonLink href="/staff/import" variant="secondary">
                   Import staff
-                </Link>
+                </ButtonLink>
               </div>
-            </>
-          )}
-        </div>
+            )
+          }
+        />
       ) : (
         <>
-          <p className="mt-6 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500">
             {total} {total === 1 ? "staff member" : "staff members"}
             {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
           </p>
 
-          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 bg-white md:block">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+          <DataTable className="mt-3 hidden md:block">
+              <DataTableHead>
                 <tr>
                   <th className="px-4 py-3 font-medium">Staff ID</th>
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -375,7 +318,7 @@ export default async function StaffPage({
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
-              </thead>
+              </DataTableHead>
               <tbody>
                 {staff.map((member) => (
                   <tr key={member.id} className="border-b border-slate-100">
@@ -385,8 +328,12 @@ export default async function StaffPage({
                     <td className="px-4 py-3">
                       <Link
                         href={`/staff/${member.id}`}
-                        className="font-medium text-slate-900 hover:underline"
+                        className="flex items-center gap-3 font-medium text-slate-900 hover:underline"
                       >
+                        <Avatar
+                          initials={initialsFor(member.firstName, member.lastName)}
+                          size="sm"
+                        />
                         {formatStaffName(member)}
                       </Link>
                     </td>
@@ -406,38 +353,21 @@ export default async function StaffPage({
                       />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Link
-                          href={`/staff/${member.id}`}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
-                        >
-                          View
-                        </Link>
-                        <Link
-                          href={`/staff/${member.id}/edit`}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
-                        >
-                          Edit
-                        </Link>
-                        <DeleteStaffDialog
-                          staffId={member.id}
-                          staffName={formatStaffName(member)}
-                          staffIdNumber={member.staffIdNumber}
-                        />
-                      </div>
+                      <StaffRowActions
+                        staffId={member.id}
+                        staffName={formatStaffName(member)}
+                        staffIdNumber={member.staffIdNumber}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+          </DataTable>
 
           <ul className="mt-3 space-y-3 md:hidden">
             {staff.map((member) => (
-              <li
-                key={member.id}
-                className="rounded-lg border border-slate-200 bg-white p-4"
-              >
+              <li key={member.id}>
+                <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-mono text-xs font-medium text-slate-500">
@@ -465,59 +395,33 @@ export default async function StaffPage({
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/staff/${member.id}`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  >
+                  <ButtonLink href={`/staff/${member.id}`} variant="secondary" size="sm">
                     View
-                  </Link>
-                  <Link
-                    href={`/staff/${member.id}/edit`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  >
+                  </ButtonLink>
+                  <ButtonLink href={`/staff/${member.id}/edit`} variant="secondary" size="sm">
                     Edit
-                  </Link>
+                  </ButtonLink>
                   <DeleteStaffDialog
                     staffId={member.id}
                     staffName={formatStaffName(member)}
                     staffIdNumber={member.staffIdNumber}
                   />
                 </div>
+                </Card>
               </li>
             ))}
           </ul>
 
-          {pageCount > 1 ? (
-            <nav
-              className="mt-6 flex items-center justify-between gap-3"
-              aria-label="Pagination"
-            >
-              {page > 1 ? (
-                <Link
-                  href={staffListHref(query, { page: page - 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
-                  Previous
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Previous</span>
-              )}
-              <span className="text-sm text-slate-600">
-                Showing {(page - 1) * STAFF_PAGE_SIZE + 1}–
-                {Math.min(page * STAFF_PAGE_SIZE, total)} of {total}
-              </span>
-              {page < pageCount ? (
-                <Link
-                  href={staffListHref(query, { page: page + 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                >
-                  Next
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Next</span>
-              )}
-            </nav>
-          ) : null}
+          <Pagination
+            className="mt-6"
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            from={(page - 1) * STAFF_PAGE_SIZE + 1}
+            to={Math.min(page * STAFF_PAGE_SIZE, total)}
+            itemLabel="staff members"
+            hrefForPage={(nextPage) => staffListHref(query, { page: nextPage })}
+          />
         </>
       )}
     </div>
