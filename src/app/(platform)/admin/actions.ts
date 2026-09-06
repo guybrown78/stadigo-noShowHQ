@@ -13,6 +13,7 @@ import { provisionTenantEventCatalog } from "@/lib/events/provision";
 import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
 import { hashPassword } from "@/lib/password";
 import {
+  parseCreateTenantAdminFormData,
   parseCreateTenantFormData,
   parseResetTenantAdminPasswordFormData,
 } from "@/lib/tenants/schema";
@@ -116,6 +117,71 @@ export async function exitTenantAction() {
   await requireRole(Role.SUPER_ADMIN);
   await clearActingTenantId();
   redirect("/admin");
+}
+
+export type CreateTenantAdminActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Record<string, string[]>;
+};
+
+export async function createTenantAdminAction(
+  _prev: CreateTenantAdminActionState,
+  formData: FormData,
+): Promise<CreateTenantAdminActionState> {
+  await requireRole(Role.SUPER_ADMIN);
+
+  const parsed = parseCreateTenantAdminFormData(formData);
+
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+
+  const data = parsed.data;
+  const email = data.email.toLowerCase();
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: data.tenantId },
+    select: { id: true },
+  });
+  if (!tenant) {
+    return { error: "That tenant could not be found." };
+  }
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    return {
+      error: "That email is already in use.",
+      fieldErrors: { email: ["Email already taken"] },
+    };
+  }
+
+  const passwordHash = await hashPassword(data.password);
+
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        name: `${data.firstName} ${data.lastName}`,
+        passwordHash,
+        role: Role.ADMIN,
+        tenantId: tenant.id,
+      },
+    });
+  } catch {
+    return { error: "Could not create the admin user. Please try again." };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/tenants/${tenant.id}`);
+  return {
+    success: `Admin created for ${email}. Share the temporary password securely.`,
+  };
 }
 
 export type ResetPasswordActionState = {
