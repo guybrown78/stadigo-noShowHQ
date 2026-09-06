@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { CancellationForm } from "@/components/absence/cancellation-form";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { londonTodayIso } from "@/lib/events/dates";
@@ -32,27 +32,22 @@ export default async function LogAbsencePage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
-        {returnStaffId && initialStaff ? (
-          <Link href={`/staff/${returnStaffId}`} className="hover:underline">
-            {formatStaffName(initialStaff)}
-          </Link>
-        ) : (
-          <Link href="/dashboard" className="hover:underline">
-            Dashboard
-          </Link>
-        )}
-        <span aria-hidden="true"> / </span>
-        Log Absence
-      </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-        Log Absence
-      </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
-        Record a staff cancellation against an existing event. Notice given is
-        calculated for you.
-      </p>
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+      <PageHeader
+        breadcrumbs={
+          returnStaffId && initialStaff
+            ? [
+                { href: `/staff/${returnStaffId}`, label: formatStaffName(initialStaff) },
+                { label: "Log Absence" },
+              ]
+            : [
+                { href: "/dashboard", label: "Dashboard" },
+                { label: "Log Absence" },
+              ]
+        }
+        title="Log an Absence"
+        description="Record a staff cancellation against an existing event. Notice given is calculated for you."
+      />
+      <div className="mt-8">
         <CancellationForm
           mode="create"
           defaultReportedDate={londonTodayIso()}

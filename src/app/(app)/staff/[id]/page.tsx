@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { DeleteStaffDialog } from "@/components/staff/delete-staff-dialog";
+import { Avatar, initialsFor } from "@/components/ui/avatar";
+import { Banner } from "@/components/ui/banner";
+import { ButtonLink } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { StaffSectionNav } from "@/components/staff/staff-section-nav";
 import { StaffAbsenceHistory } from "@/components/absence/staff-absence-history";
 import {
@@ -145,120 +149,93 @@ export default async function StaffDetailPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
-        <Link href="/staff" className="hover:underline">
-          Staff
-        </Link>
-        <span aria-hidden="true"> / </span>
-        {name}
-      </p>
-      <StaffSectionNav current="directory" probationCount={openCount} />
-
-      {flash.created === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          Staff member created.
-        </p>
-      ) : null}
-      {flash.reviewed === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          Probation decision recorded.
-        </p>
-      ) : null}
-      {flash.amended === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          Probation end date amended.
-        </p>
-      ) : null}
-      {flash.restarted === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          New probation started. They are on probation again from today.
-        </p>
-      ) : null}
-      {flash.acknowledged === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          Reminder acknowledged.
-        </p>
-      ) : null}
-      {flash.snoozed === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
-          Reminder snoozed.
-        </p>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-              {name}
-            </h1>
-            <EmploymentStatusBadge status={staff.employmentStatus} />
-          </div>
-          <p className="mt-2 font-mono text-lg text-slate-800">
-            Staff ID {staff.staffIdNumber}
-          </p>
-          <p className="mt-1 text-slate-600">
-            {staff.roleTitle}
-            {staff.department ? ` · ${staff.department}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={`/absence/new?staffId=${staff.id}&from=staff`}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Log absence
-          </Link>
-          {probation && !probation.completedAt ? (
-            <Link
-              href={`/staff/${staff.id}/probation/review`}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Review probation
-            </Link>
-          ) : null}
-          {canRestart && restartStart && restartEnd && restartReviewDue ? (
-            <RestartProbationDialog
+      <PageHeader
+        breadcrumbs={[
+          { href: "/staff", label: "Staff" },
+          { label: name },
+        ]}
+        title={name}
+        description={
+          <>
+            <span className="font-mono text-slate-800">
+              Staff ID {staff.staffIdNumber}
+            </span>
+            <span className="block">
+              {staff.roleTitle}
+              {staff.department ? ` · ${staff.department}` : ""}
+            </span>
+          </>
+        }
+        actions={
+          <>
+            <ButtonLink href={`/absence/new?staffId=${staff.id}&from=staff`}>
+              Log absence
+            </ButtonLink>
+            {probation && !probation.completedAt ? (
+              <ButtonLink href={`/staff/${staff.id}/probation/review`}>
+                Review probation
+              </ButtonLink>
+            ) : null}
+            {canRestart && restartStart && restartEnd && restartReviewDue ? (
+              <RestartProbationDialog
+                staffId={staff.id}
+                staffName={name}
+                defaultDays={defaultProbationDays}
+                startDateLabel={formatLocalDateDisplay(restartStart)}
+                endDateLabel={formatLocalDateDisplay(restartEnd)}
+                reviewDueLabel={formatLocalDateDisplay(restartReviewDue)}
+              />
+            ) : null}
+            <ButtonLink href={`/staff/${staff.id}/edit`} variant="secondary">
+              Edit staff member
+            </ButtonLink>
+            <DeleteStaffDialog
               staffId={staff.id}
               staffName={name}
-              defaultDays={defaultProbationDays}
-              startDateLabel={formatLocalDateDisplay(restartStart)}
-              endDateLabel={formatLocalDateDisplay(restartEnd)}
-              reviewDueLabel={formatLocalDateDisplay(restartReviewDue)}
+              staffIdNumber={staff.staffIdNumber}
             />
-          ) : null}
-          <Link
-            href={`/staff/${staff.id}/edit`}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-          >
-            Edit staff member
-          </Link>
-          <DeleteStaffDialog
-            staffId={staff.id}
-            staffName={name}
-            staffIdNumber={staff.staffIdNumber}
-          />
+          </>
+        }
+      >
+        <div className="mt-3 flex items-center gap-3">
+          <Avatar initials={initialsFor(staff.firstName, staff.lastName)} size="lg" />
+          <EmploymentStatusBadge status={staff.employmentStatus} />
         </div>
-      </div>
+        <StaffSectionNav current="directory" probationCount={openCount} />
+      </PageHeader>
 
-      <dl className="mt-8 grid gap-6 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-2">
+      {flash.created === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Staff member created.
+        </Banner>
+      ) : null}
+      {flash.reviewed === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Probation decision recorded.
+        </Banner>
+      ) : null}
+      {flash.amended === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Probation end date amended.
+        </Banner>
+      ) : null}
+      {flash.restarted === "1" ? (
+        <Banner tone="success" className="mt-4">
+          New probation started. They are on probation again from today.
+        </Banner>
+      ) : null}
+      {flash.acknowledged === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Reminder acknowledged.
+        </Banner>
+      ) : null}
+      {flash.snoozed === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Reminder snoozed.
+        </Banner>
+      ) : null}
+
+      <dl className="mt-8 grid gap-6 rounded-xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2">
         <Detail label="Staff ID">
           <span className="font-mono">{staff.staffIdNumber}</span>
         </Detail>

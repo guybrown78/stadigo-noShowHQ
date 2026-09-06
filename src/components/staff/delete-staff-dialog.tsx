@@ -7,13 +7,21 @@ export function DeleteStaffDialog({
   staffId,
   staffName,
   staffIdNumber,
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
 }: {
   staffId: string;
   staffName: string;
   staffIdNumber: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const titleId = useId();
   const descriptionId = useId();
 
@@ -29,13 +37,15 @@ export function DeleteStaffDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
-      >
-        Delete staff member
-      </button>
+      {showTrigger ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
+        >
+          Delete staff member
+        </button>
+      ) : null}
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}

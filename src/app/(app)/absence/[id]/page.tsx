@@ -2,6 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
+import { Banner } from "@/components/ui/banner";
+import { ButtonLink } from "@/components/ui/button";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AbsenceAccessError } from "@/lib/absence/errors";
@@ -84,80 +88,61 @@ export default async function AbsenceDetailPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
-        <Link href="/absence/new" className="hover:underline">
-          Log Absence
-        </Link>
-        <span aria-hidden="true"> / </span>
-        Cancellation
-      </p>
+      <PageHeader
+        breadcrumbs={[
+          { href: "/ledger", label: "Ledger" },
+          { label: "Cancellation" },
+        ]}
+        title="Cancellation"
+        description={
+          <>
+            <AbsenceTypeBadge type={absence.type} />
+            <span className="ml-2">
+              {staffName} · {eventName} ·{" "}
+              {formatLocalDateDisplay(detail.eventDateSnapshot)}
+            </span>
+          </>
+        }
+        actions={
+          !archived ? (
+            <>
+              <ButtonLink href={`/absence/${absence.id}/edit`}>
+                Correct cancellation
+              </ButtonLink>
+              <ArchiveCancellationDialog
+                absenceId={absence.id}
+                staffName={`${staffName} (${absence.staff.staffIdNumber})`}
+                eventName={eventName}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       {flash.created === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
+        <Banner tone="success" className="mt-4">
           Cancellation recorded.
-        </p>
+        </Banner>
       ) : null}
       {flash.updated === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
+        <Banner tone="success" className="mt-4">
           Cancellation corrected.
-        </p>
+        </Banner>
       ) : null}
       {flash.archived === "1" ? (
-        <p
-          className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
-          role="status"
-        >
+        <Banner tone="success" className="mt-4">
           Cancellation archived.
-        </p>
+        </Banner>
       ) : null}
 
       {archived ? (
-        <p
-          className="mt-4 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800"
-          role="status"
-        >
+        <Banner tone="neutral" className="mt-4">
           This cancellation is archived. It is hidden from active operational
           views and kept for audit.
-        </p>
+        </Banner>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Cancellation
-            </h1>
-            <AbsenceTypeBadge type={absence.type} />
-          </div>
-          <p className="mt-2 text-slate-600">
-            {staffName} · {eventName} ·{" "}
-            {formatLocalDateDisplay(detail.eventDateSnapshot)}
-          </p>
-        </div>
-        {!archived ? (
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/absence/${absence.id}/edit`}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Correct cancellation
-            </Link>
-            <ArchiveCancellationDialog
-              absenceId={absence.id}
-              staffName={`${staffName} (${absence.staff.staffIdNumber})`}
-              eventName={eventName}
-            />
-          </div>
-        ) : null}
-      </div>
-
-      <dl className="mt-8 grid gap-6 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-2">
+      <dl className="mt-8 grid gap-6 rounded-xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2">
         <Detail label="Staff">
           {staffLive ? (
             <Link href={`/staff/${absence.staff.id}`} className="underline">
@@ -259,8 +244,9 @@ export default async function AbsenceDetailPage({
         ) : null}
       </dl>
 
-      <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-slate-900">History</h2>
+      <Card className="mt-8 shadow-none">
+        <CardHeader title="History" />
+        <CardBody>
         {absence.history.length === 0 ? (
           <p className="mt-2 text-sm text-slate-600">No history recorded.</p>
         ) : (
@@ -295,7 +281,8 @@ export default async function AbsenceDetailPage({
             })}
           </ul>
         )}
-      </section>
+        </CardBody>
+      </Card>
     </div>
   );
 }

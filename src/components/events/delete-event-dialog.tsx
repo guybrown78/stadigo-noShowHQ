@@ -6,12 +6,20 @@ import { deleteEventAction } from "@/app/(app)/events/actions";
 export function DeleteEventDialog({
   eventId,
   eventName,
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
 }: {
   eventId: string;
   eventName: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const titleId = useId();
   const descriptionId = useId();
 
@@ -27,13 +35,15 @@ export function DeleteEventDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
-      >
-        Delete event
-      </button>
+      {showTrigger ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
+        >
+          Delete event
+        </button>
+      ) : null}
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}

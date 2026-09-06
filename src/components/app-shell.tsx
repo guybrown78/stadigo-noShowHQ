@@ -1,12 +1,18 @@
 "use client";
 
+import {
+  BookOpen,
+  Calendar,
+  ClipboardPlus,
+  LayoutDashboard,
+  Settings,
+  Users,
+} from "lucide-react";
 import { exitTenantAction } from "@/app/(platform)/admin/actions";
 import { SidebarShell } from "@/components/sidebar-shell";
+import { Button } from "@/components/ui/button";
 
-const accountMenuItems = [
-  { href: "/profile", label: "Profile" },
-  { href: "/settings", label: "Settings" },
-];
+const accountMenuItems = [{ href: "/profile", label: "Profile" }];
 
 export function AppShell({
   user,
@@ -29,23 +35,51 @@ export function AppShell({
   staffTaskCount?: number;
   children: React.ReactNode;
 }) {
-  const navItems = [
-    { href: "/dashboard", label: "Dashboard" },
+  const navGroups = [
     {
-      href: "/staff",
-      label: "Staff",
-      badge: staffTaskCount || undefined,
+      label: "Main",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+        { href: "/absence/new", label: "Log Absence", icon: ClipboardPlus },
+        { href: "/ledger", label: "Ledger", icon: BookOpen },
+      ],
     },
-    { href: "/events", label: "Events", alsoMatch: ["/settings/events"] },
-    { href: "/ledger", label: "Ledger" },
-    { href: "/absence/new", label: "Log Absence" },
+    {
+      label: "Manage",
+      items: [
+        {
+          href: "/events",
+          label: "Events",
+          icon: Calendar,
+          alsoMatch: ["/settings/events"],
+        },
+        {
+          href: "/staff",
+          label: "Staff",
+          icon: Users,
+          badge: staffTaskCount || undefined,
+        },
+      ],
+    },
+    {
+      label: "Account",
+      items: [
+        {
+          href: "/settings",
+          label: "Settings",
+          icon: Settings,
+          exact: true,
+          alsoMatch: ["/settings/probation"],
+        },
+      ],
+    },
   ];
 
   return (
     <SidebarShell
       brandHref="/dashboard"
       brandSubtitle={tenant.name}
-      navItems={navItems}
+      navGroups={navGroups}
       accountMenuItems={accountMenuItems}
       user={user}
       banner={
@@ -59,12 +93,9 @@ export function AppShell({
                 platform admin
               </p>
               <form action={exitTenantAction}>
-                <button
-                  type="submit"
-                  className="rounded-md border border-amber-300 bg-white px-3 py-1 font-medium text-amber-950 hover:bg-amber-100"
-                >
+                <Button type="submit" variant="secondary" size="sm">
                   Back to platform admin
-                </button>
+                </Button>
               </form>
             </div>
           </div>

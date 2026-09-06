@@ -12,7 +12,7 @@ export default function EventNotFound() {
       </p>
       <Link
         href="/events"
-        className="mt-6 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
       >
         Back to events
       </Link>

@@ -6,6 +6,8 @@ import {
   type AbsenceActionState,
 } from "@/app/(app)/absence/actions";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
 import { withClientValidation } from "@/lib/form";
 import { parseArchiveCancellationFormData } from "@/lib/absence/schema";
 
@@ -47,13 +49,9 @@ export function ArchiveCancellationDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-50"
-      >
+      <Button type="button" variant="danger" size="sm" onClick={() => setOpen(true)}>
         Archive cancellation
-      </button>
+      </Button>
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
@@ -74,12 +72,9 @@ export function ArchiveCancellationDialog({
             <input type="hidden" name="absenceId" value={absenceId} />
             <FormAlert>{state.error}</FormAlert>
             <div>
-              <label
-                htmlFor={`${formId}-reason`}
-                className="mb-1 block text-sm font-medium text-slate-700"
-              >
-                Archive reason <span className="text-red-700">*</span>
-              </label>
+              <FieldLabel htmlFor={`${formId}-reason`} required>
+                Archive reason
+              </FieldLabel>
               <textarea
                 id={`${formId}-reason`}
                 name="archiveReason"
@@ -105,20 +100,17 @@ export function ArchiveCancellationDialog({
               messages={state.fieldErrors?.confirmArchive}
             />
             <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                onClick={() => setOpen(false)}
-              >
+              <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(false)}>
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={pending}
-                className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-60"
+                size="sm"
+                className="border-red-700 bg-red-700 text-white hover:bg-red-800"
               >
                 {pending ? "Archiving…" : "Archive cancellation"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

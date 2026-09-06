@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Plus } from "lucide-react";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
-import { NoticeWarningBadges } from "@/components/absence/absence-badges";
+import { AbsenceTypeBadge, NoticeWarningBadges } from "@/components/absence/absence-badges";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { DataTable, DataTableHead } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { PageHeader } from "@/components/ui/page-header";
+import { Pagination } from "@/components/ui/pagination";
+import { filterControlClassName } from "@/components/form";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -204,141 +213,119 @@ export default async function LedgerPage({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Ledger
-          </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
-            Review your organisation&apos;s absence records.
-          </p>
-        </div>
-        <Link
-          href="/absence/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
-          Log absence
-        </Link>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { href: "/dashboard", label: "Dashboard" },
+          { label: "Ledger" },
+        ]}
+        title="Absence Ledger"
+        description="Review your organisation's absence records."
+        actions={
+          <ButtonLink href="/absence/new" icon={Plus}>
+            Log absence
+          </ButtonLink>
+        }
+      />
 
       <LedgerTypeNav activeCount={activeTotal} />
 
-      <form
-        method="get"
-        className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-        aria-label="Filter cancellations"
-      >
+      <form method="get" className="mt-4">
+        <FilterBar
+          ariaLabel="Filter cancellations"
+          active={hasFilters}
+          actions={
+            <>
+              <Button type="submit" size="sm">
+                Apply filters
+              </Button>
+              {hasFilters || preserveSort || dateRangeInvalid ? (
+                <ButtonLink href="/ledger" variant="secondary" size="sm">
+                  Reset
+                </ButtonLink>
+              ) : null}
+            </>
+          }
+        >
         {preserveSort ? (
           <>
             <input type="hidden" name="sort" value={query.sort} />
             <input type="hidden" name="direction" value={query.direction} />
           </>
         ) : null}
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-4">
-            <label
-              htmlFor="ledger-q"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Search
-            </label>
-            <input
-              id="ledger-q"
-              name="q"
-              type="search"
-              defaultValue={query.q}
-              placeholder="Staff name, Staff ID, event name, or event reference"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="ledger-venue"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Venue
-            </label>
-            <select
-              id="ledger-venue"
-              name="venue"
-              defaultValue={query.venue}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All venues</option>
-              {options.venues.map((venue) => (
-                <option key={venue.id} value={venue.id}>
-                  {venue.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="ledger-event-type"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Event type
-            </label>
-            <select
-              id="ledger-event-type"
-              name="eventType"
-              defaultValue={query.eventType}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            >
-              <option value="">All event types</option>
-              {options.eventTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="ledger-reported-from"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Reported from
-            </label>
-            <input
-              id="ledger-reported-from"
-              name="reportedFrom"
-              type="date"
-              defaultValue={query.reportedFrom}
-              aria-invalid={dateRangeInvalid || undefined}
-              aria-describedby={
-                dateRangeInvalid ? "ledger-date-error" : undefined
-              }
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="ledger-reported-to"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Reported to
-            </label>
-            <input
-              id="ledger-reported-to"
-              name="reportedTo"
-              type="date"
-              defaultValue={query.reportedTo}
-              aria-invalid={dateRangeInvalid || undefined}
-              aria-describedby={
-                dateRangeInvalid ? "ledger-date-error" : undefined
-              }
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-            />
-          </div>
-        </div>
+        <FilterField label="Search" htmlFor="ledger-q" className="min-w-[14rem] flex-[1.4]">
+          <input
+            id="ledger-q"
+            name="q"
+            type="search"
+            defaultValue={query.q}
+            placeholder="Staff, event, or reference"
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        <FilterField label="Venue" htmlFor="ledger-venue">
+          <select
+            id="ledger-venue"
+            name="venue"
+            defaultValue={query.venue}
+            className={filterControlClassName()}
+          >
+            <option value="">All venues</option>
+            {options.venues.map((venue) => (
+              <option key={venue.id} value={venue.id}>
+                {venue.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Event type" htmlFor="ledger-event-type">
+          <select
+            id="ledger-event-type"
+            name="eventType"
+            defaultValue={query.eventType}
+            className={filterControlClassName()}
+          >
+            <option value="">All event types</option>
+            {options.eventTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </FilterField>
+        <FilterField label="Reported from" htmlFor="ledger-reported-from">
+          <input
+            id="ledger-reported-from"
+            name="reportedFrom"
+            type="date"
+            defaultValue={query.reportedFrom}
+            aria-invalid={dateRangeInvalid || undefined}
+            aria-describedby={
+              dateRangeInvalid ? "ledger-date-error" : undefined
+            }
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        <FilterField label="Reported to" htmlFor="ledger-reported-to">
+          <input
+            id="ledger-reported-to"
+            name="reportedTo"
+            type="date"
+            defaultValue={query.reportedTo}
+            aria-invalid={dateRangeInvalid || undefined}
+            aria-describedby={
+              dateRangeInvalid ? "ledger-date-error" : undefined
+            }
+            className={filterControlClassName()}
+          />
+        </FilterField>
+        </FilterBar>
         {dateRangeInvalid ? (
-          <p id="ledger-date-error" className="text-sm text-red-700" role="alert">
+          <p id="ledger-date-error" className="mt-2 text-xs text-red-700" role="alert">
             From date must be on or before To date.
           </p>
         ) : null}
         {hasFilters ? (
-          <p className="text-sm text-slate-600" aria-live="polite">
+          <p className="mt-2 text-xs text-slate-500" aria-live="polite">
             Active filters:
             {query.q ? ` search “${query.q}”` : ""}
             {selectedVenue ? ` · Venue ${selectedVenue.name}` : ""}
@@ -350,72 +337,48 @@ export default async function LedgerPage({
             {!selectedType && query.eventType ? " · Event type (unknown)" : ""}
           </p>
         ) : null}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Apply filters
-          </button>
-          {hasFilters || preserveSort || dateRangeInvalid ? (
-            <Link
-              href="/ledger"
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-            >
-              Reset filters
-            </Link>
-          ) : null}
-        </div>
       </form>
 
       {rows.length === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          {hasFilters ? (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No Cancellations match these filters.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Try a different search, or reset the filters to see all active
-                Cancellations.
-              </p>
-              <Link
-                href="/ledger"
-                className="mt-4 inline-flex rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-              >
+        <EmptyState
+          className="mt-6"
+          title={
+            hasFilters
+              ? "No Cancellations match these filters."
+              : "No Cancellations recorded yet."
+          }
+          description={
+            hasFilters
+              ? "Try a different search, or reset the filters to see all active Cancellations."
+              : "Recorded Cancellations will appear here."
+          }
+          action={
+            hasFilters ? (
+              <ButtonLink href="/ledger" variant="secondary">
                 Reset filters
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-slate-800">
-                No Cancellations recorded yet.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Recorded Cancellations will appear here.
-              </p>
-              <Link
-                href="/absence/new"
-                className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
+              </ButtonLink>
+            ) : (
+              <ButtonLink href="/absence/new" icon={Plus}>
                 Log absence
-              </Link>
-            </>
-          )}
-        </div>
+              </ButtonLink>
+            )
+          }
+        />
       ) : (
         <>
-          <p className="mt-6 text-sm text-slate-500" aria-live="polite">
+          <p className="mt-4 text-sm text-slate-500" aria-live="polite">
             {hasFilters
               ? `${total} matching · ${activeTotal} active Cancellations`
               : `${total} ${total === 1 ? "Cancellation" : "Cancellations"}`}
             {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
           </p>
 
-          <div className="mt-3 hidden overflow-hidden rounded-lg border border-slate-200 bg-white xl:block">
-            <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+          <DataTable className="mt-3 hidden xl:block">
+              <DataTableHead>
                 <tr>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Type
+                  </th>
                   <SortHeader field="reported" label="Reported" query={query} />
                   <SortHeader field="staff" label="Staff" query={query} />
                   <SortHeader field="event" label="Event" query={query} />
@@ -435,12 +398,15 @@ export default async function LedgerPage({
                     <span className="sr-only">View</span>
                   </th>
                 </tr>
-              </thead>
+              </DataTableHead>
               <tbody>
                 {rows.map((row) => {
                   const detail = row.cancellation;
                   return (
                     <tr key={row.id} className="border-b border-slate-100">
+                      <td className="px-4 py-3">
+                        <AbsenceTypeBadge type="CANCELLATION" />
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                         {formatLocalDateDisplay(row.reportedDate)}
                         {row.reportedTime ? ` · ${row.reportedTime}` : ""}
@@ -473,29 +439,30 @@ export default async function LedgerPage({
                         </p>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
+                        <ButtonLink
                           href={`/absence/${row.id}`}
-                          className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-50"
+                          variant="secondary"
+                          size="sm"
                         >
                           View
-                        </Link>
+                        </ButtonLink>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+          </DataTable>
 
           <ul className="mt-3 space-y-3 xl:hidden">
             {rows.map((row) => {
               const detail = row.cancellation;
               return (
-                <li
-                  key={row.id}
-                  className="rounded-lg border border-slate-200 bg-white p-4"
-                >
+                <li key={row.id}>
+                  <Card className="p-4 shadow-none">
+                  <AbsenceTypeBadge type="CANCELLATION" />
+                  <div className="mt-3">
                   <StaffCell row={row} />
+                  </div>
                   <div className="mt-2">
                     <EventCell row={row} />
                     <p className="mt-1 text-sm text-slate-600">
@@ -524,52 +491,30 @@ export default async function LedgerPage({
                     {row.reason}
                   </p>
                   <div className="mt-3">
-                    <Link
+                    <ButtonLink
                       href={`/absence/${row.id}`}
-                      className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                      variant="secondary"
+                      size="sm"
                     >
                       View cancellation
-                    </Link>
+                    </ButtonLink>
                   </div>
+                  </Card>
                 </li>
               );
             })}
           </ul>
 
-          {pageCount > 1 ? (
-            <nav
-              className="mt-6 flex items-center justify-between gap-3"
-              aria-label="Ledger pagination"
-            >
-              {page > 1 ? (
-                <Link
-                  href={ledgerListHref(query, { page: page - 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  aria-label="Previous page of Cancellations"
-                >
-                  Previous
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Previous</span>
-              )}
-              <span className="text-sm text-slate-600">
-                Showing {(page - 1) * LEDGER_PAGE_SIZE + 1}–
-                {Math.min(page * LEDGER_PAGE_SIZE, total)} of {total}{" "}
-                Cancellations
-              </span>
-              {page < pageCount ? (
-                <Link
-                  href={ledgerListHref(query, { page: page + 1 })}
-                  className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-                  aria-label="Next page of Cancellations"
-                >
-                  Next
-                </Link>
-              ) : (
-                <span className="text-sm text-slate-400">Next</span>
-              )}
-            </nav>
-          ) : null}
+          <Pagination
+            className="mt-6"
+            page={page}
+            pageCount={pageCount}
+            total={total}
+            from={(page - 1) * LEDGER_PAGE_SIZE + 1}
+            to={Math.min(page * LEDGER_PAGE_SIZE, total)}
+            itemLabel="Cancellations"
+            hrefForPage={(nextPage) => ledgerListHref(query, { page: nextPage })}
+          />
         </>
       )}
     </div>

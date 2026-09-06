@@ -1,10 +1,11 @@
 "use client";
 
+import { Building2, Plus } from "lucide-react";
 import { SidebarShell } from "@/components/sidebar-shell";
 
 const navItems = [
-  { href: "/admin", label: "Tenants", exact: true },
-  { href: "/admin/tenants/new", label: "New tenant" },
+  { href: "/admin", label: "Tenants", exact: true, icon: Building2 },
+  { href: "/admin/tenants/new", label: "New tenant", icon: Plus },
 ];
 
 const accountMenuItems = [{ href: "/profile", label: "Profile" }];

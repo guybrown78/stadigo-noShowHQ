@@ -100,7 +100,7 @@ export default async function EventDetailPage({
         <div className="flex flex-wrap gap-2">
           <Link
             href={`/events/${event.id}/edit`}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Edit event
           </Link>

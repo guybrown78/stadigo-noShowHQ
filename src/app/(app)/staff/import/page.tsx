@@ -59,7 +59,7 @@ export default async function ImportStaffStartPage() {
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/staff/import/template"
-            className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Download template
           </a>

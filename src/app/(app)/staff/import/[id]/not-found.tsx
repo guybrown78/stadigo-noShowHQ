@@ -12,7 +12,7 @@ export default function ImportNotFound() {
       </p>
       <Link
         href="/staff/import"
-        className="mt-6 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+        className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
       >
         Start another import
       </Link>

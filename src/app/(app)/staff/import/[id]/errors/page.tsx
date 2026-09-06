@@ -153,11 +153,11 @@ export default async function ImportErrorsPage({
             type="search"
             defaultValue={q}
             placeholder="Row number, field, or value"
-            className="min-w-[16rem] flex-1 rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+            className="min-w-[16rem] flex-1 rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-primary/30 focus:border-primary focus:ring-2"
           />
           <button
             type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             Search
           </button>

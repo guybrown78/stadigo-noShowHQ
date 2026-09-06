@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import { Button } from "@/components/ui/button";
 import { parseCredentialsFormData } from "@/lib/auth/schema";
 import { flattenFieldErrors, FORM_CHECK_MESSAGE } from "@/lib/form";
 
@@ -98,13 +99,9 @@ export function LoginForm() {
         <FieldError id={errorId("password")} messages={fieldErrors.password} />
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-md bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={pending} className="w-full py-2.5">
         {pending ? "Signing in…" : "Sign in"}
-      </button>
+      </Button>
     </form>
   );
 }

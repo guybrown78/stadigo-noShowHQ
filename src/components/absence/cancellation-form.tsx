@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useId, useMemo, useState } from "react";
+import { Ban, Bed, Check, UserX } from "lucide-react";
 import {
   correctCancellationAction,
   createCancellationAction,
@@ -10,6 +10,10 @@ import {
 import { EventSearchPicker } from "@/components/absence/event-search-picker";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { Card, CardBody } from "@/components/ui/card";
+import { FieldLabel } from "@/components/ui/field";
+import { cn } from "@/lib/cn";
 import {
   formatCalendarNotice,
   formatDurationMinutes,
@@ -29,6 +33,7 @@ import {
   parseLocalDate,
   splitTime,
 } from "@/lib/events/dates";
+import { formatStaffName } from "@/lib/staff/display";
 import { withClientValidation } from "@/lib/form";
 
 const initialState: AbsenceActionState = {};
@@ -131,6 +136,10 @@ export function CancellationForm({
     initialState,
   );
   const formId = useId();
+  const [formKey, setFormKey] = useState(0);
+  const [selectedStaff, setSelectedStaff] = useState<AbsenceStaffOption | null>(
+    initialStaff ?? null,
+  );
   const [selectedEvent, setSelectedEvent] = useState<AbsenceEventOption | null>(
     initialEvent ?? null,
   );
@@ -154,68 +163,66 @@ export function CancellationForm({
     reportedTime: reportedTime || null,
   });
 
-  return (
-    <form action={formAction} noValidate className="space-y-6">
-      {mode === "edit" && absenceId ? (
-        <input type="hidden" name="absenceId" value={absenceId} />
-      ) : null}
-      <input type="hidden" name="type" value="CANCELLATION" />
-      <input type="hidden" name="reportedTime" value={reportedTime} />
-      <FormAlert>{state.error}</FormAlert>
-      {state.existingAbsenceId ? (
-        <p className="text-sm text-slate-700">
-          <Link
-            href={`/absence/${state.existingAbsenceId}`}
-            className="font-medium underline"
-          >
-            View the existing cancellation
-          </Link>
-        </p>
-      ) : null}
+  function resetCreateForm() {
+    setFormKey((value) => value + 1);
+    setSelectedStaff(initialStaff ?? null);
+    setSelectedEvent(null);
+    setReportedDate(defaultReportedDate ?? londonTodayIso());
+    setReportedTime("");
+    setReason("");
+    setNotes("");
+    setRetrospectiveConfirmed(false);
+  }
 
-      <fieldset>
-        <legend className="text-sm font-medium text-slate-700">
-          Absence type
-        </legend>
-        <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          <p className="rounded-md border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-medium text-white">
+  const typeCards = (
+    <fieldset>
+      <legend className="sr-only">Absence type</legend>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <p className="rounded-xl border-2 border-cancel bg-cancel-soft px-4 py-4">
+          <span className="flex items-center gap-2 text-sm font-semibold text-cancel">
+            <Ban className="size-4" aria-hidden="true" />
             Cancellation
-          </p>
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-            AWOL · Coming soon
-          </p>
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
-            Sickness · Coming soon
-          </p>
-        </div>
-        <p className="mt-2 text-sm text-slate-600">
-          A cancellation means the staff member notified the organisation before
-          the event. You can still record a late or retrospective cancellation
-          when notice arrived after the event.
+          </span>
+          <span className="mt-1 block text-xs text-slate-600">
+            Staff notified before or after the event
+          </span>
         </p>
-      </fieldset>
+        <p
+          className="rounded-xl border border-border bg-slate-50 px-4 py-4 text-slate-400"
+          aria-disabled="true"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <UserX className="size-4" aria-hidden="true" />
+            No-Show (AWOL)
+          </span>
+          <span className="mt-1 block text-xs">Coming soon</span>
+        </p>
+        <p
+          className="rounded-xl border border-border bg-slate-50 px-4 py-4 text-slate-400"
+          aria-disabled="true"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Bed className="size-4" aria-hidden="true" />
+            Sickness
+          </span>
+          <span className="mt-1 block text-xs">Coming soon</span>
+        </p>
+      </div>
+      <p className="mt-3 text-sm text-slate-600">
+        A cancellation means the staff member notified the organisation before
+        the event. You can still record a late or retrospective cancellation
+        when notice arrived after the event.
+      </p>
+    </fieldset>
+  );
 
-      <StaffSearchPicker
-        initialStaff={initialStaff}
-        errorId={`${formId}-staff-error`}
-        errorMessages={state.fieldErrors?.staffId}
-      />
-
-      <EventSearchPicker
-        initialEvent={initialEvent}
-        errorId={`${formId}-event-error`}
-        errorMessages={state.fieldErrors?.eventId}
-        onSelect={setSelectedEvent}
-      />
-
+  const detailsFields = (
+    <>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label
-            htmlFor={`${formId}-date`}
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Cancellation reported date <span className="text-red-700">*</span>
-          </label>
+          <FieldLabel htmlFor={`${formId}-date`} required>
+            Cancellation reported date
+          </FieldLabel>
           <input
             id={`${formId}-date`}
             name="reportedDate"
@@ -330,12 +337,9 @@ export function CancellationForm({
       ) : null}
 
       <div>
-        <label
-          htmlFor={`${formId}-reason`}
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
-          Reason for cancellation <span className="text-red-700">*</span>
-        </label>
+        <FieldLabel htmlFor={`${formId}-reason`} required>
+          Reason for cancellation
+        </FieldLabel>
         <textarea
           id={`${formId}-reason`}
           name="reason"
@@ -356,12 +360,7 @@ export function CancellationForm({
       </div>
 
       <div>
-        <label
-          htmlFor={`${formId}-notes`}
-          className="mb-1 block text-sm font-medium text-slate-700"
-        >
-          Internal notes
-        </label>
+        <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
         <textarea
           id={`${formId}-notes`}
           name="notes"
@@ -383,12 +382,9 @@ export function CancellationForm({
 
       {mode === "edit" ? (
         <div>
-          <label
-            htmlFor={`${formId}-correction`}
-            className="mb-1 block text-sm font-medium text-slate-700"
-          >
-            Correction reason <span className="text-red-700">*</span>
-          </label>
+          <FieldLabel htmlFor={`${formId}-correction`} required>
+            Correction reason
+          </FieldLabel>
           <textarea
             id={`${formId}-correction`}
             name="correctionReason"
@@ -410,30 +406,122 @@ export function CancellationForm({
           />
         </div>
       ) : null}
+    </>
+  );
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-        >
-          {pending
-            ? "Saving…"
-            : mode === "create"
-              ? "Save cancellation"
-              : "Save correction"}
-        </button>
-        <Link
-          href={
-            mode === "edit" && absenceId
-              ? `/absence/${absenceId}`
-              : (cancelHref ?? "/dashboard")
-          }
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-        >
-          Cancel
-        </Link>
-      </div>
+  const cancelTarget =
+    mode === "edit" && absenceId
+      ? `/absence/${absenceId}`
+      : (cancelHref ?? "/dashboard");
+
+  return (
+    <form action={formAction} noValidate className="space-y-6">
+      {mode === "edit" && absenceId ? (
+        <input type="hidden" name="absenceId" value={absenceId} />
+      ) : null}
+      <input type="hidden" name="type" value="CANCELLATION" />
+      <input type="hidden" name="reportedTime" value={reportedTime} />
+      <FormAlert>{state.error}</FormAlert>
+      {state.existingAbsenceId ? (
+        <p className="text-sm text-slate-700">
+          <ButtonLink
+            href={`/absence/${state.existingAbsenceId}`}
+            variant="ghost"
+            className="px-0 underline"
+          >
+            View the existing cancellation
+          </ButtonLink>
+        </p>
+      ) : null}
+
+      {mode === "create" ? (
+        <>
+          <FormSection step={1} title="What type of absence?">
+            {typeCards}
+          </FormSection>
+          <FormSection step={2} title="Select staff">
+            <StaffSearchPicker
+              key={`staff-${formKey}`}
+              initialStaff={selectedStaff}
+              errorId={`${formId}-staff-error`}
+              errorMessages={state.fieldErrors?.staffId}
+              onSelect={setSelectedStaff}
+            />
+          </FormSection>
+          <FormSection step={3} title="Select event">
+            <EventSearchPicker
+              key={`event-${formKey}`}
+              initialEvent={selectedEvent}
+              errorId={`${formId}-event-error`}
+              errorMessages={state.fieldErrors?.eventId}
+              onSelect={setSelectedEvent}
+            />
+          </FormSection>
+          <FormSection step={4} title="Notes and notice">
+            {detailsFields}
+          </FormSection>
+          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+            <p className="min-w-0 text-sm text-slate-600">
+              <span className="font-medium text-cancel">Cancellation</span>
+              {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
+              {selectedEvent ? ` → ${selectedEvent.name}` : ""}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={resetCreateForm}>
+                Clear
+              </Button>
+              <Button type="submit" disabled={pending} icon={Check}>
+                {pending ? "Saving…" : "Save absence"}
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {typeCards}
+          <StaffSearchPicker
+            initialStaff={initialStaff}
+            errorId={`${formId}-staff-error`}
+            errorMessages={state.fieldErrors?.staffId}
+          />
+          <EventSearchPicker
+            initialEvent={initialEvent}
+            errorId={`${formId}-event-error`}
+            errorMessages={state.fieldErrors?.eventId}
+            onSelect={setSelectedEvent}
+          />
+          {detailsFields}
+          <div className="flex flex-wrap gap-3">
+            <Button type="submit" disabled={pending} icon={Check}>
+              {pending ? "Saving…" : "Save correction"}
+            </Button>
+            <ButtonLink href={cancelTarget} variant="secondary">
+              Cancel
+            </ButtonLink>
+          </div>
+        </>
+      )}
     </form>
+  );
+}
+
+function FormSection({
+  step,
+  title,
+  children,
+}: {
+  step: number;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="shadow-none">
+      <CardBody className="space-y-4">
+        <h2 className={cn("text-xs font-semibold tracking-wider text-slate-500 uppercase")}>
+          {step} — {title}
+        </h2>
+        {children}
+      </CardBody>
+    </Card>
   );
 }

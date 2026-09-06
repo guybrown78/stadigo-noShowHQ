@@ -166,7 +166,7 @@ export default async function ImportCompletePage({
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
           href="/staff"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
         >
           View staff directory
         </Link>

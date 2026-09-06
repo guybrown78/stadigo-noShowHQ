@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CancellationForm } from "@/components/absence/cancellation-form";
+import { Card, CardBody } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
   getAbsenceForTenant,
@@ -54,21 +55,16 @@ export default async function CorrectCancellationPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
-        <Link href={`/absence/${absence.id}`} className="hover:underline">
-          Cancellation
-        </Link>
-        <span aria-hidden="true"> / </span>
-        Correct
-      </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-        Correct cancellation
-      </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
-        Changes are saved with a correction reason and remain in the audit
-        history.
-      </p>
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+      <PageHeader
+        breadcrumbs={[
+          { href: `/absence/${absence.id}`, label: "Cancellation" },
+          { label: "Correct" },
+        ]}
+        title="Correct cancellation"
+        description="Changes are saved with a correction reason and remain in the audit history."
+      />
+      <Card className="mt-8 shadow-none">
+        <CardBody className="p-6">
         <CancellationForm
           mode="edit"
           absenceId={absence.id}
@@ -95,7 +91,8 @@ export default async function CorrectCancellationPage({
             notes: absence.notes,
           }}
         />
-      </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }

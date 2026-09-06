@@ -7,6 +7,9 @@ import { ensureTenantEventCatalog } from "@/lib/events/provision";
 import { venueListQuerySchema, type VenueListQuery } from "@/lib/events/schema";
 import { venueSettingsHref } from "@/lib/events/url";
 import { EventsSectionNav } from "@/components/events/events-section-nav";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { filterControlClassName } from "@/components/form";
 
 export const metadata = { title: "Venues" };
 
@@ -61,7 +64,7 @@ export default async function EventSettingsPage({
         </div>
         <Link
           href="/settings/events/venues/new"
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
         >
           Add venue
         </Link>
@@ -85,63 +88,50 @@ export default async function EventSettingsPage({
         </p>
       ) : null}
 
-      <form
-        method="get"
-        className="mt-6 space-y-3 rounded-lg border border-slate-200 bg-white p-4"
-        aria-label="Filter venues"
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <label
-              htmlFor="venues-q"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Search
-            </label>
+      <form method="get" className="mt-4">
+        <FilterBar
+          ariaLabel="Filter venues"
+          active={hasFilters}
+          actions={
+            <>
+              <Button type="submit" size="sm">
+                Apply filters
+              </Button>
+              {hasFilters ? (
+                <ButtonLink href="/settings/events" variant="secondary" size="sm">
+                  Reset
+                </ButtonLink>
+              ) : null}
+            </>
+          }
+        >
+          <FilterField
+            label="Search"
+            htmlFor="venues-q"
+            className="min-w-[14rem] flex-[1.4]"
+          >
             <input
               id="venues-q"
               name="q"
               type="search"
               defaultValue={query.q}
               placeholder="Name, address, or postcode"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              className={filterControlClassName()}
             />
-          </div>
-          <div>
-            <label
-              htmlFor="venues-status"
-              className="mb-1 block text-sm font-medium text-slate-700"
-            >
-              Status
-            </label>
+          </FilterField>
+          <FilterField label="Status" htmlFor="venues-status">
             <select
               id="venues-status"
               name="status"
               defaultValue={query.status}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              className={filterControlClassName()}
             >
               <option value="">All venues</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-          >
-            Apply
-          </button>
-          {hasFilters ? (
-            <Link
-              href="/settings/events"
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-            >
-              Clear
-            </Link>
-          ) : null}
-        </div>
+          </FilterField>
+        </FilterBar>
       </form>
 
       {venues.length === 0 ? (
@@ -169,7 +159,7 @@ export default async function EventSettingsPage({
               </p>
               <Link
                 href="/settings/events/venues/new"
-                className="mt-4 inline-flex rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
               >
                 Add your first venue
               </Link>
@@ -178,7 +168,7 @@ export default async function EventSettingsPage({
         </div>
       ) : (
         <>
-          <p className="mt-6 text-sm text-slate-500">
+          <p className="mt-4 text-sm text-slate-500">
             {total} {total === 1 ? "venue" : "venues"}
             {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
           </p>
