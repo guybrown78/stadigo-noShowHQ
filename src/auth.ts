@@ -5,6 +5,7 @@ import { authConfig } from "@/auth.config";
 import { credentialsSchema } from "@/lib/auth/schema";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { recordUserLogin } from "@/lib/user-activity";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -42,6 +43,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (user.role === Role.ADMIN && !user.tenantId) {
           return null;
         }
+
+        await recordUserLogin(user.id);
 
         return {
           id: user.id,

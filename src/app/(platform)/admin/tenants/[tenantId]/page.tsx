@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Role } from "@prisma/client";
 import { enterTenantAction } from "@/app/(platform)/admin/actions";
+import { AdminActivitySummary } from "@/components/admin-activity";
 import { CreateTenantAdminForm } from "@/components/create-tenant-admin-form";
 import { ResetAdminPasswordForm } from "@/components/reset-admin-password-form";
 import { prisma } from "@/lib/db";
@@ -26,6 +27,8 @@ export default async function TenantDetailPage({
           lastName: true,
           role: true,
           createdAt: true,
+          lastLoggedInAt: true,
+          lastActiveAt: true,
         },
       },
     },
@@ -70,8 +73,8 @@ export default async function TenantDetailPage({
         <h2 className="text-lg font-medium text-slate-900">Tenant admins</h2>
         <p className="mt-1 text-sm text-slate-600">
           Add another administrator for this organisation, or set a temporary
-          password when an admin cannot sign in. Share credentials securely;
-          they can change the password later in Settings.
+          password when an admin cannot sign in. Last signed in and last
+          activity are UK time; “Never” means none has been recorded yet.
         </p>
 
         <div className="mt-6">
@@ -96,6 +99,12 @@ export default async function TenantDetailPage({
                   <p className="text-sm text-slate-600">
                     {user.email} · {user.role}
                   </p>
+                  <div className="mt-2">
+                    <AdminActivitySummary
+                      lastLoggedInAt={user.lastLoggedInAt}
+                      lastActiveAt={user.lastActiveAt}
+                    />
+                  </div>
                 </div>
                 <ResetAdminPasswordForm
                   tenantId={tenant.id}
