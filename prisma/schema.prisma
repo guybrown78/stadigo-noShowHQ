@@ -56,6 +56,8 @@ model User {
   image               String?
   passwordHash        String
   role                Role
+  lastLoggedInAt      DateTime?
+  lastActiveAt        DateTime?
   tenantId            String?
   tenant              Tenant?              @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   accounts            Account[]

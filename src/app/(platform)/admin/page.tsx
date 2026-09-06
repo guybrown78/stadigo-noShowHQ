@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { Role } from "@prisma/client";
 import { enterTenantAction } from "@/app/(platform)/admin/actions";
+import { AdminActivitySummary } from "@/components/admin-activity";
 import { prisma } from "@/lib/db";
 
 export default async function AdminTenantsPage({
@@ -11,7 +13,17 @@ export default async function AdminTenantsPage({
   const tenants = await prisma.tenant.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { users: true } },
+      users: {
+        where: { role: Role.ADMIN },
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          lastLoggedInAt: true,
+          lastActiveAt: true,
+        },
+      },
     },
   });
 
@@ -23,8 +35,9 @@ export default async function AdminTenantsPage({
             Tenants
           </h1>
           <p className="mt-2 text-slate-600">
-            Organisations that use NoShowHQ. Open a tenant to view its
-            application area.
+            Organisations that use NoShowHQ. See when each admin last signed
+            in or used the app, then open a tenant to view its application
+            area.
           </p>
         </div>
         <Link
@@ -58,7 +71,7 @@ export default async function AdminTenantsPage({
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Users</th>
+                <th className="px-4 py-3 font-medium">Admins</th>
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3 font-medium">
                   <span className="sr-only">Actions</span>
@@ -73,7 +86,23 @@ export default async function AdminTenantsPage({
                   </td>
                   <td className="px-4 py-3 text-slate-600">{tenant.slug}</td>
                   <td className="px-4 py-3 text-slate-600">
-                    {tenant._count.users}
+                    {tenant.users.length === 0 ? (
+                      "—"
+                    ) : (
+                      <ul className="space-y-2">
+                        {tenant.users.map((user) => (
+                          <li key={user.id}>
+                            <p className="font-medium text-slate-800">
+                              {user.firstName} {user.lastName}
+                            </p>
+                            <AdminActivitySummary
+                              lastLoggedInAt={user.lastLoggedInAt}
+                              lastActiveAt={user.lastActiveAt}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {tenant.createdAt.toLocaleDateString()}

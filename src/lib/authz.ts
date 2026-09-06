@@ -6,6 +6,7 @@ import {
   getActingTenantId,
 } from "@/lib/acting-tenant";
 import { prisma } from "@/lib/db";
+import { touchLastActiveAt } from "@/lib/user-activity";
 
 export type AppUser = {
   id: string;
@@ -38,6 +39,7 @@ export async function requireAuth(): Promise<AppUser> {
       lastName: true,
       role: true,
       tenantId: true,
+      lastActiveAt: true,
     },
   });
 
@@ -45,7 +47,16 @@ export async function requireAuth(): Promise<AppUser> {
     redirect("/login");
   }
 
-  return user;
+  await touchLastActiveAt(user.id, user.lastActiveAt);
+
+  return {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    tenantId: user.tenantId,
+  };
 }
 
 export async function requireRole(...roles: Role[]): Promise<AppUser> {
