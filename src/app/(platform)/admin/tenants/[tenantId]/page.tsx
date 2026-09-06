@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Role } from "@prisma/client";
 import { enterTenantAction } from "@/app/(platform)/admin/actions";
+import { CreateTenantAdminForm } from "@/components/create-tenant-admin-form";
 import { ResetAdminPasswordForm } from "@/components/reset-admin-password-form";
 import { prisma } from "@/lib/db";
 
@@ -68,9 +69,14 @@ export default async function TenantDetailPage({
       <section className="mt-8">
         <h2 className="text-lg font-medium text-slate-900">Tenant admins</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Set a temporary password when an admin cannot sign in. Share it with
-          them securely; they can change it later in Settings.
+          Add another administrator for this organisation, or set a temporary
+          password when an admin cannot sign in. Share credentials securely;
+          they can change the password later in Settings.
         </p>
+
+        <div className="mt-6">
+          <CreateTenantAdminForm tenantId={tenant.id} />
+        </div>
 
         <div className="mt-6 space-y-6">
           {tenant.users.length === 0 ? (

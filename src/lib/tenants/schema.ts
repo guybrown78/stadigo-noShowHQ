@@ -17,6 +17,14 @@ export const createTenantSchema = z.object({
   adminPassword: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+export const createTenantAdminSchema = z.object({
+  tenantId: z.string().min(1),
+  firstName: z.string().trim().min(1, "First name is required").max(50),
+  lastName: z.string().trim().min(1, "Last name is required").max(50),
+  email: z.string().trim().email("Enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export const resetTenantAdminPasswordSchema = z
   .object({
     tenantId: z.string().min(1),
@@ -37,6 +45,16 @@ export function parseCreateTenantFormData(formData: FormData) {
     adminLastName: formData.get("adminLastName"),
     adminEmail: formData.get("adminEmail"),
     adminPassword: formData.get("adminPassword"),
+  });
+}
+
+export function parseCreateTenantAdminFormData(formData: FormData) {
+  return createTenantAdminSchema.safeParse({
+    tenantId: formData.get("tenantId"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    email: formData.get("email"),
+    password: formData.get("password"),
   });
 }
 
