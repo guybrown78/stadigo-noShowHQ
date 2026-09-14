@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseArchiveAwolFormData,
   parseArchiveCancellationFormData,
+  parseAwolFormData,
   parseCancellationFormData,
+  parseCorrectAwolFormData,
   parseCorrectCancellationFormData,
   parseLedgerListQuery,
   isLedgerDateRangeInvalid,
@@ -13,7 +16,8 @@ import {
   ledgerListHref,
   parseAbsenceReturnOrigin,
 } from "@/lib/absence/url";
-import { noticeWarningFlags } from "@/lib/absence/display";
+import { CREATABLE_ABSENCE_TYPES } from "@/lib/absence/catalog";
+import { noticeWarningFlags, formatInternalNotes } from "@/lib/absence/display";
 
 function formData(overrides: Record<string, string> = {}) {
   const data = new FormData();
@@ -152,11 +156,24 @@ describe("ledgerListQuerySchema", () => {
     expect(ledgerHasActiveFilters(parsed)).toBe(true);
   });
 
-  it("accepts unknown view values without changing list defaults", () => {
-    const parsed = parseLedgerListQuery({ view: "awol" });
-    expect(parsed.view).toBe("awol");
-    expect(parsed.sort).toBe("reported");
-    expect(parsed.page).toBe(1);
+  it("allow-lists ledger views and defaults AWOL sort to event date", () => {
+    const awol = parseLedgerListQuery({ view: "awol" });
+    expect(awol.view).toBe("awol");
+    expect(awol.sort).toBe("eventDate");
+    expect(awol.page).toBe(1);
+
+    const unknown = parseLedgerListQuery({ view: "sickness" });
+    expect(unknown.view).toBe("cancellations");
+    expect(unknown.sort).toBe("reported");
+
+    const noticeSort = parseLedgerListQuery({ view: "awol", sort: "notice" });
+    expect(noticeSort.sort).toBe("eventDate");
+  });
+});
+
+describe("absence type cards", () => {
+  it("enables Cancellation and AWOL and keeps Sickness coming soon", () => {
+    expect(CREATABLE_ABSENCE_TYPES).toEqual(["CANCELLATION", "AWOL"]);
   });
 });
 
@@ -199,6 +216,29 @@ describe("ledgerListHref", () => {
       "/ledger?q=Patel&venue=venue_1&eventType=type_1&reportedFrom=2026-09-01&reportedTo=2026-09-30&sort=eventDate&direction=asc&page=2",
     );
   });
+
+  it("emits the AWOL view and keeps Cancellation URLs stable", () => {
+    expect(ledgerListHref(defaultLedgerListQuery())).toBe("/ledger");
+    expect(ledgerListHref(defaultLedgerListQuery("awol"))).toBe(
+      "/ledger?view=awol",
+    );
+  });
+});
+
+describe("formatInternalNotes", () => {
+  it("returns the current trimmed notes or the empty fallback", () => {
+    expect(formatInternalNotes("Line one\nLine two")).toBe("Line one\nLine two");
+    expect(formatInternalNotes("  kept  ")).toBe("kept");
+    expect(formatInternalNotes(null)).toBe("No internal notes recorded");
+    expect(formatInternalNotes(undefined)).toBe("No internal notes recorded");
+    expect(formatInternalNotes("")).toBe("No internal notes recorded");
+    expect(formatInternalNotes("   ")).toBe("No internal notes recorded");
+    expect(formatInternalNotes("\n\t")).toBe("No internal notes recorded");
+    expect(formatInternalNotes("<script>alert(1)</script>")).toBe(
+      "<script>alert(1)</script>",
+    );
+    expect(formatInternalNotes("x".repeat(2000))).toHaveLength(2000);
+  });
 });
 
 describe("noticeWarningFlags", () => {
@@ -224,5 +264,80 @@ describe("noticeWarningFlags", () => {
         noticeMinutes: 3000,
       }),
     ).toEqual({ shortNotice: false, retrospective: false });
+  });
+});
+
+describe("awolInputSchema", () => {
+  function awolData(overrides: Record<string, string> = {}) {
+    const data = new FormData();
+    const values = {
+      type: "AWOL",
+      staffId: "staff_1",
+      eventId: "event_1",
+      reportedDate: "2026-09-12",
+      notes: "",
+      idempotencyKey: "idem-key-1234",
+      eventDate: "2026-09-10",
+      ...overrides,
+    };
+    for (const [key, value] of Object.entries(values)) {
+      data.set(key, value);
+    }
+    return data;
+  }
+
+  it("accepts a valid AWOL with blank notes", () => {
+    const parsed = parseAwolFormData(awolData());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.notes).toBeNull();
+    expect(parsed.data.type).toBe("AWOL");
+  });
+
+  it("rejects Cancellation-only fields as the AWOL type", () => {
+    const parsed = parseAwolFormData(awolData({ type: "CANCELLATION" }));
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects Date recorded before the Event date", () => {
+    const parsed = parseAwolFormData(
+      awolData({ reportedDate: "2026-09-01", eventDate: "2026-09-10" }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("requires a correction reason and expectedUpdatedAt", () => {
+    expect(parseCorrectAwolFormData(awolData()).success).toBe(false);
+    const data = awolData();
+    data.set("correctionReason", "Wrong event");
+    data.set("expectedUpdatedAt", new Date().toISOString());
+    expect(parseCorrectAwolFormData(data).success).toBe(true);
+  });
+
+  it("requires archive confirmation, reason and expectedUpdatedAt", () => {
+    expect(parseArchiveAwolFormData(new FormData()).success).toBe(false);
+    const data = new FormData();
+    data.set("archiveReason", "Logged against the wrong person");
+    data.set("confirmArchive", "on");
+    data.set("expectedUpdatedAt", new Date().toISOString());
+    expect(parseArchiveAwolFormData(data).success).toBe(true);
+  });
+
+  it("rejects notes over the maximum length", () => {
+    const parsed = parseAwolFormData(awolData({ notes: "x".repeat(2001) }));
+    expect(parsed.success).toBe(false);
+  });
+
+  it("does not accept Cancellation hidden fields on an AWOL payload", () => {
+    const data = awolData();
+    data.set("reason", "Called in");
+    data.set("reportedTime", "09:00");
+    data.set("retrospectiveConfirmed", "on");
+    const parsed = parseAwolFormData(data);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect("reason" in parsed.data).toBe(false);
+    expect("reportedTime" in parsed.data).toBe(false);
+    expect(parsed.data.notes).toBeNull();
   });
 });

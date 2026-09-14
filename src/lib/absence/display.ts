@@ -5,6 +5,9 @@ import type {
   AbsenceRecordStatus,
   AbsenceType,
 } from "@prisma/client";
+import {
+  NOTES_PREVIEW_MAX_LENGTH,
+} from "@/lib/absence/catalog";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
 export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
@@ -57,9 +60,28 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   eventNameSnapshot: "Event name snapshot",
   eventDateSnapshot: "Event date snapshot",
   eventStartTimeSnapshot: "Event start time snapshot",
+  eventEndTimeSnapshot: "Event end time snapshot",
+  eventReferenceSnapshot: "Event reference snapshot",
+  eventTypeSnapshot: "Event type snapshot",
+  eventSubtypeSnapshot: "Event subtype snapshot",
   venueNameSnapshot: "Venue snapshot",
+  sameDayStartUnknownConfirmed: "Same-day confirmation",
   recordStatus: "Record status",
 };
+
+export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
+  reportedDate: "Date recorded",
+};
+
+export function historyFieldLabel(
+  field: string,
+  type?: AbsenceType,
+): string {
+  if (type === "AWOL" && AWOL_HISTORY_FIELD_LABELS[field]) {
+    return AWOL_HISTORY_FIELD_LABELS[field];
+  }
+  return HISTORY_FIELD_LABELS[field] ?? field;
+}
 
 export function formatCalendarNotice(days: number): string {
   const abs = Math.abs(days);
@@ -126,7 +148,7 @@ export function formatHistoryValue(field: string, value: string | null): string 
       return formatLocalDateDisplay(date);
     }
   }
-  if (field === "isShortNotice") {
+  if (field === "isShortNotice" || field === "sameDayStartUnknownConfirmed") {
     return value === "true" ? "Yes" : "No";
   }
   if (field === "noticeBasis") {
@@ -141,4 +163,21 @@ export function truncateReason(reason: string, max = 80): string {
     return trimmed;
   }
   return `${trimmed.slice(0, max - 1)}…`;
+}
+
+export function truncateNotes(notes: string | null | undefined, max = NOTES_PREVIEW_MAX_LENGTH): string | null {
+  if (!notes) {
+    return null;
+  }
+  return truncateReason(notes, max);
+}
+
+export const NO_INTERNAL_NOTES_RECORDED = "No internal notes recorded";
+
+export function formatInternalNotes(notes: string | null | undefined): string {
+  const trimmed = notes?.trim() ?? "";
+  if (!trimmed) {
+    return NO_INTERNAL_NOTES_RECORDED;
+  }
+  return trimmed;
 }

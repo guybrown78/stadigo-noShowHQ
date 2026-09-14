@@ -1,8 +1,8 @@
-import { CancellationForm } from "@/components/absence/cancellation-form";
+import { LogAbsenceForm } from "@/components/absence/log-absence-form";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { londonTodayIso } from "@/lib/events/dates";
+import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { getStaffOptionForAbsence } from "@/lib/absence/queries";
 import {
   absenceCancelHref,
@@ -15,7 +15,7 @@ export const metadata = { title: "Log Absence" };
 export default async function LogAbsencePage({
   searchParams,
 }: {
-  searchParams: Promise<{ staffId?: string; from?: string }>;
+  searchParams: Promise<{ staffId?: string; from?: string; type?: string }>;
 }) {
   const user = await requireTenant();
   const query = await searchParams;
@@ -29,6 +29,8 @@ export default async function LogAbsencePage({
     origin: returnStaffId ? "staff" : null,
     staffId: returnStaffId,
   });
+  const initialType = query.type === "awol" ? "AWOL" : "CANCELLATION";
+  const defaultReportedDate = todayIsoInTimeZone(user.tenantTimezone);
 
   return (
     <div>
@@ -45,12 +47,13 @@ export default async function LogAbsencePage({
               ]
         }
         title="Log an Absence"
-        description="Record a staff cancellation against an existing event. Notice given is calculated for you."
+        description="Record a Cancellation or AWOL against an existing event."
       />
       <div className="mt-8">
-        <CancellationForm
-          mode="create"
-          defaultReportedDate={londonTodayIso()}
+        <LogAbsenceForm
+          initialType={initialType}
+          defaultReportedDate={defaultReportedDate}
+          timeZone={user.tenantTimezone}
           initialStaff={initialStaff}
           cancelHref={cancelHref}
         />

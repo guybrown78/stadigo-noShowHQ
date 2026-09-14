@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import {
   formatCalendarNotice,
   formatDurationMinutes,
+  truncateNotes,
   truncateReason,
 } from "@/lib/absence/display";
 import {
@@ -38,6 +40,39 @@ export async function StaffAbsenceHistory({
         <>
           <ul className="mt-4 divide-y divide-slate-100">
             {absences.map((absence) => {
+              if (absence.type === "AWOL" && absence.awol) {
+                const notes = truncateNotes(absence.notes);
+                return (
+                  <li key={absence.id} className="py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                          <AbsenceTypeBadge type="AWOL" />
+                          <Link
+                            href={`/absence/${absence.id}`}
+                            className="underline"
+                          >
+                            {absence.awol.eventNameSnapshot}
+                          </Link>
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Event{" "}
+                          {formatLocalDateDisplay(absence.awol.eventDateSnapshot)}
+                          {absence.awol.venueNameSnapshot
+                            ? ` · ${absence.awol.venueNameSnapshot}`
+                            : ""}
+                          {" · Date recorded "}
+                          {formatLocalDateDisplay(absence.reportedDate)}
+                        </p>
+                        {notes ? (
+                          <p className="mt-1 text-sm text-slate-600">{notes}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                );
+              }
+
               const detail = absence.cancellation;
               const eventDate = detail?.eventDateSnapshot ?? absence.reportedDate;
               const eventName = detail?.eventNameSnapshot ?? "Event";
@@ -51,7 +86,8 @@ export async function StaffAbsenceHistory({
                 <li key={absence.id} className="py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                        <AbsenceTypeBadge type="CANCELLATION" />
                         <Link
                           href={`/absence/${absence.id}`}
                           className="underline"
@@ -64,9 +100,11 @@ export async function StaffAbsenceHistory({
                         {formatLocalDateDisplay(absence.reportedDate)} · Notice{" "}
                         {notice}
                       </p>
-                      <p className="mt-1 text-sm text-slate-600">
-                        {truncateReason(absence.reason)}
-                      </p>
+                      {absence.reason ? (
+                        <p className="mt-1 text-sm text-slate-600">
+                          {truncateReason(absence.reason)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </li>

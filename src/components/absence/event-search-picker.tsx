@@ -16,11 +16,13 @@ export function EventSearchPicker({
   errorId,
   errorMessages,
   onSelect,
+  searchMode = "cancellation",
 }: {
   initialEvent?: AbsenceEventOption | null;
   errorId: string;
   errorMessages?: string[];
   onSelect?: (event: AbsenceEventOption | null) => void;
+  searchMode?: "cancellation" | "awol";
 }) {
   const fieldId = useId();
   const listId = useId();
@@ -62,7 +64,7 @@ export function EventSearchPicker({
     }
     debounceRef.current = setTimeout(() => {
       startTransition(async () => {
-        const found = await searchAbsenceEventsAction(query);
+        const found = await searchAbsenceEventsAction(query, searchMode);
         setResults(found);
         setActiveIndex(0);
         setOpen(true);
@@ -73,7 +75,7 @@ export function EventSearchPicker({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, selected, focused]);
+  }, [query, selected, focused, searchMode]);
 
   return (
     <div>

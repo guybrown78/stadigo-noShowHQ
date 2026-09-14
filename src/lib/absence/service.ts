@@ -1,20 +1,35 @@
+import { createHash } from "node:crypto";
 import {
   Prisma,
   type PrismaClient,
 } from "@prisma/client";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
 import { AbsenceAccessError } from "@/lib/absence/errors";
+import {
+  AWOL_CREATE_IDEMPOTENCY_OPERATION,
+  IDEMPOTENCY_TTL_MS,
+} from "@/lib/absence/catalog";
 import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
 import { calculateNotice } from "@/lib/absence/notice";
 import {
+  evaluateAwolEventEligibility,
+  evaluateAwolReportedDate,
+} from "@/lib/absence/eligibility";
+import {
+  findActiveCancellationOrAwol,
   findActiveDuplicateCancellation,
   getAbsenceForTenant,
+  getTenantTimezone,
 } from "@/lib/absence/queries";
 import type {
+  ArchiveAwolInput,
   ArchiveCancellationInput,
+  AwolInput,
   CancellationInput,
+  CorrectAwolInput,
   CorrectCancellationInput,
 } from "@/lib/absence/schema";
+import { TenantTimezoneError } from "@/lib/absence/timezone";
 import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 
@@ -31,16 +46,29 @@ export type AbsenceMutationResult =
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
-const DUPLICATE_MESSAGE =
+const DUPLICATE_CANCELLATION_MESSAGE =
   "An active Cancellation already exists for this staff member and event.";
+const DUPLICATE_AWOL_MESSAGE =
+  "An active AWOL already exists for this staff member and event.";
+const CONFLICT_MESSAGE =
+  "An active absence already exists for this staff member and event.";
+const STALE_WRITE_MESSAGE =
+  "This record was changed by someone else. Reload and try again.";
+const IDEMPOTENCY_REUSE_MESSAGE =
+  "This save was already used with different details. Refresh the page and try again.";
+const ARCHIVED_CANNOT_CORRECT = "Archived records cannot be corrected.";
 
 type LoadedEvent = {
   id: string;
   name: string;
+  reference: string | null;
   eventDate: Date;
   startTime: string | null;
+  endTime: string | null;
   venueId: string;
   venue: { name: string };
+  eventType: { name: string };
+  eventSubtype: { name: string };
 };
 
 function uniqueTarget(error: Prisma.PrismaClientKnownRequestError): string[] {
@@ -54,7 +82,7 @@ function uniqueTarget(error: Prisma.PrismaClientKnownRequestError): string[] {
   return [];
 }
 
-function isDuplicateCancellationError(error: unknown): boolean {
+function isActiveSlotUniqueError(error: unknown): boolean {
   if (
     !(error instanceof Prisma.PrismaClientKnownRequestError) ||
     error.code !== "P2002"
@@ -66,15 +94,26 @@ function isDuplicateCancellationError(error: unknown): boolean {
     (part) =>
       part.includes("staffId") ||
       part.includes("eventId") ||
-      part.includes("Absence_tenantId_staffId_eventId_type_active"),
+      part.includes("Absence_tenantId_staffId_eventId_type_active") ||
+      part.includes("Absence_tenantId_staffId_eventId_active_cancellation_awol"),
   );
 }
 
-function duplicateResult(existingId: string): Extract<AbsenceMutationResult, { ok: false }> {
+function conflictResult(
+  existingId: string,
+  existingType: "CANCELLATION" | "AWOL" | string,
+  writingType: "CANCELLATION" | "AWOL",
+): Extract<AbsenceMutationResult, { ok: false }> {
+  const message =
+    existingType === writingType
+      ? writingType === "CANCELLATION"
+        ? DUPLICATE_CANCELLATION_MESSAGE
+        : DUPLICATE_AWOL_MESSAGE
+      : CONFLICT_MESSAGE;
   return {
     ok: false,
-    error: DUPLICATE_MESSAGE,
-    fieldErrors: { eventId: [DUPLICATE_MESSAGE] },
+    error: message,
+    fieldErrors: { eventId: [message] },
     existingAbsenceId: existingId,
   };
 }
@@ -110,10 +149,14 @@ async function loadLiveEvent(
     select: {
       id: true,
       name: true,
+      reference: true,
       eventDate: true,
       startTime: true,
+      endTime: true,
       venueId: true,
       venue: { select: { name: true } },
+      eventType: { select: { name: true } },
+      eventSubtype: { select: { name: true } },
     },
   });
 }
@@ -128,6 +171,46 @@ function staffLabel(staff: {
 
 function eventLabel(event: LoadedEvent): string {
   return `${event.name} (${dateString(event.eventDate)})`;
+}
+
+function timestampsMatch(actual: Date, expected: string): boolean {
+  const parsed = Date.parse(expected);
+  if (Number.isNaN(parsed)) {
+    return false;
+  }
+  return actual.getTime() === parsed;
+}
+
+async function lockAbsenceRow(
+  db: DbClient,
+  tenantId: string,
+  absenceId: string,
+) {
+  await db.$queryRaw`
+    SELECT id FROM "Absence"
+    WHERE id = ${absenceId} AND "tenantId" = ${tenantId}
+    FOR UPDATE
+  `;
+}
+
+function awolPayloadHash(input: {
+  staffId: string;
+  eventId: string;
+  reportedDate: string;
+  notes: string | null;
+  sameDayStartUnknownConfirmed: boolean;
+}): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        staffId: input.staffId,
+        eventId: input.eventId,
+        reportedDate: input.reportedDate,
+        notes: input.notes,
+        sameDayStartUnknownConfirmed: input.sameDayStartUnknownConfirmed,
+      }),
+    )
+    .digest("hex");
 }
 
 type ResolvedCancellationWrite =
@@ -203,20 +286,23 @@ async function resolveCancellationWrite(
     };
   }
 
-  const duplicate = await findActiveDuplicateCancellation(db, {
+  const existing = await findActiveCancellationOrAwol(db, {
     tenantId: params.tenantId,
     staffId: staff.id,
     eventId: event.id,
     excludeId: params.excludeId,
   });
-  if (duplicate) {
-    return duplicateResult(duplicate.id);
+  if (existing) {
+    return conflictResult(existing.id, existing.type, "CANCELLATION");
   }
 
   return { ok: true, staff, event, reportedDate, notice };
 }
 
-function cancellationSnapshot(event: LoadedEvent, notice: ReturnType<typeof calculateNotice>) {
+function cancellationSnapshot(
+  event: LoadedEvent,
+  notice: ReturnType<typeof calculateNotice>,
+) {
   return {
     eventNameSnapshot: event.name,
     eventDateSnapshot: event.eventDate,
@@ -230,6 +316,57 @@ function cancellationSnapshot(event: LoadedEvent, notice: ReturnType<typeof calc
   };
 }
 
+async function slotConflictFromError(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    eventId: string;
+    excludeId?: string;
+    writingType: "CANCELLATION" | "AWOL";
+  },
+): Promise<Extract<AbsenceMutationResult, { ok: false }> | null> {
+  const existing = await findActiveCancellationOrAwol(db, {
+    tenantId: params.tenantId,
+    staffId: params.staffId,
+    eventId: params.eventId,
+    excludeId: params.excludeId,
+  });
+  if (!existing) {
+    return null;
+  }
+  return conflictResult(existing.id, existing.type, params.writingType);
+}
+
+async function withSlotConflictMapping(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    eventId: string;
+    excludeId?: string;
+    writingType: "CANCELLATION" | "AWOL";
+  },
+  run: () => Promise<AbsenceMutationResult>,
+): Promise<AbsenceMutationResult> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!isActiveSlotUniqueError(error)) {
+      throw error;
+    }
+    const conflict = await slotConflictFromError(db, params);
+    if (conflict) {
+      return conflict;
+    }
+    return {
+      ok: false,
+      error: CONFLICT_MESSAGE,
+      fieldErrors: { eventId: [CONFLICT_MESSAGE] },
+    };
+  }
+}
+
 export async function createCancellation(
   db: PrismaClient,
   params: {
@@ -238,7 +375,16 @@ export async function createCancellation(
     input: CancellationInput;
   },
 ): Promise<AbsenceMutationResult> {
-  return db.$transaction(async (tx) => {
+  return withSlotConflictMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      eventId: params.input.eventId,
+      writingType: "CANCELLATION",
+    },
+    () =>
+      db.$transaction(async (tx) => {
     const resolved = await resolveCancellationWrite(tx, {
       tenantId: params.tenantId,
       input: params.input,
@@ -249,8 +395,7 @@ export async function createCancellation(
 
     const snapshot = cancellationSnapshot(resolved.event, resolved.notice);
 
-    try {
-      const absence = await tx.absence.create({
+    const absence = await tx.absence.create({
         data: {
           tenantId: params.tenantId,
           staffId: resolved.staff.id,
@@ -308,20 +453,8 @@ export async function createCancellation(
       });
 
       return { ok: true, id: absence.id };
-    } catch (error) {
-      if (isDuplicateCancellationError(error)) {
-        const existing = await findActiveDuplicateCancellation(tx, {
-          tenantId: params.tenantId,
-          staffId: resolved.staff.id,
-          eventId: resolved.event.id,
-        });
-        if (existing) {
-          return duplicateResult(existing.id);
-        }
-      }
-      throw error;
-    }
-  });
+      }),
+  );
 }
 
 export async function correctCancellation(
@@ -333,7 +466,17 @@ export async function correctCancellation(
     input: CorrectCancellationInput;
   },
 ): Promise<AbsenceMutationResult> {
-  return db.$transaction(async (tx) => {
+  return withSlotConflictMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      eventId: params.input.eventId,
+      excludeId: params.absenceId,
+      writingType: "CANCELLATION",
+    },
+    () =>
+      db.$transaction(async (tx) => {
     const existing = await tx.absence.findFirst({
       where: { id: params.absenceId, tenantId: params.tenantId },
       include: { cancellation: true, staff: true },
@@ -501,20 +644,13 @@ export async function correctCancellation(
 
       return { ok: true, id: existing.id };
     } catch (error) {
-      if (isDuplicateCancellationError(error)) {
-        const duplicate = await findActiveDuplicateCancellation(tx, {
-          tenantId: params.tenantId,
-          staffId: resolved.staff.id,
-          eventId: resolved.event.id,
-          excludeId: existing.id,
-        });
-        if (duplicate) {
-          return duplicateResult(duplicate.id);
-        }
+      if (isActiveSlotUniqueError(error)) {
+        throw error;
       }
       throw error;
     }
-  });
+      }),
+  );
 }
 
 export async function archiveCancellation(
@@ -571,4 +707,551 @@ export async function archiveCancellation(
   });
 }
 
+function awolSnapshot(
+  event: LoadedEvent,
+  sameDayStartUnknownConfirmed: boolean,
+) {
+  return {
+    eventNameSnapshot: event.name,
+    eventReferenceSnapshot: event.reference,
+    eventDateSnapshot: event.eventDate,
+    eventStartTimeSnapshot: event.startTime,
+    eventEndTimeSnapshot: event.endTime,
+    venueIdSnapshot: event.venueId,
+    venueNameSnapshot: event.venue.name,
+    eventTypeSnapshot: event.eventType.name,
+    eventSubtypeSnapshot: event.eventSubtype.name,
+    sameDayStartUnknownConfirmed,
+  };
+}
+
+type ResolvedAwolWrite =
+  | {
+      ok: true;
+      staff: NonNullable<Awaited<ReturnType<typeof loadLiveStaff>>>;
+      event: LoadedEvent;
+      reportedDate: Date;
+      sameDayStartUnknownConfirmed: boolean;
+    }
+  | Extract<AbsenceMutationResult, { ok: false }>;
+
+async function resolveAwolWrite(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    input: Pick<
+      AwolInput,
+      | "type"
+      | "staffId"
+      | "eventId"
+      | "reportedDate"
+      | "sameDayStartUnknownConfirmed"
+    >;
+    excludeId?: string;
+    now?: Date;
+  },
+): Promise<ResolvedAwolWrite> {
+  if (params.input.type !== "AWOL") {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { type: ["Only AWOL can be logged with this form"] },
+    };
+  }
+
+  let timeZone: string;
+  try {
+    timeZone = await getTenantTimezone(db, params.tenantId);
+  } catch (error) {
+    if (error instanceof TenantTimezoneError) {
+      return { ok: false, error: error.message };
+    }
+    throw error;
+  }
+
+  const reportedDate = parseLocalDate(params.input.reportedDate);
+  if (!reportedDate) {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { reportedDate: ["Enter a valid date"] },
+    };
+  }
+
+  const staff = await loadLiveStaff(db, params.tenantId, params.input.staffId);
+  if (!staff) {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { staffId: ["Select a valid staff member"] },
+    };
+  }
+
+  const event = await loadLiveEvent(db, params.tenantId, params.input.eventId);
+  if (!event) {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { eventId: ["Select a valid event"] },
+    };
+  }
+
+  const now = params.now ?? new Date();
+  const eligibility = evaluateAwolEventEligibility({
+    eventDate: event.eventDate,
+    eventStartTime: event.startTime,
+    sameDayStartUnknownConfirmed: params.input.sameDayStartUnknownConfirmed,
+    timeZone,
+    now,
+  });
+  if (!eligibility.ok) {
+    if (eligibility.field === "timezone") {
+      return { ok: false, error: eligibility.message };
+    }
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { [eligibility.field]: [eligibility.message] },
+    };
+  }
+
+  const reported = evaluateAwolReportedDate({
+    reportedDate,
+    eventDate: event.eventDate,
+    timeZone,
+    now,
+  });
+  if (!reported.ok) {
+    if (reported.field === "timezone") {
+      return { ok: false, error: reported.message };
+    }
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { [reported.field]: [reported.message] },
+    };
+  }
+
+  const existing = await findActiveCancellationOrAwol(db, {
+    tenantId: params.tenantId,
+    staffId: staff.id,
+    eventId: event.id,
+    excludeId: params.excludeId,
+  });
+  if (existing) {
+    return conflictResult(existing.id, existing.type, "AWOL");
+  }
+
+  return {
+    ok: true,
+    staff,
+    event,
+    reportedDate,
+    sameDayStartUnknownConfirmed: eligibility.requiresSameDayConfirmation,
+  };
+}
+
+export async function createAwol(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    input: AwolInput;
+    now?: Date;
+  },
+): Promise<AbsenceMutationResult> {
+  const now = params.now ?? new Date();
+  const payloadHash = awolPayloadHash(params.input);
+
+  return withSlotConflictMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      eventId: params.input.eventId,
+      writingType: "AWOL",
+    },
+    () =>
+      db.$transaction(async (tx) => {
+    await tx.absenceIdempotencyKey.deleteMany({
+      where: {
+        tenantId: params.tenantId,
+        actorId: params.userId,
+        operation: AWOL_CREATE_IDEMPOTENCY_OPERATION,
+        expiresAt: { lt: now },
+      },
+    });
+
+    const existingKey = await tx.absenceIdempotencyKey.findUnique({
+      where: {
+        tenantId_actorId_operation_key: {
+          tenantId: params.tenantId,
+          actorId: params.userId,
+          operation: AWOL_CREATE_IDEMPOTENCY_OPERATION,
+          key: params.input.idempotencyKey,
+        },
+      },
+    });
+    if (existingKey) {
+      if (existingKey.payloadHash !== payloadHash) {
+        return {
+          ok: false,
+          error: IDEMPOTENCY_REUSE_MESSAGE,
+        };
+      }
+      if (existingKey.absenceId) {
+        return { ok: true, id: existingKey.absenceId };
+      }
+    } else {
+      try {
+        await tx.absenceIdempotencyKey.create({
+          data: {
+            tenantId: params.tenantId,
+            actorId: params.userId,
+            operation: AWOL_CREATE_IDEMPOTENCY_OPERATION,
+            key: params.input.idempotencyKey,
+            payloadHash,
+            expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const raced = await tx.absenceIdempotencyKey.findUnique({
+            where: {
+              tenantId_actorId_operation_key: {
+                tenantId: params.tenantId,
+                actorId: params.userId,
+                operation: AWOL_CREATE_IDEMPOTENCY_OPERATION,
+                key: params.input.idempotencyKey,
+              },
+            },
+          });
+          if (raced?.payloadHash !== payloadHash) {
+            return { ok: false, error: IDEMPOTENCY_REUSE_MESSAGE };
+          }
+          if (raced?.absenceId) {
+            return { ok: true, id: raced.absenceId };
+          }
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    const resolved = await resolveAwolWrite(tx, {
+      tenantId: params.tenantId,
+      input: params.input,
+      now,
+    });
+    if (!resolved.ok) {
+      return resolved;
+    }
+
+    const snapshot = awolSnapshot(
+      resolved.event,
+      resolved.sameDayStartUnknownConfirmed,
+    );
+
+    try {
+      const absence = await tx.absence.create({
+        data: {
+          tenantId: params.tenantId,
+          staffId: resolved.staff.id,
+          eventId: resolved.event.id,
+          type: "AWOL",
+          reportedDate: resolved.reportedDate,
+          reportedTime: null,
+          reason: null,
+          notes: params.input.notes,
+          followUpType: "REVIEW",
+          followUpStatus: "PENDING",
+          recordStatus: "ACTIVE",
+          createdById: params.userId,
+          updatedById: params.userId,
+        },
+      });
+
+      await tx.awolDetail.create({
+        data: {
+          absenceId: absence.id,
+          tenantId: params.tenantId,
+          ...snapshot,
+        },
+      });
+
+      await writeAbsenceHistory(tx, {
+        tenantId: params.tenantId,
+        absenceId: absence.id,
+        action: "CREATED",
+        actedById: params.userId,
+        changes: [
+          { field: "staffId", previous: null, next: staffLabel(resolved.staff) },
+          { field: "eventId", previous: null, next: eventLabel(resolved.event) },
+          {
+            field: "reportedDate",
+            previous: null,
+            next: dateString(resolved.reportedDate),
+          },
+          {
+            field: "notes",
+            previous: null,
+            next: params.input.notes,
+          },
+        ],
+      });
+
+      await tx.absenceIdempotencyKey.updateMany({
+        where: {
+          tenantId: params.tenantId,
+          actorId: params.userId,
+          operation: AWOL_CREATE_IDEMPOTENCY_OPERATION,
+          key: params.input.idempotencyKey,
+        },
+        data: { absenceId: absence.id, payloadHash },
+      });
+
+      return { ok: true, id: absence.id };
+    } catch (error) {
+      if (isActiveSlotUniqueError(error)) {
+        throw error;
+      }
+      throw error;
+    }
+      }),
+  );
+}
+
+export async function correctAwol(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    input: CorrectAwolInput;
+    now?: Date;
+  },
+): Promise<AbsenceMutationResult> {
+  return withSlotConflictMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      eventId: params.input.eventId,
+      excludeId: params.absenceId,
+      writingType: "AWOL",
+    },
+    () =>
+      db.$transaction(async (tx) => {
+    await lockAbsenceRow(tx, params.tenantId, params.absenceId);
+    const existing = await tx.absence.findFirst({
+      where: { id: params.absenceId, tenantId: params.tenantId },
+      include: { awol: true, staff: true },
+    });
+    if (!existing) {
+      throw new AbsenceAccessError();
+    }
+    if (existing.recordStatus !== "ACTIVE") {
+      return { ok: false, error: ARCHIVED_CANNOT_CORRECT };
+    }
+    if (existing.type !== "AWOL" || !existing.awol) {
+      return { ok: false, error: "This record cannot be corrected here." };
+    }
+    if (!timestampsMatch(existing.updatedAt, params.input.expectedUpdatedAt)) {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+
+    const resolved = await resolveAwolWrite(tx, {
+      tenantId: params.tenantId,
+      input: params.input,
+      excludeId: existing.id,
+      now: params.now,
+    });
+    if (!resolved.ok) {
+      return resolved;
+    }
+
+    const snapshot = awolSnapshot(
+      resolved.event,
+      resolved.sameDayStartUnknownConfirmed,
+    );
+    const previousStaffLabel = staffLabel(existing.staff);
+    const previousEventLabel = `${existing.awol.eventNameSnapshot} (${dateString(existing.awol.eventDateSnapshot)})`;
+
+    const changes = [
+      diffValues(previousStaffLabel, staffLabel(resolved.staff)) && {
+        field: "staffId",
+        ...diffValues(previousStaffLabel, staffLabel(resolved.staff))!,
+      },
+      diffValues(previousEventLabel, eventLabel(resolved.event)) && {
+        field: "eventId",
+        ...diffValues(previousEventLabel, eventLabel(resolved.event))!,
+      },
+      diffValues(dateString(existing.reportedDate), dateString(resolved.reportedDate)) && {
+        field: "reportedDate",
+        ...diffValues(
+          dateString(existing.reportedDate),
+          dateString(resolved.reportedDate),
+        )!,
+      },
+      diffValues(existing.notes, params.input.notes) && {
+        field: "notes",
+        ...diffValues(existing.notes, params.input.notes)!,
+      },
+      diffValues(
+        existing.awol.eventNameSnapshot,
+        snapshot.eventNameSnapshot,
+      ) && {
+        field: "eventNameSnapshot",
+        ...diffValues(
+          existing.awol.eventNameSnapshot,
+          snapshot.eventNameSnapshot,
+        )!,
+      },
+      diffValues(
+        existing.awol.eventReferenceSnapshot,
+        snapshot.eventReferenceSnapshot,
+      ) && {
+        field: "eventReferenceSnapshot",
+        ...diffValues(
+          existing.awol.eventReferenceSnapshot,
+          snapshot.eventReferenceSnapshot,
+        )!,
+      },
+      diffValues(
+        dateString(existing.awol.eventDateSnapshot),
+        dateString(snapshot.eventDateSnapshot),
+      ) && {
+        field: "eventDateSnapshot",
+        ...diffValues(
+          dateString(existing.awol.eventDateSnapshot),
+          dateString(snapshot.eventDateSnapshot),
+        )!,
+      },
+      diffValues(
+        existing.awol.eventStartTimeSnapshot,
+        snapshot.eventStartTimeSnapshot,
+      ) && {
+        field: "eventStartTimeSnapshot",
+        ...diffValues(
+          existing.awol.eventStartTimeSnapshot,
+          snapshot.eventStartTimeSnapshot,
+        )!,
+      },
+      diffValues(
+        existing.awol.venueNameSnapshot,
+        snapshot.venueNameSnapshot,
+      ) && {
+        field: "venueNameSnapshot",
+        ...diffValues(
+          existing.awol.venueNameSnapshot,
+          snapshot.venueNameSnapshot,
+        )!,
+      },
+      diffValues(existing.awol.eventTypeSnapshot, snapshot.eventTypeSnapshot) && {
+        field: "eventTypeSnapshot",
+        ...diffValues(
+          existing.awol.eventTypeSnapshot,
+          snapshot.eventTypeSnapshot,
+        )!,
+      },
+    ].filter((change): change is { field: string; previous: string | null; next: string | null } =>
+      Boolean(change),
+    );
+
+    try {
+      await tx.absence.update({
+        where: { id: existing.id },
+        data: {
+          staffId: resolved.staff.id,
+          eventId: resolved.event.id,
+          reportedDate: resolved.reportedDate,
+          notes: params.input.notes,
+          updatedById: params.userId,
+          awol: {
+            update: snapshot,
+          },
+        },
+      });
+
+      await writeAbsenceHistory(tx, {
+        tenantId: params.tenantId,
+        absenceId: existing.id,
+        action: "CORRECTED",
+        reason: params.input.correctionReason,
+        actedById: params.userId,
+        changes,
+      });
+
+      return { ok: true, id: existing.id };
+    } catch (error) {
+      if (isActiveSlotUniqueError(error)) {
+        throw error;
+      }
+      throw error;
+    }
+      }),
+  );
+}
+
+export async function archiveAwol(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    input: ArchiveAwolInput;
+  },
+): Promise<AbsenceMutationResult> {
+  return db.$transaction(async (tx) => {
+    await lockAbsenceRow(tx, params.tenantId, params.absenceId);
+    const existing = await tx.absence.findFirst({
+      where: { id: params.absenceId, tenantId: params.tenantId },
+    });
+    if (!existing) {
+      throw new AbsenceAccessError();
+    }
+    if (existing.type !== "AWOL") {
+      return { ok: false, error: "This record cannot be archived here." };
+    }
+    if (existing.recordStatus !== "ACTIVE") {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+    if (!timestampsMatch(existing.updatedAt, params.input.expectedUpdatedAt)) {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+
+    await tx.absence.update({
+      where: { id: existing.id },
+      data: {
+        recordStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        archivedById: params.userId,
+        archiveReason: params.input.archiveReason,
+        updatedById: params.userId,
+      },
+    });
+
+    await writeAbsenceHistory(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
+      action: "ARCHIVED",
+      reason: params.input.archiveReason,
+      actedById: params.userId,
+      changes: [
+        {
+          field: "recordStatus",
+          previous: "ACTIVE",
+          next: "ARCHIVED",
+        },
+      ],
+    });
+
+    return { ok: true, id: existing.id };
+  });
+}
+
 export { getAbsenceForTenant };
+export { findActiveDuplicateCancellation };
