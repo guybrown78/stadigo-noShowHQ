@@ -21,6 +21,7 @@ export type TenantContext = AppUser & {
   tenantId: string;
   tenantName: string;
   tenantSlug: string;
+  tenantTimezone: string;
   isActingAsTenant: boolean;
 };
 
@@ -81,7 +82,7 @@ export async function requireTenant(): Promise<TenantContext> {
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, timezone: true },
     });
     if (!tenant) {
       notFound();
@@ -92,6 +93,7 @@ export async function requireTenant(): Promise<TenantContext> {
       tenantId: tenant.id,
       tenantName: tenant.name,
       tenantSlug: tenant.slug,
+      tenantTimezone: tenant.timezone,
       isActingAsTenant: false,
     };
   }
@@ -104,7 +106,7 @@ export async function requireTenant(): Promise<TenantContext> {
 
     const tenant = await prisma.tenant.findUnique({
       where: { id: actingTenantId },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, timezone: true },
     });
 
     if (!tenant) {
@@ -117,6 +119,7 @@ export async function requireTenant(): Promise<TenantContext> {
       tenantId: tenant.id,
       tenantName: tenant.name,
       tenantSlug: tenant.slug,
+      tenantTimezone: tenant.timezone,
       isActingAsTenant: true,
     };
   }

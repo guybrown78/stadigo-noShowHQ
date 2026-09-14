@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
+import { AwolLedgerPanel } from "@/app/(app)/ledger/awol-panel";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
 import { AbsenceTypeBadge, NoticeWarningBadges } from "@/components/absence/absence-badges";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -185,11 +186,18 @@ export default async function LedgerPage({
     eventType: first(raw.eventType),
     reportedFrom: first(raw.reportedFrom),
     reportedTo: first(raw.reportedTo),
+    eventFrom: first(raw.eventFrom),
+    eventTo: first(raw.eventTo),
     sort: first(raw.sort),
     direction: first(raw.direction),
     page: first(raw.page),
     view: first(raw.view),
   });
+
+  if (query.view === "awol") {
+    return <AwolLedgerPanel tenantId={user.tenantId} query={query} />;
+  }
+
   const dateRangeInvalid = isLedgerDateRangeInvalid(query);
 
   const [options, list] = await Promise.all([
@@ -227,7 +235,7 @@ export default async function LedgerPage({
         }
       />
 
-      <LedgerTypeNav activeCount={activeTotal} />
+      <LedgerTypeNav view="cancellations" activeCount={activeTotal} />
 
       <form method="get" className="mt-4">
         <FilterBar
@@ -434,7 +442,7 @@ export default async function LedgerPage({
                         <NoticeCell row={row} />
                       </td>
                       <td className="max-w-[14rem] px-4 py-3 text-slate-700">
-                        <p className="truncate" title={row.reason}>
+                        <p className="truncate" title={row.reason ?? undefined}>
                           {row.reason}
                         </p>
                       </td>

@@ -3,18 +3,24 @@ import { calculateNotice, coerceLocalDateIso } from "@/lib/absence/notice";
 import {
   ARCHIVE_REASON_MAX_LENGTH,
   ARCHIVE_REASON_MIN_LENGTH,
+  AWOL_LEDGER_SORT_FIELDS,
   CORRECTION_REASON_MAX_LENGTH,
   CORRECTION_REASON_MIN_LENGTH,
+  DEFAULT_AWOL_LEDGER_SORT,
   DEFAULT_LEDGER_DIRECTION,
   DEFAULT_LEDGER_SORT,
+  DEFAULT_LEDGER_VIEW,
   LEDGER_SORT_DIRECTIONS,
   LEDGER_SORT_FIELDS,
+  LEDGER_VIEWS,
   NOTES_MAX_LENGTH,
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
   type LedgerSortDirection,
   type LedgerSortField,
+  type LedgerView,
 } from "@/lib/absence/catalog";
+import { DATE_RECORDED_BEFORE_EVENT_MESSAGE } from "@/lib/absence/eligibility";
 import { parseLocalDate, parseLocalTime } from "@/lib/events/dates";
 import { emptyToNull } from "@/lib/staff/normalize";
 
@@ -23,6 +29,23 @@ const localDateSchema = z
   .trim()
   .min(1, "Reported date is required")
   .refine((value) => parseLocalDate(value) !== null, "Enter a valid date");
+
+const dateRecordedSchema = z
+  .string()
+  .trim()
+  .min(1, "Date recorded is required")
+  .refine((value) => parseLocalDate(value) !== null, "Enter a valid date");
+
+const idempotencyKeySchema = z
+  .string()
+  .trim()
+  .min(8, "A valid save key is required")
+  .max(128, "A valid save key is required");
+
+const expectedUpdatedAtSchema = z
+  .string()
+  .trim()
+  .min(1, "This record is out of date. Reload and try again.");
 
 const optionalTimeSchema = z
   .string()
@@ -143,6 +166,82 @@ export type ArchiveCancellationInput = z.infer<
   typeof archiveCancellationInputSchema
 >;
 
+const awolFields = {
+  type: z.literal("AWOL", {
+    error: "Only AWOL can be logged with this form",
+  }),
+  staffId: z.string().trim().min(1, "Select a staff member"),
+  eventId: z.string().trim().min(1, "Select an event"),
+  reportedDate: dateRecordedSchema,
+  notes: optionalNotesSchema,
+  sameDayStartUnknownConfirmed: z.boolean(),
+  eventDate: z.string().optional(),
+  eventStartTime: z.string().optional(),
+};
+
+function refineAwolDates(
+  value: {
+    reportedDate: string;
+    eventDate?: string;
+  },
+  ctx: z.RefinementCtx,
+) {
+  const eventDate = coerceLocalDateIso(value.eventDate?.trim() ?? "");
+  if (!eventDate) {
+    return;
+  }
+  if (value.reportedDate < eventDate) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["reportedDate"],
+      message: DATE_RECORDED_BEFORE_EVENT_MESSAGE,
+    });
+  }
+}
+
+export const awolInputSchema = z
+  .object({
+    ...awolFields,
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .superRefine(refineAwolDates);
+
+export const correctAwolInputSchema = z
+  .object({
+    ...awolFields,
+    correctionReason: actionReasonSchema(
+      "Correction reason",
+      CORRECTION_REASON_MIN_LENGTH,
+      CORRECTION_REASON_MAX_LENGTH,
+    ),
+    expectedUpdatedAt: expectedUpdatedAtSchema,
+  })
+  .superRefine(refineAwolDates);
+
+export const archiveAwolInputSchema = z.object({
+  archiveReason: actionReasonSchema(
+    "Archive reason",
+    ARCHIVE_REASON_MIN_LENGTH,
+    ARCHIVE_REASON_MAX_LENGTH,
+  ),
+  confirmArchive: z.literal(true, {
+    error: "Confirm that you want to archive this AWOL",
+  }),
+  expectedUpdatedAt: expectedUpdatedAtSchema,
+});
+
+export type AwolInput = Omit<
+  z.infer<typeof awolInputSchema>,
+  "eventDate" | "eventStartTime"
+>;
+
+export type CorrectAwolInput = Omit<
+  z.infer<typeof correctAwolInputSchema>,
+  "eventDate" | "eventStartTime"
+>;
+
+export type ArchiveAwolInput = z.infer<typeof archiveAwolInputSchema>;
+
 function formObject(formData: FormData) {
   return {
     type: formData.get("type") ?? "CANCELLATION",
@@ -176,10 +275,49 @@ export function parseArchiveCancellationFormData(formData: FormData) {
   });
 }
 
+function awolFormObject(formData: FormData) {
+  return {
+    type: formData.get("type") ?? "AWOL",
+    staffId: formData.get("staffId") ?? "",
+    eventId: formData.get("eventId") ?? "",
+    reportedDate: formData.get("reportedDate") ?? "",
+    notes: formData.get("notes") ?? "",
+    sameDayStartUnknownConfirmed:
+      formData.get("sameDayStartUnknownConfirmed") === "on",
+    eventDate: String(formData.get("eventDate") ?? ""),
+    eventStartTime: String(formData.get("eventStartTime") ?? ""),
+  };
+}
+
+export function parseAwolFormData(formData: FormData) {
+  return awolInputSchema.safeParse({
+    ...awolFormObject(formData),
+    idempotencyKey: formData.get("idempotencyKey") ?? "",
+  });
+}
+
+export function parseCorrectAwolFormData(formData: FormData) {
+  return correctAwolInputSchema.safeParse({
+    ...awolFormObject(formData),
+    correctionReason: formData.get("correctionReason") ?? "",
+    expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+  });
+}
+
+export function parseArchiveAwolFormData(formData: FormData) {
+  return archiveAwolInputSchema.safeParse({
+    archiveReason: formData.get("archiveReason") ?? "",
+    confirmArchive: formData.get("confirmArchive") === "on",
+    expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+  });
+}
+
 export { flattenFieldErrors } from "@/lib/form";
 
 const LEDGER_SORT_FIELD_SET = new Set<string>(LEDGER_SORT_FIELDS);
+const AWOL_LEDGER_SORT_FIELD_SET = new Set<string>(AWOL_LEDGER_SORT_FIELDS);
 const LEDGER_SORT_DIRECTION_SET = new Set<string>(LEDGER_SORT_DIRECTIONS);
+const LEDGER_VIEW_SET = new Set<string>(LEDGER_VIEWS);
 
 function optionalLedgerDate(value: unknown): string {
   if (typeof value !== "string") {
@@ -192,11 +330,31 @@ function optionalLedgerDate(value: unknown): string {
   return parseLocalDate(trimmed) ? trimmed : "";
 }
 
-function optionalLedgerSort(value: unknown): LedgerSortField {
-  if (typeof value === "string" && LEDGER_SORT_FIELD_SET.has(value)) {
+function optionalLedgerView(value: unknown): LedgerView {
+  if (typeof value === "string" && LEDGER_VIEW_SET.has(value.trim())) {
+    return value.trim() as LedgerView;
+  }
+  return DEFAULT_LEDGER_VIEW;
+}
+
+function optionalLedgerSort(
+  value: unknown,
+  view: LedgerView,
+): LedgerSortField {
+  const fallback =
+    view === "awol" ? DEFAULT_AWOL_LEDGER_SORT : DEFAULT_LEDGER_SORT;
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  if (view === "awol") {
+    return AWOL_LEDGER_SORT_FIELD_SET.has(value)
+      ? (value as LedgerSortField)
+      : fallback;
+  }
+  if (LEDGER_SORT_FIELD_SET.has(value)) {
     return value as LedgerSortField;
   }
-  return DEFAULT_LEDGER_SORT;
+  return fallback;
 }
 
 function optionalLedgerDirection(value: unknown): LedgerSortDirection {
@@ -225,24 +383,30 @@ export const ledgerListQuerySchema = z.object({
   eventType: z.string(),
   reportedFrom: z.string(),
   reportedTo: z.string(),
+  eventFrom: z.string(),
+  eventTo: z.string(),
   sort: z.enum(LEDGER_SORT_FIELDS),
   direction: z.enum(LEDGER_SORT_DIRECTIONS),
   page: z.number().int().min(1),
-  view: z.string(),
+  view: z.enum(LEDGER_VIEWS),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
 
-export const defaultLedgerListQuery = (): LedgerListQuery => ({
+export const defaultLedgerListQuery = (
+  view: LedgerView = DEFAULT_LEDGER_VIEW,
+): LedgerListQuery => ({
   q: "",
   venue: "",
   eventType: "",
   reportedFrom: "",
   reportedTo: "",
-  sort: DEFAULT_LEDGER_SORT,
+  eventFrom: "",
+  eventTo: "",
+  sort: view === "awol" ? DEFAULT_AWOL_LEDGER_SORT : DEFAULT_LEDGER_SORT,
   direction: DEFAULT_LEDGER_DIRECTION,
   page: 1,
-  view: "cancellations",
+  view,
 });
 
 export function parseLedgerListQuery(raw: {
@@ -251,26 +415,28 @@ export function parseLedgerListQuery(raw: {
   eventType?: string;
   reportedFrom?: string;
   reportedTo?: string;
+  eventFrom?: string;
+  eventTo?: string;
   sort?: string;
   direction?: string;
   page?: string;
   view?: string;
 }): LedgerListQuery {
+  const view = optionalLedgerView(raw.view);
   const parsed = ledgerListQuerySchema.safeParse({
     q: typeof raw.q === "string" ? raw.q.trim().slice(0, 160) : "",
     venue: typeof raw.venue === "string" ? raw.venue.trim() : "",
     eventType: typeof raw.eventType === "string" ? raw.eventType.trim() : "",
     reportedFrom: optionalLedgerDate(raw.reportedFrom),
     reportedTo: optionalLedgerDate(raw.reportedTo),
-    sort: optionalLedgerSort(raw.sort),
+    eventFrom: optionalLedgerDate(raw.eventFrom),
+    eventTo: optionalLedgerDate(raw.eventTo),
+    sort: optionalLedgerSort(raw.sort, view),
     direction: optionalLedgerDirection(raw.direction),
     page: optionalLedgerPage(raw.page),
-    view:
-      typeof raw.view === "string" && raw.view.trim()
-        ? raw.view.trim()
-        : "cancellations",
+    view,
   });
-  return parsed.success ? parsed.data : defaultLedgerListQuery();
+  return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
 
 export function isLedgerDateRangeInvalid(query: LedgerListQuery): boolean {
@@ -281,12 +447,21 @@ export function isLedgerDateRangeInvalid(query: LedgerListQuery): boolean {
   );
 }
 
+export function isLedgerEventDateRangeInvalid(query: LedgerListQuery): boolean {
+  return Boolean(
+    query.eventFrom && query.eventTo && query.eventFrom > query.eventTo,
+  );
+}
+
 export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
   return Boolean(
     query.q ||
       query.venue ||
       query.eventType ||
       (!isLedgerDateRangeInvalid(query) &&
-        (query.reportedFrom || query.reportedTo)),
+        (query.reportedFrom || query.reportedTo)) ||
+      (query.view === "awol" &&
+        !isLedgerEventDateRangeInvalid(query) &&
+        (query.eventFrom || query.eventTo)),
   );
 }

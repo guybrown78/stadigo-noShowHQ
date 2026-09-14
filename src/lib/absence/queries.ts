@@ -13,8 +13,10 @@ import {
 } from "@/lib/absence/catalog";
 import {
   isLedgerDateRangeInvalid,
+  isLedgerEventDateRangeInvalid,
   type LedgerListQuery,
 } from "@/lib/absence/schema";
+import { requireIanaTimeZone } from "@/lib/absence/timezone";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
   formatLocalDateIso,
@@ -46,6 +48,7 @@ export const absenceDetailInclude = {
     },
   },
   cancellation: true,
+  awol: true,
   history: {
     orderBy: { createdAt: "desc" as const },
     include: {
@@ -84,6 +87,7 @@ export type AbsenceEventOption = {
   reference: string | null;
   eventDate: string;
   startTime: string | null;
+  endTime: string | null;
   venueName: string;
   eventTypeName: string;
   eventSubtypeName: string;
@@ -92,8 +96,11 @@ export type AbsenceEventOption = {
 export type StaffAbsenceHistoryItem = Prisma.AbsenceGetPayload<{
   include: {
     cancellation: true;
+    awol: true;
   };
 }>;
+
+export type AbsenceEventSearchMode = "cancellation" | "awol";
 
 const ledgerListSelect = {
   id: true,
@@ -157,6 +164,17 @@ function parseEventSearchDate(query: string): Date | null {
   return parseLocalDate(
     `${uk[3]}-${uk[2].padStart(2, "0")}-${uk[1].padStart(2, "0")}`,
   );
+}
+
+export async function getTenantTimezone(
+  db: DbClient,
+  tenantId: string,
+): Promise<string> {
+  const tenant = await db.tenant.findFirst({
+    where: { id: tenantId },
+    select: { timezone: true },
+  });
+  return requireIanaTimeZone(tenant?.timezone);
 }
 
 export async function getAbsenceForTenant(
@@ -229,11 +247,13 @@ export async function searchEventsForAbsence(
   db: PrismaClient,
   tenantId: string,
   query: string,
+  options: { mode?: AbsenceEventSearchMode; todayIso?: string } = {},
 ): Promise<AbsenceEventOption[]> {
   const search = query.trim();
-  const todayIso = londonTodayIso();
+  const todayIso = options.todayIso ?? londonTodayIso();
   const parsedDate = parseEventSearchDate(search);
   const dateIso = parsedDate ? formatLocalDateIso(parsedDate) : null;
+  const awolOnly = options.mode === "awol";
 
   const ids = await db.$queryRaw<{ id: string }[]>`
     SELECT e.id
@@ -241,6 +261,7 @@ export async function searchEventsForAbsence(
     INNER JOIN "Venue" v ON v.id = e."venueId"
     WHERE e."tenantId" = ${tenantId}
       AND e."deletedAt" IS NULL
+      ${awolOnly ? Prisma.sql`AND e."eventDate" <= ${todayIso}::date` : Prisma.empty}
       ${
         search
           ? Prisma.sql`AND (
@@ -252,10 +273,20 @@ export async function searchEventsForAbsence(
           : Prisma.empty
       }
     ORDER BY
-      (e."eventDate" >= ${todayIso}::date) DESC,
-      CASE WHEN e."eventDate" >= ${todayIso}::date THEN e."eventDate" END ASC,
-      CASE WHEN e."eventDate" < ${todayIso}::date THEN e."eventDate" END DESC,
-      e.name ASC
+      ${
+        awolOnly
+          ? Prisma.sql`
+            (e."eventDate" = ${todayIso}::date) DESC,
+            e."eventDate" DESC,
+            e.name ASC
+          `
+          : Prisma.sql`
+            (e."eventDate" >= ${todayIso}::date) DESC,
+            CASE WHEN e."eventDate" >= ${todayIso}::date THEN e."eventDate" END ASC,
+            CASE WHEN e."eventDate" < ${todayIso}::date THEN e."eventDate" END DESC,
+            e.name ASC
+          `
+      }
     LIMIT ${ABSENCE_EVENT_SEARCH_LIMIT}
   `;
 
@@ -280,6 +311,7 @@ export async function searchEventsForAbsence(
     reference: event.reference,
     eventDate: formatLocalDateIso(event.eventDate),
     startTime: event.startTime,
+    endTime: event.endTime,
     venueName: event.venue.name,
     eventTypeName: event.eventType.name,
     eventSubtypeName: event.eventSubtype.name,
@@ -308,6 +340,7 @@ export async function getEventOptionForAbsence(
     reference: event.reference,
     eventDate: formatLocalDateIso(event.eventDate),
     startTime: event.startTime,
+    endTime: event.endTime,
     venueName: event.venue.name,
     eventTypeName: event.eventType.name,
     eventSubtypeName: event.eventSubtype.name,
@@ -334,17 +367,31 @@ export async function listActiveAbsencesForStaff(
   const pageCount = Math.max(1, Math.ceil(total / STAFF_ABSENCE_HISTORY_PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, page), pageCount);
   const skip = (currentPage - 1) * STAFF_ABSENCE_HISTORY_PAGE_SIZE;
-  const absences = await db.absence.findMany({
-    where,
-    include: { cancellation: true },
-    orderBy: [
-      { cancellation: { eventDateSnapshot: "desc" } },
-      { reportedDate: "desc" },
-      { createdAt: "desc" },
-    ],
-    skip,
-    take: STAFF_ABSENCE_HISTORY_PAGE_SIZE,
-  });
+  const ordered = await db.$queryRaw<{ id: string }[]>`
+    SELECT a.id
+    FROM "Absence" a
+    LEFT JOIN "CancellationDetail" c ON c."absenceId" = a.id
+    LEFT JOIN "AwolDetail" w ON w."absenceId" = a.id
+    WHERE a."tenantId" = ${tenantId}
+      AND a."staffId" = ${staffId}
+      AND a."recordStatus" = 'ACTIVE'
+    ORDER BY
+      COALESCE(c."eventDateSnapshot", w."eventDateSnapshot", a."reportedDate") DESC,
+      a."reportedDate" DESC,
+      a."createdAt" DESC,
+      a.id DESC
+    LIMIT ${STAFF_ABSENCE_HISTORY_PAGE_SIZE}
+    OFFSET ${skip}
+  `;
+  const absences =
+    ordered.length === 0
+      ? []
+      : await db.absence.findMany({
+          where: { tenantId, id: { in: ordered.map((row) => row.id) } },
+          include: { cancellation: true, awol: true },
+        });
+  const order = new Map(ordered.map((row, index) => [row.id, index]));
+  absences.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   return {
     absences,
     total,
@@ -371,7 +418,29 @@ export async function findActiveDuplicateCancellation(
       recordStatus: "ACTIVE",
       ...(params.excludeId ? { id: { not: params.excludeId } } : {}),
     },
-    select: { id: true },
+    select: { id: true, type: true },
+  });
+}
+
+export async function findActiveCancellationOrAwol(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    eventId: string;
+    excludeId?: string;
+  },
+) {
+  return db.absence.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      staffId: params.staffId,
+      eventId: params.eventId,
+      recordStatus: "ACTIVE",
+      type: { in: ["CANCELLATION", "AWOL"] },
+      ...(params.excludeId ? { id: { not: params.excludeId } } : {}),
+    },
+    select: { id: true, type: true },
   });
 }
 
@@ -538,6 +607,259 @@ export async function listActiveCancellationsForLedger(
     const adjusted = await db.absence.findMany({
       where,
       select: ledgerListSelect,
+      orderBy,
+      skip: (page - 1) * LEDGER_PAGE_SIZE,
+      take: LEDGER_PAGE_SIZE,
+    });
+    return { rows: adjusted, total, activeTotal, page, pageCount };
+  }
+
+  return { rows, total, activeTotal, page: query.page, pageCount };
+}
+
+const awolLedgerListSelect = {
+  id: true,
+  type: true,
+  reportedDate: true,
+  notes: true,
+  createdAt: true,
+  staff: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      staffIdNumber: true,
+      deletedAt: true,
+    },
+  },
+  event: {
+    select: {
+      id: true,
+      deletedAt: true,
+    },
+  },
+  awol: {
+    select: {
+      eventNameSnapshot: true,
+      eventReferenceSnapshot: true,
+      eventDateSnapshot: true,
+      venueIdSnapshot: true,
+      venueNameSnapshot: true,
+      eventTypeSnapshot: true,
+    },
+  },
+} satisfies Prisma.AbsenceSelect;
+
+export type LedgerAwolRow = Prisma.AbsenceGetPayload<{
+  select: typeof awolLedgerListSelect;
+}>;
+
+export const UNSPECIFIED_EVENT_TYPE_FILTER = "__unspecified__";
+
+function awolLedgerSearchWhere(search: string): Prisma.AbsenceWhereInput[] {
+  const tokens = search.split(/\s+/).filter(Boolean);
+  const clauses: Prisma.AbsenceWhereInput[] = [
+    { staff: { firstName: { contains: search, mode: "insensitive" } } },
+    { staff: { lastName: { contains: search, mode: "insensitive" } } },
+    { staff: { staffIdNumber: { contains: search, mode: "insensitive" } } },
+    {
+      awol: {
+        eventNameSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+    {
+      awol: {
+        eventReferenceSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+  ];
+  if (tokens.length >= 2) {
+    clauses.push({
+      staff: {
+        AND: [
+          { firstName: { contains: tokens[0], mode: "insensitive" } },
+          {
+            lastName: {
+              contains: tokens.slice(1).join(" "),
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+    });
+  }
+  return clauses;
+}
+
+function awolLedgerListWhere(
+  tenantId: string,
+  query: LedgerListQuery,
+): Prisma.AbsenceWhereInput {
+  const search = query.q.trim();
+  const skipReported = isLedgerDateRangeInvalid(query);
+  const skipEvent = isLedgerEventDateRangeInvalid(query);
+  const reportedFrom =
+    !skipReported && query.reportedFrom
+      ? parseLocalDate(query.reportedFrom)
+      : null;
+  const reportedTo =
+    !skipReported && query.reportedTo ? parseLocalDate(query.reportedTo) : null;
+  const eventFrom =
+    !skipEvent && query.eventFrom ? parseLocalDate(query.eventFrom) : null;
+  const eventTo =
+    !skipEvent && query.eventTo ? parseLocalDate(query.eventTo) : null;
+
+  const reportedDate: Prisma.DateTimeFilter = {};
+  if (reportedFrom) reportedDate.gte = reportedFrom;
+  if (reportedTo) reportedDate.lte = reportedTo;
+
+  const eventDateSnapshot: Prisma.DateTimeFilter = {};
+  if (eventFrom) eventDateSnapshot.gte = eventFrom;
+  if (eventTo) eventDateSnapshot.lte = eventTo;
+
+  const awolFilter: Prisma.AwolDetailWhereInput = {};
+  if (query.venue) {
+    awolFilter.venueIdSnapshot = query.venue;
+  }
+  if (query.eventType === UNSPECIFIED_EVENT_TYPE_FILTER) {
+    awolFilter.eventTypeSnapshot = null;
+  } else if (query.eventType) {
+    awolFilter.eventTypeSnapshot = query.eventType;
+  }
+  if (Object.keys(eventDateSnapshot).length > 0) {
+    awolFilter.eventDateSnapshot = eventDateSnapshot;
+  }
+
+  return {
+    tenantId,
+    type: "AWOL",
+    recordStatus: "ACTIVE",
+    awol:
+      Object.keys(awolFilter).length > 0
+        ? awolFilter
+        : { isNot: null },
+    ...(Object.keys(reportedDate).length > 0 ? { reportedDate } : {}),
+    ...(search ? { OR: awolLedgerSearchWhere(search) } : {}),
+  };
+}
+
+function awolLedgerOrderBy(
+  sort: LedgerSortField,
+  direction: LedgerSortDirection,
+): Prisma.AbsenceOrderByWithRelationInput[] {
+  const idTie: Prisma.AbsenceOrderByWithRelationInput = { id: direction };
+  if (sort === "staff") {
+    return [
+      { staff: { lastName: direction } },
+      { staff: { firstName: direction } },
+      idTie,
+    ];
+  }
+  if (sort === "event") {
+    return [{ awol: { eventNameSnapshot: direction } }, idTie];
+  }
+  if (sort === "reported") {
+    return [{ reportedDate: direction }, { createdAt: direction }, idTie];
+  }
+  return [
+    { awol: { eventDateSnapshot: direction } },
+    { reportedDate: direction },
+    { createdAt: direction },
+    idTie,
+  ];
+}
+
+const activeAwolWhere = (tenantId: string): Prisma.AbsenceWhereInput => ({
+  tenantId,
+  type: "AWOL",
+  recordStatus: "ACTIVE",
+  awol: { isNot: null },
+});
+
+export type AwolLedgerFilterOptions = {
+  venues: { id: string; name: string }[];
+  eventTypes: { id: string; name: string }[];
+};
+
+export async function listAwolLedgerFilterOptions(
+  db: DbClient,
+  tenantId: string,
+): Promise<AwolLedgerFilterOptions> {
+  const rows = await db.awolDetail.findMany({
+    where: {
+      tenantId,
+      absence: { type: "AWOL", recordStatus: "ACTIVE" },
+    },
+    select: {
+      venueIdSnapshot: true,
+      venueNameSnapshot: true,
+      eventTypeSnapshot: true,
+    },
+  });
+
+  const venues = new Map<string, string>();
+  const eventTypes = new Set<string>();
+  let hasUnspecified = false;
+  for (const row of rows) {
+    if (row.venueIdSnapshot && row.venueNameSnapshot) {
+      venues.set(row.venueIdSnapshot, row.venueNameSnapshot);
+    }
+    if (row.eventTypeSnapshot) {
+      eventTypes.add(row.eventTypeSnapshot);
+    } else {
+      hasUnspecified = true;
+    }
+  }
+
+  return {
+    venues: [...venues.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    eventTypes: [
+      ...[...eventTypes].sort((a, b) => a.localeCompare(b)).map((name) => ({
+        id: name,
+        name,
+      })),
+      ...(hasUnspecified
+        ? [{ id: UNSPECIFIED_EVENT_TYPE_FILTER, name: "Unspecified" }]
+        : []),
+    ],
+  };
+}
+
+export async function listActiveAwolsForLedger(
+  db: PrismaClient,
+  tenantId: string,
+  query: LedgerListQuery,
+): Promise<{
+  rows: LedgerAwolRow[];
+  total: number;
+  activeTotal: number;
+  page: number;
+  pageCount: number;
+}> {
+  const where = awolLedgerListWhere(tenantId, query);
+  const orderBy = awolLedgerOrderBy(query.sort, query.direction);
+  const skip = (query.page - 1) * LEDGER_PAGE_SIZE;
+
+  const [total, activeTotal, rows] = await Promise.all([
+    db.absence.count({ where }),
+    db.absence.count({ where: activeAwolWhere(tenantId) }),
+    db.absence.findMany({
+      where,
+      select: awolLedgerListSelect,
+      orderBy,
+      skip,
+      take: LEDGER_PAGE_SIZE,
+    }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE));
+  const page = Math.min(query.page, pageCount);
+  if (page !== query.page && total > 0) {
+    const adjusted = await db.absence.findMany({
+      where,
+      select: awolLedgerListSelect,
       orderBy,
       skip: (page - 1) * LEDGER_PAGE_SIZE,
       take: LEDGER_PAGE_SIZE,

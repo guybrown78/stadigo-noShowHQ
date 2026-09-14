@@ -159,7 +159,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const tenantIds = [tenantA?.tenant.id, tenantB?.tenant.id].filter(Boolean);
+  await prisma.absenceIdempotencyKey.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.absenceHistory.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
+  await prisma.awolDetail.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.cancellationDetail.deleteMany({

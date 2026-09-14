@@ -4,22 +4,31 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
+  getTenantTimezone,
   searchEventsForAbsence,
   searchStaffForAbsence,
   type AbsenceEventOption,
+  type AbsenceEventSearchMode,
   type AbsenceStaffOption,
 } from "@/lib/absence/queries";
 import {
   flattenFieldErrors,
+  parseArchiveAwolFormData,
   parseArchiveCancellationFormData,
+  parseAwolFormData,
   parseCancellationFormData,
+  parseCorrectAwolFormData,
   parseCorrectCancellationFormData,
 } from "@/lib/absence/schema";
 import {
+  archiveAwol,
   archiveCancellation,
+  correctAwol,
   correctCancellation,
+  createAwol,
   createCancellation,
 } from "@/lib/absence/service";
+import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
@@ -39,9 +48,29 @@ export async function searchAbsenceStaffAction(
 
 export async function searchAbsenceEventsAction(
   query: string,
+  mode: AbsenceEventSearchMode = "cancellation",
 ): Promise<AbsenceEventOption[]> {
   const user = await requireTenant();
-  return searchEventsForAbsence(prisma, user.tenantId, query);
+  let todayIso: string | undefined;
+  if (mode === "awol") {
+    try {
+      const timeZone = await getTenantTimezone(prisma, user.tenantId);
+      todayIso = todayIsoInTimeZone(timeZone);
+    } catch {
+      todayIso = undefined;
+    }
+  }
+  return searchEventsForAbsence(prisma, user.tenantId, query, {
+    mode,
+    todayIso,
+  });
+}
+
+function revalidateAbsence(resultId: string, staffId: string) {
+  revalidatePath("/absence/new");
+  revalidatePath(`/absence/${resultId}`);
+  revalidatePath(`/staff/${staffId}`);
+  revalidatePath("/ledger");
 }
 
 export async function createCancellationAction(
@@ -71,8 +100,7 @@ export async function createCancellationAction(
     };
   }
 
-  revalidatePath("/absence/new");
-  revalidatePath(`/staff/${parsed.data.staffId}`);
+  revalidateAbsence(result.id, parsed.data.staffId);
   redirect(`/absence/${result.id}?created=1`);
 }
 
@@ -110,8 +138,7 @@ export async function correctCancellationAction(
       };
     }
 
-    revalidatePath(`/absence/${result.id}`);
-    revalidatePath(`/staff/${parsed.data.staffId}`);
+    revalidateAbsence(result.id, parsed.data.staffId);
     redirect(`/absence/${result.id}?updated=1`);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
@@ -156,6 +183,130 @@ export async function archiveCancellationAction(
     }
 
     revalidatePath(`/absence/${result.id}`);
+    revalidatePath("/ledger");
+    if (existing?.staffId) {
+      revalidatePath(`/staff/${existing.staffId}`);
+    }
+    redirect(`/absence/${result.id}?archived=1`);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function createAwolAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const parsed = parseAwolFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+
+  const result = await createAwol(prisma, {
+    tenantId: user.tenantId,
+    userId: user.id,
+    input: parsed.data,
+  });
+
+  if (!result.ok) {
+    return {
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+      existingAbsenceId: result.existingAbsenceId,
+    };
+  }
+
+  revalidateAbsence(result.id, parsed.data.staffId);
+  redirect(`/absence/${result.id}?created=1`);
+}
+
+export async function correctAwolAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const absenceId = String(formData.get("absenceId") ?? "");
+  if (!absenceId) {
+    notFound();
+  }
+
+  const parsed = parseCorrectAwolFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    const result = await correctAwol(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId,
+      input: parsed.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: result.error,
+        fieldErrors: result.fieldErrors,
+        existingAbsenceId: result.existingAbsenceId,
+      };
+    }
+
+    revalidateAbsence(result.id, parsed.data.staffId);
+    redirect(`/absence/${result.id}?updated=1`);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function archiveAwolAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const absenceId = String(formData.get("absenceId") ?? "");
+  if (!absenceId) {
+    notFound();
+  }
+
+  const parsed = parseArchiveAwolFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    const existing = await prisma.absence.findFirst({
+      where: { id: absenceId, tenantId: user.tenantId },
+      select: { staffId: true },
+    });
+    const result = await archiveAwol(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId,
+      input: parsed.data,
+    });
+
+    if (!result.ok) {
+      return { error: result.error, fieldErrors: result.fieldErrors };
+    }
+
+    revalidatePath(`/absence/${result.id}`);
+    revalidatePath("/ledger");
     if (existing?.staffId) {
       revalidatePath(`/staff/${existing.staffId}`);
     }

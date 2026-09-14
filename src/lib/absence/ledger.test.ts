@@ -309,11 +309,16 @@ beforeAll(async () => {
   });
   if (!archived.ok) throw new Error(archived.error);
 
+  const awolEvent = await addEvent(tenantA, {
+    name: "AWOL Cup",
+    reference: "AWOL-A",
+    eventDate: "2026-09-11",
+  });
   const awol = await prisma.absence.create({
     data: {
       tenantId: tenantA.tenant.id,
       staffId: tenantA.staffId,
-      eventId: tenantA.eventId,
+      eventId: awolEvent.id,
       type: "AWOL",
       reportedDate: parseLocalDate("2026-09-10")!,
       reason: "Did not attend",
@@ -345,7 +350,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const tenantIds = [tenantA?.tenant.id, tenantB?.tenant.id].filter(Boolean);
+  await prisma.absenceIdempotencyKey.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.absenceHistory.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
+  await prisma.awolDetail.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.cancellationDetail.deleteMany({

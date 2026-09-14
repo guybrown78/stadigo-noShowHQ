@@ -1,4 +1,5 @@
 import {
+  DEFAULT_AWOL_LEDGER_SORT,
   DEFAULT_LEDGER_DIRECTION,
   DEFAULT_LEDGER_SORT,
 } from "@/lib/absence/catalog";
@@ -10,16 +11,24 @@ export function ledgerListHref(
 ): string {
   const merged = { ...query, ...overrides };
   const params = new URLSearchParams();
+  const view = merged.view ?? "cancellations";
+  const defaultSort =
+    view === "awol" ? DEFAULT_AWOL_LEDGER_SORT : DEFAULT_LEDGER_SORT;
 
+  if (view === "awol") params.set("view", "awol");
   if (merged.q) params.set("q", merged.q);
   if (merged.venue) params.set("venue", merged.venue);
   if (merged.eventType) params.set("eventType", merged.eventType);
   if (merged.reportedFrom) params.set("reportedFrom", merged.reportedFrom);
   if (merged.reportedTo) params.set("reportedTo", merged.reportedTo);
+  if (view === "awol") {
+    if (merged.eventFrom) params.set("eventFrom", merged.eventFrom);
+    if (merged.eventTo) params.set("eventTo", merged.eventTo);
+  }
 
-  const sort = merged.sort ?? DEFAULT_LEDGER_SORT;
+  const sort = merged.sort ?? defaultSort;
   const direction = merged.direction ?? DEFAULT_LEDGER_DIRECTION;
-  if (sort !== DEFAULT_LEDGER_SORT || direction !== DEFAULT_LEDGER_DIRECTION) {
+  if (sort !== defaultSort || direction !== DEFAULT_LEDGER_DIRECTION) {
     params.set("sort", sort);
     params.set("direction", direction);
   }
