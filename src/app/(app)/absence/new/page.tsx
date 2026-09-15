@@ -29,7 +29,12 @@ export default async function LogAbsencePage({
     origin: returnStaffId ? "staff" : null,
     staffId: returnStaffId,
   });
-  const initialType = query.type === "awol" ? "AWOL" : "CANCELLATION";
+  const initialType =
+    query.type === "awol"
+      ? "AWOL"
+      : query.type === "sickness"
+        ? "SICKNESS"
+        : "CANCELLATION";
   const defaultReportedDate = todayIsoInTimeZone(user.tenantTimezone);
 
   return (
@@ -47,7 +52,7 @@ export default async function LogAbsencePage({
               ]
         }
         title="Log an Absence"
-        description="Record a Cancellation or AWOL against an existing event."
+        description="Record a Cancellation, AWOL or Sickness absence."
       />
       <div className="mt-8">
         <LogAbsenceForm

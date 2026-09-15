@@ -4,8 +4,9 @@ import { useState } from "react";
 import { AbsenceTypeSelector, type LogAbsenceType } from "@/components/absence/absence-type-selector";
 import { AwolForm } from "@/components/absence/awol-form";
 import { CancellationForm } from "@/components/absence/cancellation-form";
+import { SicknessForm } from "@/components/absence/sickness-form";
 import { Card, CardBody } from "@/components/ui/card";
-import type { AbsenceEventOption, AbsenceStaffOption } from "@/lib/absence/queries";
+import type { AbsenceStaffOption } from "@/lib/absence/queries";
 
 export function LogAbsenceForm({
   initialType = "CANCELLATION",
@@ -46,6 +47,17 @@ export function LogAbsenceForm({
           cancelHref={cancelHref}
           onStaffChange={setStaff}
         />
+      ) : type === "SICKNESS" ? (
+        <SicknessForm
+          key={`sickness-${staff?.id ?? "none"}`}
+          mode="create"
+          hideTypeSelector
+          defaultReportedDate={defaultReportedDate}
+          timeZone={timeZone}
+          initialStaff={staff}
+          cancelHref={cancelHref}
+          onStaffChange={setStaff}
+        />
       ) : (
         <CancellationForm
           key={`cancellation-${staff?.id ?? "none"}`}
@@ -60,5 +72,3 @@ export function LogAbsenceForm({
     </div>
   );
 }
-
-export type { AbsenceEventOption };

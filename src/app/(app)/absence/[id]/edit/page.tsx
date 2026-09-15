@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { AwolForm } from "@/components/absence/awol-form";
 import { CancellationForm } from "@/components/absence/cancellation-form";
+import { SicknessForm } from "@/components/absence/sickness-form";
 import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { AbsenceAccessError } from "@/lib/absence/errors";
@@ -90,6 +91,43 @@ export default async function CorrectAbsencePage({
                 notes: absence.notes,
                 sameDayStartUnknownConfirmed:
                   absence.awol.sameDayStartUnknownConfirmed,
+              }}
+            />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (absence.type === "SICKNESS" && absence.sickness) {
+    return (
+      <div>
+        <PageHeader
+          breadcrumbs={[
+            { href: `/absence/${absence.id}`, label: "Sickness" },
+            { label: "Correct" },
+          ]}
+          title="Correct sickness report"
+          description="Correction is for fixing the original report. Changes are saved with a correction reason and remain in the audit history."
+        />
+        <Card className="mt-8 shadow-none">
+          <CardBody className="p-6">
+            <SicknessForm
+              mode="edit"
+              absenceId={absence.id}
+              defaultReportedDate={defaultReportedDate}
+              timeZone={user.tenantTimezone}
+              expectedUpdatedAt={absence.updatedAt.toISOString()}
+              initialStaff={initialStaff}
+              initialValues={{
+                reportedDate: formatLocalDateIso(absence.reportedDate),
+                firstWorkingDaySick: formatLocalDateIso(
+                  absence.sickness.firstWorkingDaySick,
+                ),
+                sicknessStartedDate: absence.sickness.sicknessStartedDate
+                  ? formatLocalDateIso(absence.sickness.sicknessStartedDate)
+                  : "",
+                issueSummary: absence.sickness.issueSummary,
               }}
             />
           </CardBody>

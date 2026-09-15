@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   parseArchiveAwolFormData,
   parseArchiveCancellationFormData,
+  parseArchiveSicknessFormData,
   parseAwolFormData,
   parseCancellationFormData,
   parseCorrectAwolFormData,
   parseCorrectCancellationFormData,
+  parseCorrectSicknessFormData,
+  parseSicknessFormData,
   parseLedgerListQuery,
   isLedgerDateRangeInvalid,
   ledgerHasActiveFilters,
@@ -172,8 +175,8 @@ describe("ledgerListQuerySchema", () => {
 });
 
 describe("absence type cards", () => {
-  it("enables Cancellation and AWOL and keeps Sickness coming soon", () => {
-    expect(CREATABLE_ABSENCE_TYPES).toEqual(["CANCELLATION", "AWOL"]);
+  it("enables Cancellation, AWOL and Sickness", () => {
+    expect(CREATABLE_ABSENCE_TYPES).toEqual(["CANCELLATION", "AWOL", "SICKNESS"]);
   });
 });
 
@@ -339,5 +342,129 @@ describe("awolInputSchema", () => {
     expect("reason" in parsed.data).toBe(false);
     expect("reportedTime" in parsed.data).toBe(false);
     expect(parsed.data.notes).toBeNull();
+  });
+});
+
+describe("sicknessInputSchema", () => {
+  function sicknessData(overrides: Record<string, string> = {}) {
+    const data = new FormData();
+    const values = {
+      type: "SICKNESS",
+      staffId: "staff_1",
+      reportedDate: "2026-09-14",
+      firstWorkingDaySick: "2026-09-14",
+      sicknessStartedDate: "",
+      issueSummary: "",
+      idempotencyKey: "idem-key-1234",
+      todayIso: "2026-09-14",
+      ...overrides,
+    };
+    for (const [key, value] of Object.entries(values)) {
+      data.set(key, value);
+    }
+    return data;
+  }
+
+  it("accepts required fields only and normalises a blank issue summary", () => {
+    const parsed = parseSicknessFormData(sicknessData());
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.issueSummary).toBeNull();
+    expect(parsed.data.sicknessStartedDate).toBeNull();
+    expect(parsed.data.type).toBe("SICKNESS");
+  });
+
+  it("rejects an Event ID rather than stripping it", () => {
+    const parsed = parseSicknessFormData(
+      sicknessData({ eventId: "event_1" }),
+    );
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(
+      parsed.error.issues.some((issue) => issue.path[0] === "eventId"),
+    ).toBe(true);
+  });
+
+  it("rejects Cancellation and AWOL fields", () => {
+    const parsed = parseSicknessFormData(
+      sicknessData({ reason: "Called in", reportedTime: "09:00" }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("requires advance confirmation for a future first working day", () => {
+    const parsed = parseSicknessFormData(
+      sicknessData({ firstWorkingDaySick: "2026-09-15" }),
+    );
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(
+      parsed.error.issues.some(
+        (issue) => issue.path[0] === "futureFirstWorkingDayConfirmed",
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a confirmed future first working day at the 31-day boundary", () => {
+    const data = sicknessData({ firstWorkingDaySick: "2026-10-15" });
+    data.set("futureFirstWorkingDayConfirmed", "on");
+    const parsed = parseSicknessFormData(data);
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects a first working day more than 31 days after the reported date", () => {
+    const data = sicknessData({ firstWorkingDaySick: "2026-10-16" });
+    data.set("futureFirstWorkingDayConfirmed", "on");
+    const parsed = parseSicknessFormData(data);
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects sickness started after the first working day", () => {
+    const parsed = parseSicknessFormData(
+      sicknessData({
+        firstWorkingDaySick: "2026-09-14",
+        sicknessStartedDate: "2026-09-15",
+      }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects a future reported date", () => {
+    const parsed = parseSicknessFormData(
+      sicknessData({ reportedDate: "2026-09-15" }),
+    );
+    expect(parsed.success).toBe(false);
+  });
+
+  it("normalises whitespace-only issue summary and keeps inner line breaks", () => {
+    const blank = parseSicknessFormData(sicknessData({ issueSummary: "  \n  " }));
+    expect(blank.success).toBe(true);
+    if (blank.success) {
+      expect(blank.data.issueSummary).toBeNull();
+    }
+    const lines = parseSicknessFormData(
+      sicknessData({ issueSummary: "Unable to work\nNo cover needed" }),
+    );
+    expect(lines.success).toBe(true);
+    if (lines.success) {
+      expect(lines.data.issueSummary).toBe("Unable to work\nNo cover needed");
+    }
+  });
+
+  it("requires a correction reason and expectedUpdatedAt", () => {
+    expect(parseCorrectSicknessFormData(sicknessData()).success).toBe(false);
+    const data = sicknessData();
+    data.set("correctionReason", "Wrong first day");
+    data.set("expectedUpdatedAt", new Date().toISOString());
+    expect(parseCorrectSicknessFormData(data).success).toBe(true);
+  });
+
+  it("requires archive confirmation, reason and expectedUpdatedAt", () => {
+    expect(parseArchiveSicknessFormData(new FormData()).success).toBe(false);
+    const data = new FormData();
+    data.set("archiveReason", "Logged against the wrong person");
+    data.set("confirmArchive", "on");
+    data.set("expectedUpdatedAt", new Date().toISOString());
+    expect(parseArchiveSicknessFormData(data).success).toBe(true);
   });
 });

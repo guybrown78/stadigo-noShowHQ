@@ -3,7 +3,7 @@
 import { Ban, Bed, Check, UserX } from "lucide-react";
 import { cn } from "@/lib/cn";
 
-export type LogAbsenceType = "CANCELLATION" | "AWOL";
+export type LogAbsenceType = "CANCELLATION" | "AWOL" | "SICKNESS";
 
 export function AbsenceTypeSelector({
   value,
@@ -36,21 +36,22 @@ export function AbsenceTypeSelector({
           description="Did not attend with no prior notice"
           tone="awol"
         />
-        <p
-          className="rounded-xl border border-border bg-slate-50 px-4 py-4 text-slate-400"
-          aria-disabled="true"
-        >
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <Bed className="size-4" aria-hidden="true" />
-            Sickness
-          </span>
-          <span className="mt-1 block text-xs">Coming soon</span>
-        </p>
+        <TypeCard
+          selected={value === "SICKNESS"}
+          disabled={locked && value !== "SICKNESS"}
+          onSelect={locked ? undefined : () => onChange?.("SICKNESS")}
+          icon={Bed}
+          label="Sickness"
+          description="Staff member reported that sickness affects work"
+          tone="sickness"
+        />
       </div>
       <p className="mt-3 text-sm text-slate-600">
         {value === "AWOL"
           ? "Use AWOL when a staff member did not attend an Event and gave no prior notice."
-          : "A cancellation means the staff member notified the organisation before the event. You can still record a late or retrospective cancellation when notice arrived after the event."}
+          : value === "SICKNESS"
+            ? "Record the initial sickness report. Certificates, follow-ups and return-to-work actions will be added in later steps."
+            : "A cancellation means the staff member notified the organisation before the event. You can still record a late or retrospective cancellation when notice arrived after the event."}
       </p>
     </fieldset>
   );
@@ -71,13 +72,20 @@ function TypeCard({
   icon: typeof Ban;
   label: string;
   description: string;
-  tone: "cancel" | "awol";
+  tone: "cancel" | "awol" | "sickness";
 }) {
   const selectedClass =
     tone === "awol"
       ? "border-2 border-awol bg-awol-soft"
-      : "border-2 border-cancel bg-cancel-soft";
-  const labelClass = tone === "awol" ? "text-awol" : "text-cancel";
+      : tone === "sickness"
+        ? "border-2 border-sickness bg-sickness-soft"
+        : "border-2 border-cancel bg-cancel-soft";
+  const labelClass =
+    tone === "awol"
+      ? "text-awol"
+      : tone === "sickness"
+        ? "text-sickness"
+        : "text-cancel";
 
   if (disabled) {
     return (

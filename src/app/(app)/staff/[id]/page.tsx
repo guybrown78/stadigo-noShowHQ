@@ -76,6 +76,7 @@ export default async function StaffDetailPage({
     acknowledged?: string;
     snoozed?: string;
     absencePage?: string;
+    absenceArchived?: string;
   }>;
 }) {
   const user = await requireTenant();
@@ -423,6 +424,7 @@ export default async function StaffDetailPage({
         tenantId={user.tenantId}
         staffId={staff.id}
         page={Math.max(1, Number(flash.absencePage) || 1)}
+        includeArchivedSickness={flash.absenceArchived === "1"}
       />
     </div>
   );

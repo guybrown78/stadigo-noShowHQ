@@ -46,6 +46,13 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   ARCHIVED: "Archived",
 };
 
+export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
+  {
+    CREATED: "Sickness report created",
+    CORRECTED: "Sickness report corrected",
+    ARCHIVED: "Sickness report archived",
+  };
+
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
   staffId: "Staff",
   eventId: "Event",
@@ -67,11 +74,29 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   venueNameSnapshot: "Venue snapshot",
   sameDayStartUnknownConfirmed: "Same-day confirmation",
   recordStatus: "Record status",
+  firstWorkingDaySick: "First day sick from work",
+  sicknessStartedDate: "Sickness started",
+  issueSummary: "Issue summary",
+  futureFirstWorkingDayConfirmed: "Advance report confirmed",
 };
 
 export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
   reportedDate: "Date recorded",
 };
+
+export const SICKNESS_HISTORY_FIELD_LABELS: Record<string, string> = {
+  reportedDate: "Date sickness reported",
+};
+
+export function historyActionLabel(
+  action: AbsenceHistoryAction,
+  type?: AbsenceType,
+): string {
+  if (type === "SICKNESS") {
+    return SICKNESS_HISTORY_ACTION_LABELS[action];
+  }
+  return HISTORY_ACTION_LABELS[action];
+}
 
 export function historyFieldLabel(
   field: string,
@@ -79,6 +104,9 @@ export function historyFieldLabel(
 ): string {
   if (type === "AWOL" && AWOL_HISTORY_FIELD_LABELS[field]) {
     return AWOL_HISTORY_FIELD_LABELS[field];
+  }
+  if (type === "SICKNESS" && SICKNESS_HISTORY_FIELD_LABELS[field]) {
+    return SICKNESS_HISTORY_FIELD_LABELS[field];
   }
   return HISTORY_FIELD_LABELS[field] ?? field;
 }
@@ -142,7 +170,13 @@ export function formatHistoryValue(field: string, value: string | null): string 
   if (value == null || value === "") {
     return "none";
   }
-  if (field === "eventDateSnapshot" || field === "reportedDate") {
+  if (
+    field === "eventDateSnapshot" ||
+    field === "reportedDate" ||
+    field === "firstWorkingDaySick" ||
+    field === "sicknessStartedDate" ||
+    field === "futureFirstWorkingDayConfirmed"
+  ) {
     const date = new Date(`${value}T00:00:00.000Z`);
     if (!Number.isNaN(date.getTime())) {
       return formatLocalDateDisplay(date);
@@ -173,11 +207,23 @@ export function truncateNotes(notes: string | null | undefined, max = NOTES_PREV
 }
 
 export const NO_INTERNAL_NOTES_RECORDED = "No internal notes recorded";
+export const NO_SICKNESS_STARTED_RECORDED = "Not recorded";
+export const NO_ISSUE_SUMMARY_RECORDED = "No issue summary recorded";
 
 export function formatInternalNotes(notes: string | null | undefined): string {
   const trimmed = notes?.trim() ?? "";
   if (!trimmed) {
     return NO_INTERNAL_NOTES_RECORDED;
+  }
+  return trimmed;
+}
+
+export function formatIssueSummary(
+  issueSummary: string | null | undefined,
+): string {
+  const trimmed = issueSummary?.trim() ?? "";
+  if (!trimmed) {
+    return NO_ISSUE_SUMMARY_RECORDED;
   }
   return trimmed;
 }

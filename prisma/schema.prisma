@@ -45,6 +45,7 @@ model Tenant {
   absences                     Absence[]
   cancellationDetails          CancellationDetail[]
   awolDetails                  AwolDetail[]
+  sicknessDetails              SicknessDetail[]
   absenceHistory               AbsenceHistory[]
   absenceIdempotencyKeys       AbsenceIdempotencyKey[]
 }
@@ -595,6 +596,7 @@ model Absence {
   reportedTime   String?
   reason         String?               @db.VarChar(1000)
   notes          String?               @db.VarChar(2000)
+  firstWorkingDaySick DateTime?        @db.Date
   followUpType   AbsenceFollowUpType
   followUpStatus AbsenceFollowUpStatus
   recordStatus   AbsenceRecordStatus   @default(ACTIVE)
@@ -610,6 +612,7 @@ model Absence {
   archiveReason  String?               @db.VarChar(500)
   cancellation   CancellationDetail?
   awol           AwolDetail?
+  sickness       SicknessDetail?
   history        AbsenceHistory[]
   idempotencyKeys AbsenceIdempotencyKey[]
 
@@ -617,10 +620,16 @@ model Absence {
   // Live uniqueness: Absence_tenantId_staffId_eventId_active_cancellation_awol_key
   // (tenantId, staffId, eventId) WHERE recordStatus = ACTIVE AND eventId IS NOT NULL
   // AND type IN (CANCELLATION, AWOL).
+  // Live Sickness uniqueness: Absence_tenantId_staffId_firstWorkingDaySick_active_sickness_key
+  // (tenantId, staffId, firstWorkingDaySick) WHERE recordStatus = ACTIVE AND type = SICKNESS
+  // AND firstWorkingDaySick IS NOT NULL.
+  // Type-aware Event check: Absence_event_required_by_type
+  // (CANCELLATION/AWOL require eventId; SICKNESS forbids eventId).
   @@index([tenantId, staffId, recordStatus])
   @@index([tenantId, eventId])
   @@index([tenantId, type, recordStatus, reportedDate])
   @@index([tenantId, followUpStatus, recordStatus])
+  @@index([tenantId, staffId, firstWorkingDaySick])
   @@index([staffId])
 }
 
@@ -665,6 +674,22 @@ model AwolDetail {
   @@unique([absenceId, tenantId])
   @@index([tenantId])
   @@index([tenantId, eventDateSnapshot])
+}
+
+model SicknessDetail {
+  absenceId           String    @id
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence             Absence   @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  firstWorkingDaySick DateTime  @db.Date
+  sicknessStartedDate DateTime? @db.Date
+  issueSummary        String?   @db.VarChar(1000)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([absenceId, tenantId])
+  @@index([tenantId])
+  @@index([tenantId, firstWorkingDaySick])
 }
 
 model AbsenceIdempotencyKey {

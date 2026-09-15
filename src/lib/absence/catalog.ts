@@ -2,12 +2,19 @@ export const OPERATING_TIMEZONE = "Europe/London";
 export const DEFAULT_TENANT_TIMEZONE = "Europe/London";
 
 export const ABSENCE_TYPES = ["CANCELLATION", "AWOL", "SICKNESS"] as const;
-export const CREATABLE_ABSENCE_TYPES = ["CANCELLATION", "AWOL"] as const;
+export const CREATABLE_ABSENCE_TYPES = [
+  "CANCELLATION",
+  "AWOL",
+  "SICKNESS",
+] as const;
 export const LEDGER_VIEWS = ["cancellations", "awol"] as const;
 export const DEFAULT_LEDGER_VIEW = "cancellations" as const;
 export const AWOL_CREATE_IDEMPOTENCY_OPERATION = "AWOL_CREATE";
+export const SICKNESS_CREATE_IDEMPOTENCY_OPERATION = "SICKNESS_CREATE";
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 export const NOTES_PREVIEW_MAX_LENGTH = 80;
+export const ISSUE_SUMMARY_MAX_CODE_POINTS = 1000;
+export const SICKNESS_ADVANCE_REPORT_MAX_DAYS = 31;
 
 export const ABSENCE_FOLLOW_UP_TYPES = ["REVIEW"] as const;
 export const ABSENCE_FOLLOW_UP_STATUSES = [
