@@ -10,20 +10,37 @@ import {
   listActiveAbsencesForStaff,
   STAFF_ABSENCE_HISTORY_PAGE_SIZE,
 } from "@/lib/absence/queries";
+import { ISSUE_SUMMARY_PRESENT_LABEL } from "@/lib/absence/sickness";
 import { prisma } from "@/lib/db";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
+
+function historyHref(page: number, archived: boolean) {
+  const params = new URLSearchParams();
+  if (page > 1) {
+    params.set("absencePage", String(page));
+  }
+  if (archived) {
+    params.set("absenceArchived", "1");
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "?";
+}
 
 export async function StaffAbsenceHistory({
   tenantId,
   staffId,
   page,
+  includeArchivedSickness = false,
 }: {
   tenantId: string;
   staffId: string;
   page: number;
+  includeArchivedSickness?: boolean;
 }) {
-  const { absences, total, pageCount, page: currentPage } =
-    await listActiveAbsencesForStaff(prisma, tenantId, staffId, page);
+  const { absences, total, pageCount, page: currentPage, archivedSicknessCount } =
+    await listActiveAbsencesForStaff(prisma, tenantId, staffId, page, {
+      includeArchivedSickness,
+    });
 
   return (
     <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
@@ -31,15 +48,68 @@ export async function StaffAbsenceHistory({
         <h2 className="text-lg font-semibold text-slate-900">
           Absence history
         </h2>
+        <Link
+          href={historyHref(1, !includeArchivedSickness)}
+          className="text-sm underline"
+        >
+          {includeArchivedSickness
+            ? "Hide archived sickness"
+            : "Show archived"}
+        </Link>
       </div>
+      {includeArchivedSickness && archivedSicknessCount === 0 ? (
+        <p className="mt-2 text-sm text-slate-600">
+          No archived sickness reports for this staff member.
+        </p>
+      ) : null}
       {total === 0 ? (
         <p className="mt-2 text-sm text-slate-600">
-          No active absences are recorded for this staff member.
+          {includeArchivedSickness
+            ? "No absences are recorded for this staff member."
+            : "No active absences are recorded for this staff member."}
         </p>
       ) : (
         <>
           <ul className="mt-4 divide-y divide-slate-100">
             {absences.map((absence) => {
+              if (absence.type === "SICKNESS" && absence.sickness) {
+                return (
+                  <li key={absence.id} className="py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                          <AbsenceTypeBadge type="SICKNESS" />
+                          {absence.recordStatus === "ARCHIVED" ? (
+                            <span className="text-xs font-medium text-slate-500">
+                              Archived
+                            </span>
+                          ) : null}
+                          <Link
+                            href={`/absence/${absence.id}`}
+                            className="underline"
+                          >
+                            First day sick{" "}
+                            {formatLocalDateDisplay(
+                              absence.sickness.firstWorkingDaySick,
+                            )}
+                          </Link>
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          Reported{" "}
+                          {formatLocalDateDisplay(absence.reportedDate)}
+                          {absence.sickness.sicknessStartedDate
+                            ? ` · Sickness started ${formatLocalDateDisplay(absence.sickness.sicknessStartedDate)}`
+                            : ""}
+                          {absence.sickness.issueSummaryPresent
+                            ? ` · ${ISSUE_SUMMARY_PRESENT_LABEL}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                );
+              }
+
               if (absence.type === "AWOL" && absence.awol) {
                 const notes = truncateNotes(absence.notes);
                 return (
@@ -118,7 +188,7 @@ export async function StaffAbsenceHistory({
             >
               {currentPage > 1 ? (
                 <Link
-                  href={`?absencePage=${currentPage - 1}`}
+                  href={historyHref(currentPage - 1, includeArchivedSickness)}
                   className="underline"
                 >
                   Previous
@@ -130,7 +200,7 @@ export async function StaffAbsenceHistory({
               </span>
               {currentPage < pageCount ? (
                 <Link
-                  href={`?absencePage=${currentPage + 1}`}
+                  href={historyHref(currentPage + 1, includeArchivedSickness)}
                   className="underline"
                 >
                   Next

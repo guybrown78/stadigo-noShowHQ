@@ -18,6 +18,7 @@ import {
 } from "@/lib/absence/schema";
 import { requireIanaTimeZone } from "@/lib/absence/timezone";
 import { AbsenceAccessError } from "@/lib/absence/errors";
+import { issueSummaryPresent } from "@/lib/absence/sensitive";
 import {
   formatLocalDateIso,
   londonTodayIso,
@@ -49,6 +50,7 @@ export const absenceDetailInclude = {
   },
   cancellation: true,
   awol: true,
+  sickness: true,
   history: {
     orderBy: { createdAt: "desc" as const },
     include: {
@@ -93,12 +95,32 @@ export type AbsenceEventOption = {
   eventSubtypeName: string;
 };
 
-export type StaffAbsenceHistoryItem = Prisma.AbsenceGetPayload<{
-  include: {
-    cancellation: true;
-    awol: true;
-  };
-}>;
+export type StaffAbsenceHistoryItem = {
+  id: string;
+  type: "CANCELLATION" | "AWOL" | "SICKNESS";
+  recordStatus: "ACTIVE" | "ARCHIVED";
+  reportedDate: Date;
+  createdAt: Date;
+  notes: string | null;
+  reason: string | null;
+  cancellation: {
+    eventNameSnapshot: string;
+    eventDateSnapshot: Date;
+    noticeBasis: "EXACT_TIME" | "CALENDAR_DATE";
+    noticeMinutes: number | null;
+    noticeCalendarDays: number;
+  } | null;
+  awol: {
+    eventNameSnapshot: string;
+    eventDateSnapshot: Date;
+    venueNameSnapshot: string | null;
+  } | null;
+  sickness: {
+    firstWorkingDaySick: Date;
+    sicknessStartedDate: Date | null;
+    issueSummaryPresent: boolean;
+  } | null;
+};
 
 export type AbsenceEventSearchMode = "cancellation" | "awol";
 
@@ -352,18 +374,38 @@ export async function listActiveAbsencesForStaff(
   tenantId: string,
   staffId: string,
   page = 1,
+  options: { includeArchivedSickness?: boolean } = {},
 ): Promise<{
   absences: StaffAbsenceHistoryItem[];
   total: number;
   page: number;
   pageCount: number;
+  archivedSicknessCount: number;
 }> {
+  const includeArchivedSickness = Boolean(options.includeArchivedSickness);
   const where: Prisma.AbsenceWhereInput = {
     tenantId,
     staffId,
-    recordStatus: "ACTIVE",
+    ...(includeArchivedSickness
+      ? {
+          OR: [
+            { recordStatus: "ACTIVE" },
+            { recordStatus: "ARCHIVED", type: "SICKNESS" },
+          ],
+        }
+      : { recordStatus: "ACTIVE" }),
   };
-  const total = await db.absence.count({ where });
+  const [total, archivedSicknessCount] = await Promise.all([
+    db.absence.count({ where }),
+    db.absence.count({
+      where: {
+        tenantId,
+        staffId,
+        type: "SICKNESS",
+        recordStatus: "ARCHIVED",
+      },
+    }),
+  ]);
   const pageCount = Math.max(1, Math.ceil(total / STAFF_ABSENCE_HISTORY_PAGE_SIZE));
   const currentPage = Math.min(Math.max(1, page), pageCount);
   const skip = (currentPage - 1) * STAFF_ABSENCE_HISTORY_PAGE_SIZE;
@@ -372,31 +414,74 @@ export async function listActiveAbsencesForStaff(
     FROM "Absence" a
     LEFT JOIN "CancellationDetail" c ON c."absenceId" = a.id
     LEFT JOIN "AwolDetail" w ON w."absenceId" = a.id
+    LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id
     WHERE a."tenantId" = ${tenantId}
       AND a."staffId" = ${staffId}
-      AND a."recordStatus" = 'ACTIVE'
+      AND (
+        a."recordStatus" = 'ACTIVE'
+        ${
+          includeArchivedSickness
+            ? Prisma.sql`OR (a.type = 'SICKNESS' AND a."recordStatus" = 'ARCHIVED')`
+            : Prisma.empty
+        }
+      )
     ORDER BY
-      COALESCE(c."eventDateSnapshot", w."eventDateSnapshot", a."reportedDate") DESC,
+      COALESCE(c."eventDateSnapshot", w."eventDateSnapshot", s."firstWorkingDaySick", a."reportedDate") DESC,
       a."reportedDate" DESC,
       a."createdAt" DESC,
       a.id DESC
     LIMIT ${STAFF_ABSENCE_HISTORY_PAGE_SIZE}
     OFFSET ${skip}
   `;
-  const absences =
+  const loaded =
     ordered.length === 0
       ? []
       : await db.absence.findMany({
           where: { tenantId, id: { in: ordered.map((row) => row.id) } },
-          include: { cancellation: true, awol: true },
+          include: { cancellation: true, awol: true, sickness: true },
         });
   const order = new Map(ordered.map((row, index) => [row.id, index]));
-  absences.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  loaded.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  const absences: StaffAbsenceHistoryItem[] = loaded.map((absence) => ({
+    id: absence.id,
+    type: absence.type,
+    recordStatus: absence.recordStatus,
+    reportedDate: absence.reportedDate,
+    createdAt: absence.createdAt,
+    notes: absence.notes,
+    reason: absence.reason,
+    cancellation: absence.cancellation
+      ? {
+          eventNameSnapshot: absence.cancellation.eventNameSnapshot,
+          eventDateSnapshot: absence.cancellation.eventDateSnapshot,
+          noticeBasis: absence.cancellation.noticeBasis,
+          noticeMinutes: absence.cancellation.noticeMinutes,
+          noticeCalendarDays: absence.cancellation.noticeCalendarDays,
+        }
+      : null,
+    awol: absence.awol
+      ? {
+          eventNameSnapshot: absence.awol.eventNameSnapshot,
+          eventDateSnapshot: absence.awol.eventDateSnapshot,
+          venueNameSnapshot: absence.awol.venueNameSnapshot,
+        }
+      : null,
+    sickness: absence.sickness
+      ? {
+          firstWorkingDaySick: absence.sickness.firstWorkingDaySick,
+          sicknessStartedDate: absence.sickness.sicknessStartedDate,
+          issueSummaryPresent: issueSummaryPresent(
+            absence.sickness.issueSummary,
+          ),
+        }
+      : null,
+  }));
   return {
     absences,
     total,
     page: currentPage,
     pageCount,
+    archivedSicknessCount,
   };
 }
 
@@ -419,6 +504,28 @@ export async function findActiveDuplicateCancellation(
       ...(params.excludeId ? { id: { not: params.excludeId } } : {}),
     },
     select: { id: true, type: true },
+  });
+}
+
+export async function findActiveSicknessDuplicate(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    firstWorkingDaySick: Date;
+    excludeId?: string;
+  },
+) {
+  return db.absence.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      staffId: params.staffId,
+      firstWorkingDaySick: params.firstWorkingDaySick,
+      recordStatus: "ACTIVE",
+      type: "SICKNESS",
+      ...(params.excludeId ? { id: { not: params.excludeId } } : {}),
+    },
+    select: { id: true },
   });
 }
 

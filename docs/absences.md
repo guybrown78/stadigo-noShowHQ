@@ -1,6 +1,6 @@
 # Absence data model
 
-Tenant-scoped unified absence records. Cancellation and AWOL are the working types. Sickness will attach to the same parent without changing tenant, staff, type, or audit relationships.
+Tenant-scoped unified absence records. Cancellation, AWOL, and Sickness attach to the same parent without changing tenant, staff, type, or audit relationships.
 
 Logging an absence does **not** change staff employment status, event status, or staffing figures, and does not send email or SMS.
 
@@ -9,9 +9,11 @@ Logging an absence does **not** change staff employment status, event status, or
 ### Absence
 Shared parent for `CANCELLATION`, `AWOL`, and `SICKNESS`. Belongs to exactly one tenant. `tenantId`, `createdById`, and `updatedById` always come from the authenticated session, never the client.
 
-Key fields: required same-tenant `staffId` (non-deleted for new writes), optional `eventId` (required for Cancellation and AWOL; Sickness may omit it), `reportedDate` (`DATE`, local calendar date stored as UTC midnight), optional `reportedTime` (`HH:mm`, Cancellation only), optional `reason` (required for Cancellation, `null` for AWOL), optional `notes`, `followUpType` / `followUpStatus`, `recordStatus` (`ACTIVE` | `ARCHIVED`).
+Key fields: required same-tenant `staffId` (non-deleted for new writes), optional `eventId` (required for Cancellation and AWOL; **must be null for Sickness**), `reportedDate` (`DATE`, local calendar date stored as UTC midnight), optional `reportedTime` (`HH:mm`, Cancellation only), optional `reason` (required for Cancellation, `null` for AWOL and Sickness), optional `notes` (`null` for Sickness so Issue summary is not duplicated), optional `firstWorkingDaySick` (denormalised Sickness duplicate key; `null` for other types), `followUpType` / `followUpStatus`, `recordStatus` (`ACTIVE` | `ARCHIVED`).
 
-Cancellation and AWOL writes set `followUpType = REVIEW` and `followUpStatus = PENDING` on the parent so the shared schema stays valid. Follow-up is **not** shown on AWOL screens and is not a workflow in this release.
+A type-aware check constraint `Absence_event_required_by_type` requires an Event for Cancellation and AWOL and forbids one for Sickness.
+
+Cancellation, AWOL, and Sickness writes set `followUpType = REVIEW` and `followUpStatus = PENDING` on the parent so the shared schema stays valid. Follow-up is **not** shown on AWOL or Sickness screens and is not a workflow in this release.
 
 NoShowHQ tracks attendance only. Follow-up never represents money, wages, or contact with staff, so avoid payment, charge, or payroll wording in this area.
 
@@ -32,17 +34,35 @@ One-to-one type-specific row for AWOL. Stores Event/Venue snapshots used as oper
 
 Do not copy Internal notes into `Absence.reason`. AWOL has no notice, payment, follow-up, impact, or shift columns.
 
+### SicknessDetail
+One-to-one type-specific row for the Part 1 initial sickness report:
+
+- `firstWorkingDaySick` — first booked working day or shift affected (not verified against a rota in Part 1)
+- optional `sicknessStartedDate` — when the sickness itself began, on or before the first working day
+- optional `issueSummary` — short operational summary, not a diagnosis. Outer whitespace trimmed, blank normalised to null, max 1,000 Unicode code points, inner line breaks preserved and rendered as escaped text
+
+`Absence.firstWorkingDaySick` is a denormalised copy of the detail date used only for the race-safe active duplicate index. Writes copy both values in the same transaction.
+
+Sickness is an operational absence record, not a medical record. Issue summary is never previewed in Staff history or general lists. Raw text is returned only on the authorised Sickness detail and correction paths, and in the tenant-scoped `AbsenceHistory` payload rendered on that detail page.
+
+Advance-report acknowledgement is request-only. When a future first working day is saved, the create or correction audit event records `futureFirstWorkingDayConfirmed` with the confirmed date. It is not stored on `SicknessDetail`.
+
+Part 1 does not add end date, certificates, follow-ups, letters, return-to-work, or a Sickness Ledger.
+
 ### AbsenceHistory
-Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**.
+Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**.
+
+Raw Issue summary old/new values belong only on the authorised Sickness detail. A public-feed helper redacts them to **Issue summary changed**.
 
 ### AbsenceIdempotencyKey
-Used by AWOL create. Unique on `(tenantId, actorId, operation, key)` for `AWOL_CREATE`. Stores a payload fingerprint and the resulting Absence id. Identical retries return the original record. The same key with a different payload is rejected and creates nothing. Rows expire after 24 hours; expired keys for that actor are deleted lazily on the next create. A rollback of the AWOL migration must drop this table and `AwolDetail` but must **not** hard-delete `Absence` rows of type AWOL.
+Used by AWOL create (`AWOL_CREATE`) and Sickness create (`SICKNESS_CREATE`). Unique on `(tenantId, actorId, operation, key)`. Stores a payload fingerprint and the resulting Absence id. Identical retries return the original record. The same key with a different payload is rejected and creates nothing. Rows expire after 24 hours; expired keys for that actor are deleted lazily on the next create.
 
 ## Tenant timezone
 
 `Tenant.timezone` is a required IANA timezone. Existing and new tenants default to `Europe/London`. Missing or invalid values fail with an administrator-facing configuration error. There is no silent fallback to the browser, server, or database timezone.
 
 - **AWOL** eligibility, Date recorded default, correction eligibility, and Ledger date bounds use `tenant.timezone`.
+- **Sickness** reported date default, future-date rejection, and advance-report confirmation use `tenant.timezone` (Center Circle: `Europe/London`).
 - **Cancellation** notice calculation remains `Europe/London` (`OPERATING_TIMEZONE`) so existing Cancellation behaviour is unchanged.
 
 ## AWOL date semantics
@@ -53,6 +73,14 @@ Used by AWOL create. Unique on `(tenantId, actorId, operation, key)` for `AWOL_C
 - A same-day Event with a known start time is eligible only when tenant-local now is at or after that start. Overnight Events use the stored start date/time.
 - A same-day Event with no start time requires `sameDayStartUnknownConfirmed`.
 - Client previews are usability only. The server recalculates at save using trusted Event values and a controllable clock in tests.
+
+## Sickness date semantics
+
+- **Date sickness reported** is stored in `reportedDate`. It defaults to tenant-local today and cannot be in the future. It may be before, equal to, or after the first working day affected.
+- **First day sick from work** has no default. It cannot be more than 31 calendar days after the reported date. A future first working day requires an advance-report confirmation checkbox.
+- **Sickness started**, when present, cannot be in the future and cannot be after the first working day.
+- There is no maximum historical age in Part 1.
+- Client date widgets are usability only. The server revalidates with tenant-local today.
 
 ## Notice calculation
 
@@ -65,19 +93,23 @@ Operating timezone is `Europe/London`. Calendar dates use `parseLocalDate` / UTC
 - Overnight `endsNextDay` does not affect notice (notice is to event start).
 - Client preview uses the same helper; the server always recalculates from the trusted Event and reported date/time. Never persist a browser-supplied notice value.
 
-AWOL does not calculate or display notice.
+AWOL and Sickness do not calculate or display notice.
 
 ## Duplicate protection and idempotency
 
-At most one **active** Cancellation **or** AWOL per tenant/staff/event. Sickness is excluded. Enforced by a SQL partial unique index:
+At most one **active** Cancellation **or** AWOL per tenant/staff/event. Sickness is excluded from that slot. Enforced by a SQL partial unique index:
 
 `(tenantId, staffId, eventId) WHERE recordStatus = 'ACTIVE' AND eventId IS NOT NULL AND type IN ('CANCELLATION', 'AWOL')`
 
-The service pre-checks both types on Cancellation and AWOL create/correct paths and maps Prisma `P2002` to a field error that links to the existing same-tenant record. Archiving frees the unique slot so a replacement can be logged. The administrator must archive or correct the existing record; the system never converts Cancellation into AWOL or the reverse.
+At most one **active** Sickness per tenant/staff/first working day. Enforced by:
 
-AWOL create also uses an idempotency key so double-click, refresh, and retry return the original successful result.
+`(tenantId, staffId, firstWorkingDaySick) WHERE recordStatus = 'ACTIVE' AND type = 'SICKNESS' AND firstWorkingDaySick IS NOT NULL`
 
-AWOL correct/archive lock the Absence row (`SELECT … FOR UPDATE`), assert `recordStatus = ACTIVE`, and require a matching `updatedAt` precondition. A stale writer is rejected and must reload.
+Sickness does not conflict with Cancellation or AWOL solely because the Staff member is the same. The service pre-checks and maps Prisma `P2002` to a field error that links to the existing same-tenant record. Archiving frees the unique slot so a replacement can be logged.
+
+AWOL and Sickness create also use an idempotency key so double-click, refresh, and retry return the original successful result.
+
+AWOL and Sickness correct/archive lock the Absence row (`SELECT … FOR UPDATE`), assert `recordStatus = ACTIVE`, and require a matching `updatedAt` precondition. A stale writer is rejected and must reload. A no-change Sickness correction is rejected with no audit event.
 
 ## Tenant isolation
 
@@ -85,11 +117,13 @@ All queries and mutations use `tenantId` from `requireTenant()`. Cross-tenant St
 
 ## Write path
 
-Server actions in `src/app/(app)/absence/actions.ts` authenticate with `requireTenant()`, parse FormData with the shared Zod schema, and call `createCancellation` / `correctCancellation` / `archiveCancellation` or `createAwol` / `correctAwol` / `archiveAwol`. Those functions load same-tenant live Staff and Event rows, snapshot Event/Venue, and write Absence + type detail + history in one transaction.
+Server actions in `src/app/(app)/absence/actions.ts` authenticate with `requireTenant()`, parse FormData with the shared Zod schema, and call `createCancellation` / `correctCancellation` / `archiveCancellation`, `createAwol` / `correctAwol` / `archiveAwol`, or `createSickness` / `correctSickness` / `archiveSickness`. Those functions load same-tenant live Staff (and Event where required), and write Absence + type detail + history in one transaction. A Sickness request that contains an Event ID or another type's fields is rejected, not silently corrected.
 
 ## Archive
 
-Logical deletion: `recordStatus = ARCHIVED` plus `archivedAt` / `archivedById` / `archiveReason`. Archived records stay reachable by URL for audit. They are excluded from staff Absence History and from the active Ledger. Hard deletion is not supported.
+Logical deletion: `recordStatus = ARCHIVED` plus `archivedAt` / `archivedById` / `archiveReason`. Archived records stay reachable by URL for audit. They are excluded from default staff Absence History and from the active Ledger. Hard deletion is not supported. Archiving a Sickness report does **not** record recovery or return to work.
+
+Staff history has a **Show archived** control that includes authorised archived Sickness rows only. Archived Cancellation and AWOL remain discoverable from the Ledger.
 
 ## Ledger
 
@@ -104,16 +138,32 @@ Indexes:
 - `Absence (tenantId, type, recordStatus, reportedDate)` — type list and Date recorded range.
 - `CancellationDetail (tenantId, eventDateSnapshot)` — Cancellation Event-date sort.
 - `AwolDetail (tenantId, eventDateSnapshot)` — AWOL Event-date sort.
+- `SicknessDetail (tenantId, firstWorkingDaySick)` — Staff history Sickness sort.
+- `Absence (tenantId, staffId, firstWorkingDaySick)` — Sickness duplicate lookup.
 
 ## Routes
 
 - `/ledger` — Cancellation Ledger
 - `/ledger?view=awol` — AWOL Ledger
-- `/absence/new` — log Cancellation or AWOL (`?staffId=` preselects Staff, `?type=awol` opens AWOL)
+- `/absence/new` — log Cancellation, AWOL, or Sickness (`?staffId=` preselects Staff, `?type=awol` or `?type=sickness` opens that form)
 - `/absence/[id]` — type-aware detail
 - `/absence/[id]/edit` — type-aware correction
-- Staff profile Absence History lists active Cancellation and AWOL rows (bounded, 10 per page), ordered by coalesced Event date snapshot, then Date recorded, then created at.
+- Staff profile Absence History lists active Cancellation, AWOL, and Sickness rows (bounded, 10 per page), ordered by coalesced Event date snapshot or Sickness first working day, then reported date, then created at, then id. `?absenceArchived=1` includes archived Sickness.
 
 ## Future types
 
-Add `AbsenceSicknessDetail` (or equivalent) and allow `SICKNESS` on create. Do not redesign tenant, staff, event, follow-up, record status, or history. AWOL contact/follow-up, pay periods, and reliability scoring remain out of scope.
+Later Sickness work (ledger, episode end date, certificates, documents, follow-up, return to work) should extend `SicknessDetail` or add related entities. Do not redesign tenant, staff, event, follow-up, record status, or history. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
+
+### Migration verification
+
+```sql
+-- Preflight: every Cancellation/AWOL has an Event
+SELECT COUNT(*) FROM "Absence"
+WHERE "type" IN ('CANCELLATION', 'AWOL') AND "eventId" IS NULL;
+-- Must be 0 before and after the Sickness migration.
+
+-- Constraint and duplicate index
+SELECT conname FROM pg_constraint WHERE conname = 'Absence_event_required_by_type';
+SELECT indexname FROM pg_indexes
+WHERE indexname = 'Absence_tenantId_staffId_firstWorkingDaySick_active_sickness_key';
+```

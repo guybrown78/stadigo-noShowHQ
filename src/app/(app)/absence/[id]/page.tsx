@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
+import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { Banner } from "@/components/ui/banner";
 import { ButtonLink } from "@/components/ui/button";
@@ -15,7 +16,8 @@ import {
   formatDurationMinutes,
   formatHistoryValue,
   formatInternalNotes,
-  HISTORY_ACTION_LABELS,
+  formatIssueSummary,
+  historyActionLabel,
   historyFieldLabel,
   NOTICE_BASIS_LABELS,
 } from "@/lib/absence/display";
@@ -25,6 +27,10 @@ import {
   formatLocalDateDisplay,
   formatLocalDateIso,
 } from "@/lib/events/dates";
+import {
+  NO_SICKNESS_STARTED_RECORDED,
+  SICKNESS_INITIAL_STATUS_LABEL,
+} from "@/lib/absence/sickness";
 import { formatStaffName } from "@/lib/staff/display";
 import { EmploymentStatusBadge } from "@/components/staff/staff-status-badge";
 import { cn } from "@/lib/cn";
@@ -38,7 +44,7 @@ export async function generateMetadata({
   const { id } = await params;
   try {
     const absence = await getAbsenceForTenant(prisma, user.tenantId, id);
-    return { title: absence.type === "AWOL" ? "AWOL" : "Cancellation" };
+    return { title: absence.type === "AWOL" ? "AWOL" : absence.type === "SICKNESS" ? "Sickness" : "Cancellation" };
   } catch {
     return { title: "Absence" };
   }
@@ -96,7 +102,7 @@ function HistoryCard({ absence }: { absence: AbsenceDetail }) {
               return (
                 <li key={entry.id} className="py-3 text-sm text-slate-700">
                   <p className="font-medium text-slate-900">
-                    {HISTORY_ACTION_LABELS[entry.action]}
+                    {historyActionLabel(entry.action, absence.type)}
                   </p>
                   <p className="mt-1 text-slate-600">
                     {entry.createdAt.toLocaleString("en-GB")}
@@ -153,6 +159,9 @@ export default async function AbsenceDetailPage({
 
   if (absence.type === "AWOL" && absence.awol) {
     return <AwolDetail absence={absence} flash={flash} />;
+  }
+  if (absence.type === "SICKNESS" && absence.sickness) {
+    return <SicknessDetail absence={absence} flash={flash} />;
   }
   if (absence.type === "CANCELLATION" && absence.cancellation) {
     return <CancellationDetail absence={absence} flash={flash} />;
@@ -450,12 +459,147 @@ function AwolDetail({
   );
 }
 
+function SicknessDetail({
+  absence,
+  flash,
+}: {
+  absence: AbsenceDetail;
+  flash: { created?: string; updated?: string; archived?: string };
+}) {
+  const detail = absence.sickness!;
+  const staffName = formatStaffName(absence.staff);
+  const archived = absence.recordStatus === "ARCHIVED";
+  const staffLive = !absence.staff.deletedAt;
+  const updatedDistinct =
+    absence.updatedAt.getTime() !== absence.createdAt.getTime();
+
+  return (
+    <div>
+      <PageHeader
+        breadcrumbs={[
+          { href: `/staff/${absence.staff.id}`, label: staffName },
+          { label: "Sickness" },
+        ]}
+        title="Sickness"
+        description={
+          <>
+            <AbsenceTypeBadge type={absence.type} />
+            <span className="ml-2">
+              {SICKNESS_INITIAL_STATUS_LABEL} · {staffName} ·{" "}
+              {absence.staff.staffIdNumber}
+            </span>
+          </>
+        }
+        actions={
+          !archived ? (
+            <>
+              <ButtonLink href={`/absence/${absence.id}/edit`}>
+                Correct sickness report
+              </ButtonLink>
+              <ArchiveSicknessDialog
+                absenceId={absence.id}
+                staffName={`${staffName} (${absence.staff.staffIdNumber})`}
+                expectedUpdatedAt={absence.updatedAt.toISOString()}
+              />
+            </>
+          ) : undefined
+        }
+      />
+
+      {flash.created === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Sickness report recorded.
+        </Banner>
+      ) : null}
+      {flash.updated === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Sickness report corrected.
+        </Banner>
+      ) : null}
+      {flash.archived === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Sickness report archived.
+        </Banner>
+      ) : null}
+
+      {archived ? (
+        <Banner tone="neutral" className="mt-4">
+          This sickness report is archived. It is hidden from active Staff
+          history and kept for audit. Archiving does not record recovery or
+          return to work.
+        </Banner>
+      ) : null}
+
+      <dl className="mt-8 grid gap-6 rounded-xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2">
+        <Detail label="Staff">
+          {staffLive ? (
+            <Link href={`/staff/${absence.staff.id}`} className="underline">
+              {staffName}
+            </Link>
+          ) : (
+            staffName
+          )}
+          <span className="text-slate-600">
+            {" "}
+            · {absence.staff.staffIdNumber}
+          </span>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-slate-600">
+              {absence.staff.roleTitle}
+            </span>
+            <EmploymentStatusBadge status={absence.staff.employmentStatus} />
+          </div>
+        </Detail>
+        <Detail label="Record status">{archived ? "Archived" : "Active"}</Detail>
+        <Detail label="Date sickness reported">
+          {formatLocalDateDisplay(absence.reportedDate)}
+          <span className="sr-only">
+            {" "}
+            {formatLocalDateIso(absence.reportedDate)}
+          </span>
+        </Detail>
+        <Detail label="First day sick from work">
+          {formatLocalDateDisplay(detail.firstWorkingDaySick)}
+          <span className="sr-only">
+            {" "}
+            {formatLocalDateIso(detail.firstWorkingDaySick)}
+          </span>
+        </Detail>
+        <Detail label="Sickness started">
+          {detail.sicknessStartedDate
+            ? formatLocalDateDisplay(detail.sicknessStartedDate)
+            : NO_SICKNESS_STARTED_RECORDED}
+          {detail.sicknessStartedDate ? (
+            <span className="sr-only">
+              {" "}
+              {formatLocalDateIso(detail.sicknessStartedDate)}
+            </span>
+          ) : null}
+        </Detail>
+        <Detail label="Issue summary" className="sm:col-span-2">
+          <p className="whitespace-pre-wrap break-words">
+            {formatIssueSummary(detail.issueSummary)}
+          </p>
+        </Detail>
+        <MetaDetails
+          absence={absence}
+          archived={archived}
+          showUpdated={updatedDistinct}
+        />
+      </dl>
+      <HistoryCard absence={absence} />
+    </div>
+  );
+}
+
 function MetaDetails({
   absence,
   archived,
+  showUpdated = true,
 }: {
   absence: AbsenceDetail;
   archived: boolean;
+  showUpdated?: boolean;
 }) {
   return (
     <>
@@ -463,10 +607,12 @@ function MetaDetails({
         {absence.createdAt.toLocaleString("en-GB")} ·{" "}
         {actorName(absence.createdBy)}
       </Detail>
-      <Detail label="Last updated">
-        {absence.updatedAt.toLocaleString("en-GB")} ·{" "}
-        {actorName(absence.updatedBy)}
-      </Detail>
+      {showUpdated ? (
+        <Detail label="Last updated">
+          {absence.updatedAt.toLocaleString("en-GB")} ·{" "}
+          {actorName(absence.updatedBy)}
+        </Detail>
+      ) : null}
       {archived ? (
         <Detail label="Archived">
           {absence.archivedAt

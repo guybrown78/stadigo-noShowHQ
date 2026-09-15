@@ -356,6 +356,9 @@ afterAll(async () => {
   await prisma.absenceHistory.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
+  await prisma.sicknessDetail.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.awolDetail.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });

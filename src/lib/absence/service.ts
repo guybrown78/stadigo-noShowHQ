@@ -8,6 +8,7 @@ import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
   AWOL_CREATE_IDEMPOTENCY_OPERATION,
   IDEMPOTENCY_TTL_MS,
+  SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
 } from "@/lib/absence/catalog";
 import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
 import { calculateNotice } from "@/lib/absence/notice";
@@ -18,18 +19,28 @@ import {
 import {
   findActiveCancellationOrAwol,
   findActiveDuplicateCancellation,
+  findActiveSicknessDuplicate,
   getAbsenceForTenant,
   getTenantTimezone,
 } from "@/lib/absence/queries";
 import type {
   ArchiveAwolInput,
   ArchiveCancellationInput,
+  ArchiveSicknessInput,
   AwolInput,
   CancellationInput,
   CorrectAwolInput,
   CorrectCancellationInput,
+  CorrectSicknessInput,
+  SicknessInput,
 } from "@/lib/absence/schema";
-import { TenantTimezoneError } from "@/lib/absence/timezone";
+import {
+  DUPLICATE_SICKNESS_MESSAGE,
+  SICKNESS_NO_CHANGE_MESSAGE,
+  evaluateSicknessDates,
+  requiresCorrectionAdvanceConfirmation,
+} from "@/lib/absence/sickness";
+import { TenantTimezoneError, todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 
@@ -1255,3 +1266,636 @@ export async function archiveAwol(
 
 export { getAbsenceForTenant };
 export { findActiveDuplicateCancellation };
+
+function isSicknessDuplicateError(error: unknown): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  ) {
+    return false;
+  }
+  const target = uniqueTarget(error);
+  return target.some(
+    (part) =>
+      part.includes("firstWorkingDaySick") ||
+      part.includes(
+        "Absence_tenantId_staffId_firstWorkingDaySick_active_sickness",
+      ),
+  );
+}
+
+function sicknessConflictResult(
+  existingId: string,
+): Extract<AbsenceMutationResult, { ok: false }> {
+  return {
+    ok: false,
+    error: DUPLICATE_SICKNESS_MESSAGE,
+    fieldErrors: { firstWorkingDaySick: [DUPLICATE_SICKNESS_MESSAGE] },
+    existingAbsenceId: existingId,
+  };
+}
+
+function sicknessPayloadHash(input: {
+  staffId: string;
+  reportedDate: string;
+  firstWorkingDaySick: string;
+  sicknessStartedDate: string | null;
+  issueSummary: string | null;
+  futureFirstWorkingDayConfirmed: boolean;
+}): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        staffId: input.staffId,
+        reportedDate: input.reportedDate,
+        firstWorkingDaySick: input.firstWorkingDaySick,
+        sicknessStartedDate: input.sicknessStartedDate,
+        issueSummary: input.issueSummary,
+        futureFirstWorkingDayConfirmed: input.futureFirstWorkingDayConfirmed,
+      }),
+    )
+    .digest("hex");
+}
+
+type ResolvedSicknessWrite =
+  | {
+      ok: true;
+      staff: NonNullable<Awaited<ReturnType<typeof loadLiveStaff>>>;
+      reportedDate: Date;
+      firstWorkingDaySick: Date;
+      sicknessStartedDate: Date | null;
+      issueSummary: string | null;
+      acknowledgedFirstWorkingDay: string | null;
+    }
+  | Extract<AbsenceMutationResult, { ok: false }>;
+
+async function resolveSicknessWrite(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    input: SicknessInput | CorrectSicknessInput;
+    now: Date;
+    excludeId?: string;
+    requireAdvanceConfirmation: boolean;
+  },
+): Promise<ResolvedSicknessWrite> {
+  if (params.input.type !== "SICKNESS") {
+    return { ok: false, error: FORM_CHECK_MESSAGE };
+  }
+
+  const staff = await loadLiveStaff(db, params.tenantId, params.input.staffId);
+  if (!staff) {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { staffId: ["Select a valid staff member"] },
+    };
+  }
+
+  let timeZone: string;
+  try {
+    timeZone = await getTenantTimezone(db, params.tenantId);
+  } catch (error) {
+    if (error instanceof TenantTimezoneError) {
+      return { ok: false, error: error.message, fieldErrors: { timezone: [error.message] } };
+    }
+    throw error;
+  }
+
+  const dates = evaluateSicknessDates({
+    reportedDate: params.input.reportedDate,
+    firstWorkingDaySick: params.input.firstWorkingDaySick,
+    sicknessStartedDate: params.input.sicknessStartedDate,
+    futureFirstWorkingDayConfirmed: params.input.futureFirstWorkingDayConfirmed,
+    timeZone,
+    now: params.now,
+    requireAdvanceConfirmation: params.requireAdvanceConfirmation,
+  });
+  if (!dates.ok) {
+    return {
+      ok: false,
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: { [dates.field]: [dates.message] },
+    };
+  }
+
+  const duplicate = await findActiveSicknessDuplicate(db, {
+    tenantId: params.tenantId,
+    staffId: staff.id,
+    firstWorkingDaySick: dates.firstWorkingDaySick,
+    excludeId: params.excludeId,
+  });
+  if (duplicate) {
+    return sicknessConflictResult(duplicate.id);
+  }
+
+  return {
+    ok: true,
+    staff,
+    reportedDate: dates.reportedDate,
+    firstWorkingDaySick: dates.firstWorkingDaySick,
+    sicknessStartedDate: dates.sicknessStartedDate,
+    issueSummary: params.input.issueSummary,
+    acknowledgedFirstWorkingDay:
+      params.requireAdvanceConfirmation &&
+      dates.requiresAdvanceConfirmation &&
+      params.input.futureFirstWorkingDayConfirmed
+        ? dateString(dates.firstWorkingDaySick)
+        : null,
+  };
+}
+
+async function withSicknessDuplicateMapping(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    firstWorkingDaySick: Date;
+    excludeId?: string;
+  },
+  run: () => Promise<AbsenceMutationResult>,
+): Promise<AbsenceMutationResult> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!isSicknessDuplicateError(error)) {
+      throw error;
+    }
+    const existing = await findActiveSicknessDuplicate(db, {
+      tenantId: params.tenantId,
+      staffId: params.staffId,
+      firstWorkingDaySick: params.firstWorkingDaySick,
+      excludeId: params.excludeId,
+    });
+    if (existing) {
+      return sicknessConflictResult(existing.id);
+    }
+    return {
+      ok: false,
+      error: DUPLICATE_SICKNESS_MESSAGE,
+      fieldErrors: { firstWorkingDaySick: [DUPLICATE_SICKNESS_MESSAGE] },
+    };
+  }
+}
+
+function sicknessCreatedChanges(params: {
+  staffLabel: string;
+  reportedDate: Date;
+  firstWorkingDaySick: Date;
+  sicknessStartedDate: Date | null;
+  issueSummary: string | null;
+  acknowledgedFirstWorkingDay: string | null;
+}) {
+  const changes = [
+    { field: "staffId", previous: null, next: params.staffLabel },
+    {
+      field: "reportedDate",
+      previous: null,
+      next: dateString(params.reportedDate),
+    },
+    {
+      field: "firstWorkingDaySick",
+      previous: null,
+      next: dateString(params.firstWorkingDaySick),
+    },
+    {
+      field: "sicknessStartedDate",
+      previous: null,
+      next: params.sicknessStartedDate
+        ? dateString(params.sicknessStartedDate)
+        : null,
+    },
+    {
+      field: "issueSummary",
+      previous: null,
+      next: params.issueSummary,
+    },
+  ];
+  if (params.acknowledgedFirstWorkingDay) {
+    changes.push({
+      field: "futureFirstWorkingDayConfirmed",
+      previous: null,
+      next: params.acknowledgedFirstWorkingDay,
+    });
+  }
+  return changes;
+}
+
+export async function createSickness(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    input: SicknessInput;
+    now?: Date;
+  },
+): Promise<AbsenceMutationResult> {
+  const now = params.now ?? new Date();
+  const payloadHash = sicknessPayloadHash(params.input);
+  const firstWorkingDaySick = parseLocalDate(params.input.firstWorkingDaySick);
+
+  return withSicknessDuplicateMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      firstWorkingDaySick: firstWorkingDaySick ?? new Date(0),
+    },
+    () =>
+      db.$transaction(async (tx) => {
+        await tx.absenceIdempotencyKey.deleteMany({
+          where: {
+            tenantId: params.tenantId,
+            actorId: params.userId,
+            operation: SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+            expiresAt: { lt: now },
+          },
+        });
+
+        const existingKey = await tx.absenceIdempotencyKey.findUnique({
+          where: {
+            tenantId_actorId_operation_key: {
+              tenantId: params.tenantId,
+              actorId: params.userId,
+              operation: SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+              key: params.input.idempotencyKey,
+            },
+          },
+        });
+        if (existingKey) {
+          if (existingKey.payloadHash !== payloadHash) {
+            return {
+              ok: false,
+              error: IDEMPOTENCY_REUSE_MESSAGE,
+            };
+          }
+          if (existingKey.absenceId) {
+            return { ok: true, id: existingKey.absenceId };
+          }
+        } else {
+          try {
+            await tx.absenceIdempotencyKey.create({
+              data: {
+                tenantId: params.tenantId,
+                actorId: params.userId,
+                operation: SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+                key: params.input.idempotencyKey,
+                payloadHash,
+                expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
+              },
+            });
+          } catch (error) {
+            if (
+              error instanceof Prisma.PrismaClientKnownRequestError &&
+              error.code === "P2002"
+            ) {
+              const raced = await tx.absenceIdempotencyKey.findUnique({
+                where: {
+                  tenantId_actorId_operation_key: {
+                    tenantId: params.tenantId,
+                    actorId: params.userId,
+                    operation: SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+                    key: params.input.idempotencyKey,
+                  },
+                },
+              });
+              if (raced?.payloadHash !== payloadHash) {
+                return { ok: false, error: IDEMPOTENCY_REUSE_MESSAGE };
+              }
+              if (raced?.absenceId) {
+                return { ok: true, id: raced.absenceId };
+              }
+            } else {
+              throw error;
+            }
+          }
+        }
+
+        const resolved = await resolveSicknessWrite(tx, {
+          tenantId: params.tenantId,
+          input: params.input,
+          now,
+          requireAdvanceConfirmation: true,
+        });
+        if (!resolved.ok) {
+          return resolved;
+        }
+
+        try {
+          const absence = await tx.absence.create({
+            data: {
+              tenantId: params.tenantId,
+              staffId: resolved.staff.id,
+              eventId: null,
+              type: "SICKNESS",
+              reportedDate: resolved.reportedDate,
+              reportedTime: null,
+              reason: null,
+              notes: null,
+              firstWorkingDaySick: resolved.firstWorkingDaySick,
+              followUpType: "REVIEW",
+              followUpStatus: "PENDING",
+              recordStatus: "ACTIVE",
+              createdById: params.userId,
+              updatedById: params.userId,
+            },
+          });
+
+          await tx.sicknessDetail.create({
+            data: {
+              absenceId: absence.id,
+              tenantId: params.tenantId,
+              firstWorkingDaySick: resolved.firstWorkingDaySick,
+              sicknessStartedDate: resolved.sicknessStartedDate,
+              issueSummary: resolved.issueSummary,
+            },
+          });
+
+          await writeAbsenceHistory(tx, {
+            tenantId: params.tenantId,
+            absenceId: absence.id,
+            action: "CREATED",
+            actedById: params.userId,
+            changes: sicknessCreatedChanges({
+              staffLabel: staffLabel(resolved.staff),
+              reportedDate: resolved.reportedDate,
+              firstWorkingDaySick: resolved.firstWorkingDaySick,
+              sicknessStartedDate: resolved.sicknessStartedDate,
+              issueSummary: resolved.issueSummary,
+              acknowledgedFirstWorkingDay: resolved.acknowledgedFirstWorkingDay,
+            }),
+          });
+
+          await tx.absenceIdempotencyKey.updateMany({
+            where: {
+              tenantId: params.tenantId,
+              actorId: params.userId,
+              operation: SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+              key: params.input.idempotencyKey,
+            },
+            data: { absenceId: absence.id, payloadHash },
+          });
+
+          return { ok: true, id: absence.id };
+        } catch (error) {
+          if (isSicknessDuplicateError(error)) {
+            throw error;
+          }
+          throw error;
+        }
+      }),
+  );
+}
+
+export async function correctSickness(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    input: CorrectSicknessInput;
+    now?: Date;
+  },
+): Promise<AbsenceMutationResult> {
+  const now = params.now ?? new Date();
+  const firstWorkingDaySick = parseLocalDate(params.input.firstWorkingDaySick);
+
+  return withSicknessDuplicateMapping(
+    db,
+    {
+      tenantId: params.tenantId,
+      staffId: params.input.staffId,
+      firstWorkingDaySick: firstWorkingDaySick ?? new Date(0),
+      excludeId: params.absenceId,
+    },
+    () =>
+      db.$transaction(async (tx) => {
+        await lockAbsenceRow(tx, params.tenantId, params.absenceId);
+        const existing = await tx.absence.findFirst({
+          where: { id: params.absenceId, tenantId: params.tenantId },
+          include: {
+            staff: {
+              select: {
+                firstName: true,
+                lastName: true,
+                staffIdNumber: true,
+              },
+            },
+            sickness: true,
+          },
+        });
+        if (!existing) {
+          throw new AbsenceAccessError();
+        }
+        if (existing.type !== "SICKNESS" || !existing.sickness) {
+          return { ok: false, error: "This record cannot be corrected here." };
+        }
+        if (existing.recordStatus !== "ACTIVE") {
+          return { ok: false, error: ARCHIVED_CANNOT_CORRECT };
+        }
+        if (!timestampsMatch(existing.updatedAt, params.input.expectedUpdatedAt)) {
+          return { ok: false, error: STALE_WRITE_MESSAGE };
+        }
+
+        let timeZone: string;
+        try {
+          timeZone = await getTenantTimezone(tx, params.tenantId);
+        } catch (error) {
+          if (error instanceof TenantTimezoneError) {
+            return {
+              ok: false,
+              error: error.message,
+              fieldErrors: { timezone: [error.message] },
+            };
+          }
+          throw error;
+        }
+        const todayIso = todayIsoInTimeZone(timeZone, now);
+        const requireAdvanceConfirmation = requiresCorrectionAdvanceConfirmation({
+          previousFirstWorkingDaySickIso: dateString(
+            existing.sickness.firstWorkingDaySick,
+          ),
+          nextFirstWorkingDaySickIso: params.input.firstWorkingDaySick,
+          todayIso,
+        });
+
+        const resolved = await resolveSicknessWrite(tx, {
+          tenantId: params.tenantId,
+          input: params.input,
+          now,
+          excludeId: existing.id,
+          requireAdvanceConfirmation,
+        });
+        if (!resolved.ok) {
+          return resolved;
+        }
+
+        const previousStaffLabel = staffLabel(existing.staff);
+        const nextStaffLabel = staffLabel(resolved.staff);
+        const changes = [
+          diffValues(previousStaffLabel, nextStaffLabel) && {
+            field: "staffId",
+            ...diffValues(previousStaffLabel, nextStaffLabel)!,
+          },
+          diffValues(
+            dateString(existing.reportedDate),
+            dateString(resolved.reportedDate),
+          ) && {
+            field: "reportedDate",
+            ...diffValues(
+              dateString(existing.reportedDate),
+              dateString(resolved.reportedDate),
+            )!,
+          },
+          diffValues(
+            dateString(existing.sickness.firstWorkingDaySick),
+            dateString(resolved.firstWorkingDaySick),
+          ) && {
+            field: "firstWorkingDaySick",
+            ...diffValues(
+              dateString(existing.sickness.firstWorkingDaySick),
+              dateString(resolved.firstWorkingDaySick),
+            )!,
+          },
+          diffValues(
+            existing.sickness.sicknessStartedDate
+              ? dateString(existing.sickness.sicknessStartedDate)
+              : null,
+            resolved.sicknessStartedDate
+              ? dateString(resolved.sicknessStartedDate)
+              : null,
+          ) && {
+            field: "sicknessStartedDate",
+            ...diffValues(
+              existing.sickness.sicknessStartedDate
+                ? dateString(existing.sickness.sicknessStartedDate)
+                : null,
+              resolved.sicknessStartedDate
+                ? dateString(resolved.sicknessStartedDate)
+                : null,
+            )!,
+          },
+          diffValues(existing.sickness.issueSummary, resolved.issueSummary) && {
+            field: "issueSummary",
+            ...diffValues(existing.sickness.issueSummary, resolved.issueSummary)!,
+          },
+        ].filter(
+          (
+            change,
+          ): change is {
+            field: string;
+            previous: string | null;
+            next: string | null;
+          } => Boolean(change),
+        );
+
+        if (resolved.acknowledgedFirstWorkingDay) {
+          changes.push({
+            field: "futureFirstWorkingDayConfirmed",
+            previous: null,
+            next: resolved.acknowledgedFirstWorkingDay,
+          });
+        }
+
+        if (changes.length === 0) {
+          return { ok: false, error: SICKNESS_NO_CHANGE_MESSAGE };
+        }
+
+        try {
+          await tx.absence.update({
+            where: { id: existing.id },
+            data: {
+              staffId: resolved.staff.id,
+              eventId: null,
+              reportedDate: resolved.reportedDate,
+              reportedTime: null,
+              reason: null,
+              notes: null,
+              firstWorkingDaySick: resolved.firstWorkingDaySick,
+              updatedById: params.userId,
+              sickness: {
+                update: {
+                  firstWorkingDaySick: resolved.firstWorkingDaySick,
+                  sicknessStartedDate: resolved.sicknessStartedDate,
+                  issueSummary: resolved.issueSummary,
+                },
+              },
+            },
+          });
+
+          await writeAbsenceHistory(tx, {
+            tenantId: params.tenantId,
+            absenceId: existing.id,
+            action: "CORRECTED",
+            reason: params.input.correctionReason,
+            actedById: params.userId,
+            changes,
+          });
+
+          return { ok: true, id: existing.id };
+        } catch (error) {
+          if (isSicknessDuplicateError(error)) {
+            throw error;
+          }
+          throw error;
+        }
+      }),
+  );
+}
+
+export async function archiveSickness(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    input: ArchiveSicknessInput;
+  },
+): Promise<AbsenceMutationResult> {
+  return db.$transaction(async (tx) => {
+    await lockAbsenceRow(tx, params.tenantId, params.absenceId);
+    const existing = await tx.absence.findFirst({
+      where: { id: params.absenceId, tenantId: params.tenantId },
+    });
+    if (!existing) {
+      throw new AbsenceAccessError();
+    }
+    if (existing.type !== "SICKNESS") {
+      return { ok: false, error: "This record cannot be archived here." };
+    }
+    if (existing.recordStatus !== "ACTIVE") {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+    if (!timestampsMatch(existing.updatedAt, params.input.expectedUpdatedAt)) {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+
+    await tx.absence.update({
+      where: { id: existing.id },
+      data: {
+        recordStatus: "ARCHIVED",
+        archivedAt: new Date(),
+        archivedById: params.userId,
+        archiveReason: params.input.archiveReason,
+        updatedById: params.userId,
+      },
+    });
+
+    await writeAbsenceHistory(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
+      action: "ARCHIVED",
+      reason: params.input.archiveReason,
+      actedById: params.userId,
+      changes: [
+        {
+          field: "recordStatus",
+          previous: "ACTIVE",
+          next: "ARCHIVED",
+        },
+      ],
+    });
+
+    return { ok: true, id: existing.id };
+  });
+}

@@ -10,17 +10,34 @@ import {
   DEFAULT_LEDGER_DIRECTION,
   DEFAULT_LEDGER_SORT,
   DEFAULT_LEDGER_VIEW,
+  ISSUE_SUMMARY_MAX_CODE_POINTS,
   LEDGER_SORT_DIRECTIONS,
   LEDGER_SORT_FIELDS,
   LEDGER_VIEWS,
   NOTES_MAX_LENGTH,
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
+  SICKNESS_ADVANCE_REPORT_MAX_DAYS,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
 } from "@/lib/absence/catalog";
 import { DATE_RECORDED_BEFORE_EVENT_MESSAGE } from "@/lib/absence/eligibility";
+import {
+  SICKNESS_ADVANCE_BEYOND_LIMIT_MESSAGE,
+  SICKNESS_ADVANCE_UNCONFIRMED_MESSAGE,
+  SICKNESS_EVENT_FORBIDDEN_MESSAGE,
+  SICKNESS_OUT_OF_SCOPE_FIELDS_MESSAGE,
+  SICKNESS_REPORTED_FUTURE_MESSAGE,
+  SICKNESS_STARTED_AFTER_FIRST_DAY_MESSAGE,
+  SICKNESS_STARTED_FUTURE_MESSAGE,
+  calendarDaysBetween,
+  forbiddenSicknessFieldMessage,
+  requiresAdvanceConfirmation,
+  requiresCorrectionAdvanceConfirmation,
+  sicknessHasForbiddenFields,
+  unicodeCodePointLength,
+} from "@/lib/absence/sickness";
 import { parseLocalDate, parseLocalTime } from "@/lib/events/dates";
 import { emptyToNull } from "@/lib/staff/normalize";
 
@@ -241,6 +258,256 @@ export type CorrectAwolInput = Omit<
 >;
 
 export type ArchiveAwolInput = z.infer<typeof archiveAwolInputSchema>;
+
+const reportedDateSicknessSchema = z
+  .string()
+  .trim()
+  .min(1, "Date sickness reported is required")
+  .refine((value) => parseLocalDate(value) !== null, "Enter a valid date");
+
+const firstWorkingDaySickSchema = z
+  .string()
+  .trim()
+  .min(1, "First day sick from work is required")
+  .refine((value) => parseLocalDate(value) !== null, "Enter a valid date");
+
+const optionalSicknessStartedSchema = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .refine(
+    (value) => value === null || parseLocalDate(value) !== null,
+    "Enter a valid date",
+  );
+
+const issueSummarySchema = z
+  .string()
+  .transform((value) => emptyToNull(value))
+  .refine(
+    (value) =>
+      value === null ||
+      unicodeCodePointLength(value) <= ISSUE_SUMMARY_MAX_CODE_POINTS,
+    `Issue summary must be ${ISSUE_SUMMARY_MAX_CODE_POINTS.toLocaleString()} characters or fewer`,
+  );
+
+const sicknessFields = {
+  type: z.literal("SICKNESS", {
+    error: "Only Sickness can be logged with this form",
+  }),
+  staffId: z.string().trim().min(1, "Select a staff member"),
+  reportedDate: reportedDateSicknessSchema,
+  firstWorkingDaySick: firstWorkingDaySickSchema,
+  sicknessStartedDate: optionalSicknessStartedSchema,
+  issueSummary: issueSummarySchema,
+  futureFirstWorkingDayConfirmed: z.boolean(),
+  todayIso: z.string().optional(),
+  previousFirstWorkingDaySick: z.string().optional(),
+};
+
+function refineSicknessDates(
+  value: {
+    reportedDate: string;
+    firstWorkingDaySick: string;
+    sicknessStartedDate: string | null;
+    futureFirstWorkingDayConfirmed: boolean;
+    todayIso?: string;
+    previousFirstWorkingDaySick?: string;
+  },
+  ctx: z.RefinementCtx,
+  mode: "create" | "correct",
+) {
+  if (
+    value.sicknessStartedDate &&
+    value.sicknessStartedDate > value.firstWorkingDaySick
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessStartedDate"],
+      message: SICKNESS_STARTED_AFTER_FIRST_DAY_MESSAGE,
+    });
+  }
+
+  const advanceDays = calendarDaysBetween(
+    value.reportedDate,
+    value.firstWorkingDaySick,
+  );
+  if (advanceDays != null && advanceDays > SICKNESS_ADVANCE_REPORT_MAX_DAYS) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["firstWorkingDaySick"],
+      message: SICKNESS_ADVANCE_BEYOND_LIMIT_MESSAGE,
+    });
+  }
+
+  const todayIso = value.todayIso?.trim();
+  if (!todayIso || !parseLocalDate(todayIso)) {
+    return;
+  }
+  if (value.reportedDate > todayIso) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["reportedDate"],
+      message: SICKNESS_REPORTED_FUTURE_MESSAGE,
+    });
+  }
+  if (value.sicknessStartedDate && value.sicknessStartedDate > todayIso) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessStartedDate"],
+      message: SICKNESS_STARTED_FUTURE_MESSAGE,
+    });
+  }
+
+  const needsCreateConfirmation = requiresAdvanceConfirmation(
+    value.firstWorkingDaySick,
+    todayIso,
+  );
+  if (
+    mode === "create" &&
+    needsCreateConfirmation &&
+    !value.futureFirstWorkingDayConfirmed
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["futureFirstWorkingDayConfirmed"],
+      message: SICKNESS_ADVANCE_UNCONFIRMED_MESSAGE,
+    });
+  }
+  if (
+    mode === "correct" &&
+    value.previousFirstWorkingDaySick &&
+    requiresCorrectionAdvanceConfirmation({
+      previousFirstWorkingDaySickIso: value.previousFirstWorkingDaySick,
+      nextFirstWorkingDaySickIso: value.firstWorkingDaySick,
+      todayIso,
+    }) &&
+    !value.futureFirstWorkingDayConfirmed
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["futureFirstWorkingDayConfirmed"],
+      message: SICKNESS_ADVANCE_UNCONFIRMED_MESSAGE,
+    });
+  }
+}
+
+export const sicknessInputSchema = z
+  .object({
+    ...sicknessFields,
+    idempotencyKey: idempotencyKeySchema,
+  })
+  .superRefine((value, ctx) => refineSicknessDates(value, ctx, "create"));
+
+export const correctSicknessInputSchema = z
+  .object({
+    ...sicknessFields,
+    correctionReason: actionReasonSchema(
+      "Correction reason",
+      CORRECTION_REASON_MIN_LENGTH,
+      CORRECTION_REASON_MAX_LENGTH,
+    ),
+    expectedUpdatedAt: expectedUpdatedAtSchema,
+  })
+  .superRefine((value, ctx) => refineSicknessDates(value, ctx, "correct"));
+
+export const archiveSicknessInputSchema = z.object({
+  archiveReason: actionReasonSchema(
+    "Archive reason",
+    ARCHIVE_REASON_MIN_LENGTH,
+    ARCHIVE_REASON_MAX_LENGTH,
+  ),
+  confirmArchive: z.literal(true, {
+    error: "Confirm that you want to archive this sickness report",
+  }),
+  expectedUpdatedAt: expectedUpdatedAtSchema,
+});
+
+export type SicknessInput = Omit<
+  z.infer<typeof sicknessInputSchema>,
+  "todayIso" | "previousFirstWorkingDaySick"
+>;
+
+export type CorrectSicknessInput = Omit<
+  z.infer<typeof correctSicknessInputSchema>,
+  "todayIso" | "previousFirstWorkingDaySick"
+>;
+
+export type ArchiveSicknessInput = z.infer<typeof archiveSicknessInputSchema>;
+
+function sicknessFormObject(formData: FormData) {
+  return {
+    type: formData.get("type") ?? "SICKNESS",
+    staffId: formData.get("staffId") ?? "",
+    reportedDate: formData.get("reportedDate") ?? "",
+    firstWorkingDaySick: formData.get("firstWorkingDaySick") ?? "",
+    sicknessStartedDate: formData.get("sicknessStartedDate") ?? "",
+    issueSummary: formData.get("issueSummary") ?? "",
+    futureFirstWorkingDayConfirmed:
+      formData.get("futureFirstWorkingDayConfirmed") === "on",
+    todayIso: String(formData.get("todayIso") ?? ""),
+    previousFirstWorkingDaySick: String(
+      formData.get("previousFirstWorkingDaySick") ?? "",
+    ),
+  };
+}
+
+function rejectForbiddenSicknessFields(
+  formData: FormData,
+): { success: false; error: z.ZodError } | null {
+  if (!sicknessHasForbiddenFields(formData)) {
+    return null;
+  }
+  const message = forbiddenSicknessFieldMessage(formData);
+  const parsed =
+    message === SICKNESS_EVENT_FORBIDDEN_MESSAGE
+      ? z
+          .object({
+            eventId: z.string().max(0, SICKNESS_EVENT_FORBIDDEN_MESSAGE),
+          })
+          .safeParse({ eventId: String(formData.get("eventId") ?? "event") })
+      : z
+          .object({
+            form: z.string().max(0, SICKNESS_OUT_OF_SCOPE_FIELDS_MESSAGE),
+          })
+          .safeParse({ form: message });
+  if (parsed.success) {
+    return z.object({ form: z.literal("ok") }).safeParse({
+      form: "fail",
+    }) as { success: false; error: z.ZodError };
+  }
+  return parsed;
+}
+
+export function parseSicknessFormData(formData: FormData) {
+  const forbidden = rejectForbiddenSicknessFields(formData);
+  if (forbidden) {
+    return forbidden;
+  }
+  return sicknessInputSchema.safeParse({
+    ...sicknessFormObject(formData),
+    idempotencyKey: formData.get("idempotencyKey") ?? "",
+  });
+}
+
+export function parseCorrectSicknessFormData(formData: FormData) {
+  const forbidden = rejectForbiddenSicknessFields(formData);
+  if (forbidden) {
+    return forbidden;
+  }
+  return correctSicknessInputSchema.safeParse({
+    ...sicknessFormObject(formData),
+    correctionReason: formData.get("correctionReason") ?? "",
+    expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+  });
+}
+
+export function parseArchiveSicknessFormData(formData: FormData) {
+  return archiveSicknessInputSchema.safeParse({
+    archiveReason: formData.get("archiveReason") ?? "",
+    confirmArchive: formData.get("confirmArchive") === "on",
+    expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+  });
+}
 
 function formObject(formData: FormData) {
   return {

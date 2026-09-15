@@ -1,42 +1,42 @@
 "use client";
 
-import { useActionState, useId, useMemo, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import {
-  correctAwolAction,
-  createAwolAction,
+  correctSicknessAction,
+  createSicknessAction,
   type AbsenceActionState,
 } from "@/app/(app)/absence/actions";
 import { AbsenceTypeSelector } from "@/components/absence/absence-type-selector";
-import { EventSearchPicker } from "@/components/absence/event-search-picker";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
+import { ISSUE_SUMMARY_MAX_CODE_POINTS } from "@/lib/absence/catalog";
+import type { AbsenceStaffOption } from "@/lib/absence/queries";
 import {
-  previewAwolEventEligibility,
-  requiresSameDayUnknownStartConfirmation,
-} from "@/lib/absence/eligibility";
-import type { AbsenceEventOption, AbsenceStaffOption } from "@/lib/absence/queries";
-import {
-  parseAwolFormData,
-  parseCorrectAwolFormData,
+  parseCorrectSicknessFormData,
+  parseSicknessFormData,
 } from "@/lib/absence/schema";
-import { formatLocalDateDisplay, parseLocalDate } from "@/lib/events/dates";
+import {
+  ISSUE_SUMMARY_HELPER_TEXT,
+  requiresAdvanceConfirmation,
+  requiresCorrectionAdvanceConfirmation,
+} from "@/lib/absence/sickness";
+import { parseLocalDate } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 import { withClientValidation } from "@/lib/form";
 
 const initialState: AbsenceActionState = {};
 
-export function AwolForm({
+export function SicknessForm({
   mode,
   absenceId,
   defaultReportedDate,
   timeZone,
   initialStaff,
-  initialEvent,
   cancelHref,
   initialValues,
   hideTypeSelector = false,
@@ -48,19 +48,21 @@ export function AwolForm({
   defaultReportedDate: string;
   timeZone: string;
   initialStaff?: AbsenceStaffOption | null;
-  initialEvent?: AbsenceEventOption | null;
   cancelHref?: string;
   initialValues?: {
     reportedDate?: string;
-    notes?: string | null;
-    sameDayStartUnknownConfirmed?: boolean;
+    firstWorkingDaySick?: string;
+    sicknessStartedDate?: string | null;
+    issueSummary?: string | null;
   };
   hideTypeSelector?: boolean;
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
   expectedUpdatedAt?: string;
 }) {
-  const action = mode === "create" ? createAwolAction : correctAwolAction;
-  const parse = mode === "create" ? parseAwolFormData : parseCorrectAwolFormData;
+  void timeZone;
+  const action = mode === "create" ? createSicknessAction : correctSicknessAction;
+  const parse =
+    mode === "create" ? parseSicknessFormData : parseCorrectSicknessFormData;
   const validatedAction = useMemo(
     () => withClientValidation(parse, action),
     [action, parse],
@@ -70,6 +72,7 @@ export function AwolForm({
     initialState,
   );
   const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [formKey, setFormKey] = useState(0);
   const [idempotencyKey, setIdempotencyKey] = useState(() =>
     crypto.randomUUID(),
@@ -77,67 +80,67 @@ export function AwolForm({
   const [selectedStaff, setSelectedStaff] = useState<AbsenceStaffOption | null>(
     initialStaff ?? null,
   );
-  const [selectedEvent, setSelectedEvent] = useState<AbsenceEventOption | null>(
-    initialEvent ?? null,
-  );
   const [reportedDate, setReportedDate] = useState(
     initialValues?.reportedDate ?? defaultReportedDate,
   );
-  const [notes, setNotes] = useState(initialValues?.notes ?? "");
-  const [correctionReason, setCorrectionReason] = useState("");
-  const [sameDayConfirmed, setSameDayConfirmed] = useState(
-    initialValues?.sameDayStartUnknownConfirmed ?? false,
+  const [firstWorkingDaySick, setFirstWorkingDaySick] = useState(
+    initialValues?.firstWorkingDaySick ?? "",
   );
+  const [sicknessStartedDate, setSicknessStartedDate] = useState(
+    initialValues?.sicknessStartedDate ?? "",
+  );
+  const [issueSummary, setIssueSummary] = useState(
+    initialValues?.issueSummary ?? "",
+  );
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [advanceConfirmed, setAdvanceConfirmed] = useState(false);
 
-  const eligibility = previewAwolEventEligibility({
-    eventDate: selectedEvent?.eventDate,
-    eventStartTime: selectedEvent?.startTime,
-    sameDayStartUnknownConfirmed: sameDayConfirmed,
-    timeZone,
-  });
-  const needsConfirmation = selectedEvent
-    ? requiresSameDayUnknownStartConfirmation({
-        eventDate: selectedEvent.eventDate,
-        eventStartTime: selectedEvent.startTime,
-        timeZone,
-      })
-    : false;
+  useEffect(() => {
+    if (!state.fieldErrors) {
+      return;
+    }
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>(
+      "[aria-invalid='true']",
+    );
+    firstInvalid?.focus();
+  }, [state.fieldErrors]);
+
+  const needsAdvanceConfirmation =
+    parseLocalDate(firstWorkingDaySick) != null &&
+    (mode === "create"
+      ? requiresAdvanceConfirmation(firstWorkingDaySick, defaultReportedDate)
+      : requiresCorrectionAdvanceConfirmation({
+          previousFirstWorkingDaySickIso:
+            initialValues?.firstWorkingDaySick ?? "",
+          nextFirstWorkingDaySickIso: firstWorkingDaySick,
+          todayIso: defaultReportedDate,
+        }));
 
   function resetCreateForm() {
     setFormKey((value) => value + 1);
     setIdempotencyKey(crypto.randomUUID());
-    setSelectedStaff(initialStaff ?? null);
-    setSelectedEvent(null);
+    setSelectedStaff(null);
+    onStaffChange?.(null);
     setReportedDate(defaultReportedDate);
-    setNotes("");
-    setSameDayConfirmed(false);
+    setFirstWorkingDaySick("");
+    setSicknessStartedDate("");
+    setIssueSummary("");
+    setAdvanceConfirmed(false);
   }
 
   const typeCards = hideTypeSelector ? null : (
-    <AbsenceTypeSelector value="AWOL" locked />
+    <AbsenceTypeSelector value="SICKNESS" locked />
   );
-
-  const eventDate = selectedEvent
-    ? parseLocalDate(selectedEvent.eventDate)
-    : null;
 
   const detailsFields = (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="mb-1 block text-sm font-medium text-slate-700">
-            Event date
-          </p>
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">
-            {eventDate ? formatLocalDateDisplay(eventDate) : "Select an event"}
-          </p>
-        </div>
-        <div>
-          <FieldLabel htmlFor={`${formId}-date`} required>
-            Date recorded
+          <FieldLabel htmlFor={`${formId}-reported`} required>
+            Date sickness reported
           </FieldLabel>
           <input
-            id={`${formId}-date`}
+            id={`${formId}-reported`}
             name="reportedDate"
             type="date"
             value={reportedDate}
@@ -150,83 +153,125 @@ export function AwolForm({
             aria-invalid={Boolean(state.fieldErrors?.reportedDate)}
             aria-describedby={
               state.fieldErrors?.reportedDate
-                ? `${formId}-date-error`
+                ? `${formId}-reported-error`
                 : undefined
             }
             className={controlClassName("w-full")}
           />
-          <p className="mt-1 text-sm text-slate-500">
-            The local date this AWOL was entered or confirmed.
-          </p>
           <FieldError
-            id={`${formId}-date-error`}
+            id={`${formId}-reported-error`}
             messages={state.fieldErrors?.reportedDate}
+          />
+        </div>
+        <div>
+          <FieldLabel htmlFor={`${formId}-first-day`} required>
+            First day sick from work
+          </FieldLabel>
+          <input
+            id={`${formId}-first-day`}
+            name="firstWorkingDaySick"
+            type="date"
+            value={firstWorkingDaySick}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next === "" || parseLocalDate(next)) {
+                setFirstWorkingDaySick(next);
+                setAdvanceConfirmed(false);
+              }
+            }}
+            aria-invalid={Boolean(state.fieldErrors?.firstWorkingDaySick)}
+            aria-describedby={
+              state.fieldErrors?.firstWorkingDaySick
+                ? `${formId}-first-day-error`
+                : undefined
+            }
+            className={controlClassName("w-full")}
+          />
+          <FieldError
+            id={`${formId}-first-day-error`}
+            messages={state.fieldErrors?.firstWorkingDaySick}
           />
         </div>
       </div>
 
-      {eligibility && !eligibility.ok && eligibility.field === "eventId" ? (
-        <p
-          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900"
-          role="status"
-        >
-          {eligibility.message}
-        </p>
-      ) : null}
+      <div>
+        <FieldLabel htmlFor={`${formId}-started`}>Sickness started</FieldLabel>
+        <input
+          id={`${formId}-started`}
+          name="sicknessStartedDate"
+          type="date"
+          value={sicknessStartedDate}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (next === "" || parseLocalDate(next)) {
+              setSicknessStartedDate(next);
+            }
+          }}
+          aria-invalid={Boolean(state.fieldErrors?.sicknessStartedDate)}
+          aria-describedby={
+            state.fieldErrors?.sicknessStartedDate
+              ? `${formId}-started-error`
+              : undefined
+          }
+          className={controlClassName("w-full sm:max-w-xs")}
+        />
+        <FieldError
+          id={`${formId}-started-error`}
+          messages={state.fieldErrors?.sicknessStartedDate}
+        />
+      </div>
 
-      {needsConfirmation ? (
+      {needsAdvanceConfirmation ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
-          <p className="text-sm text-amber-900">
-            This Event is today and has no start time. Confirm that the staff
-            member was expected and failed to attend.
-          </p>
-          <label className="mt-2 flex items-start gap-2 text-sm text-slate-800">
+          <label className="flex items-start gap-2 text-sm text-slate-800">
             <input
               type="checkbox"
-              name="sameDayStartUnknownConfirmed"
-              checked={sameDayConfirmed}
-              onChange={(event) => setSameDayConfirmed(event.target.checked)}
+              name="futureFirstWorkingDayConfirmed"
+              checked={advanceConfirmed}
+              onChange={(event) => setAdvanceConfirmed(event.target.checked)}
               className="mt-1"
               aria-invalid={Boolean(
-                state.fieldErrors?.sameDayStartUnknownConfirmed,
+                state.fieldErrors?.futureFirstWorkingDayConfirmed,
               )}
               aria-describedby={
-                state.fieldErrors?.sameDayStartUnknownConfirmed
-                  ? `${formId}-confirm-error`
+                state.fieldErrors?.futureFirstWorkingDayConfirmed
+                  ? `${formId}-advance-error`
                   : undefined
               }
             />
             <span>
-              I confirm the staff member was expected and has failed to attend
-              this Event <span className="text-red-700">*</span>
+              The staff member reported sickness before their next affected
+              working day. <span className="text-red-700">*</span>
             </span>
           </label>
           <FieldError
-            id={`${formId}-confirm-error`}
-            messages={state.fieldErrors?.sameDayStartUnknownConfirmed}
+            id={`${formId}-advance-error`}
+            messages={state.fieldErrors?.futureFirstWorkingDayConfirmed}
           />
         </div>
       ) : null}
 
       <div>
-        <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
+        <FieldLabel htmlFor={`${formId}-summary`}>Issue summary</FieldLabel>
         <textarea
-          id={`${formId}-notes`}
-          name="notes"
+          id={`${formId}-summary`}
+          name="issueSummary"
           rows={3}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          maxLength={2000}
-          aria-invalid={Boolean(state.fieldErrors?.notes)}
-          aria-describedby={
-            state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
-          }
+          value={issueSummary}
+          onChange={(event) => setIssueSummary(event.target.value)}
+          maxLength={ISSUE_SUMMARY_MAX_CODE_POINTS}
+          aria-invalid={Boolean(state.fieldErrors?.issueSummary)}
+          aria-describedby={`${formId}-summary-help${
+            state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
+          }`}
           className={controlClassName("w-full")}
         />
-        <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
+        <p id={`${formId}-summary-help`} className="mt-1 text-sm text-slate-500">
+          {ISSUE_SUMMARY_HELPER_TEXT}
+        </p>
         <FieldError
-          id={`${formId}-notes-error`}
-          messages={state.fieldErrors?.notes}
+          id={`${formId}-summary-error`}
+          messages={state.fieldErrors?.issueSummary}
         />
       </div>
 
@@ -265,7 +310,7 @@ export function AwolForm({
       : (cancelHref ?? "/dashboard");
 
   return (
-    <form action={formAction} noValidate className="space-y-6">
+    <form ref={formRef} action={formAction} noValidate className="space-y-6">
       {mode === "edit" && absenceId ? (
         <input type="hidden" name="absenceId" value={absenceId} />
       ) : null}
@@ -275,7 +320,15 @@ export function AwolForm({
       {mode === "edit" && expectedUpdatedAt ? (
         <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
       ) : null}
-      <input type="hidden" name="type" value="AWOL" />
+      {mode === "edit" && initialValues?.firstWorkingDaySick ? (
+        <input
+          type="hidden"
+          name="previousFirstWorkingDaySick"
+          value={initialValues.firstWorkingDaySick}
+        />
+      ) : null}
+      <input type="hidden" name="type" value="SICKNESS" />
+      <input type="hidden" name="todayIso" value={defaultReportedDate} />
       <FormAlert>{state.error}</FormAlert>
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
@@ -284,7 +337,7 @@ export function AwolForm({
             variant="ghost"
             className="px-0 underline"
           >
-            View the existing absence
+            Open the existing record
           </ButtonLink>
         </p>
       ) : null}
@@ -308,34 +361,20 @@ export function AwolForm({
               }}
             />
           </FormSection>
-          <FormSection step={typeCards ? 3 : 2} title="Select event">
-            <EventSearchPicker
-              key={`event-${formKey}`}
-              initialEvent={selectedEvent}
-              searchMode="awol"
-              errorId={`${formId}-event-error`}
-              errorMessages={state.fieldErrors?.eventId}
-              onSelect={(event) => {
-                setSelectedEvent(event);
-                setSameDayConfirmed(false);
-              }}
-            />
-          </FormSection>
-          <FormSection step={typeCards ? 4 : 3} title="Date recorded and notes">
+          <FormSection step={typeCards ? 3 : 2} title="Initial report">
             {detailsFields}
           </FormSection>
           <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
             <p className="min-w-0 text-sm text-slate-600">
-              <span className="font-medium text-awol">AWOL</span>
+              <span className="font-medium text-sickness">Sickness</span>
               {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
-              {selectedEvent ? ` → ${selectedEvent.name}` : ""}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" onClick={resetCreateForm}>
                 Clear
               </Button>
               <Button type="submit" disabled={pending || !idempotencyKey} icon={Check}>
-                {pending ? "Saving…" : "Save absence"}
+                {pending ? "Saving…" : "Save sickness report"}
               </Button>
             </div>
           </div>
@@ -347,15 +386,9 @@ export function AwolForm({
             initialStaff={initialStaff}
             errorId={`${formId}-staff-error`}
             errorMessages={state.fieldErrors?.staffId}
-          />
-          <EventSearchPicker
-            initialEvent={initialEvent}
-            searchMode="awol"
-            errorId={`${formId}-event-error`}
-            errorMessages={state.fieldErrors?.eventId}
-            onSelect={(event) => {
-              setSelectedEvent(event);
-              setSameDayConfirmed(false);
+            onSelect={(staff) => {
+              setSelectedStaff(staff);
+              onStaffChange?.(staff);
             }}
           />
           {detailsFields}
