@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { calculateNotice, coerceLocalDateIso } from "@/lib/absence/notice";
 import {
+  ALL_LEDGER_SORT_FIELDS,
   ARCHIVE_REASON_MAX_LENGTH,
   ARCHIVE_REASON_MIN_LENGTH,
   AWOL_LEDGER_SORT_FIELDS,
@@ -10,6 +11,7 @@ import {
   DEFAULT_LEDGER_DIRECTION,
   DEFAULT_LEDGER_SORT,
   DEFAULT_LEDGER_VIEW,
+  DEFAULT_SICKNESS_LEDGER_SORT,
   ISSUE_SUMMARY_MAX_CODE_POINTS,
   LEDGER_SORT_DIRECTIONS,
   LEDGER_SORT_FIELDS,
@@ -18,6 +20,7 @@ import {
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
+  SICKNESS_LEDGER_SORT_FIELDS,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
@@ -583,8 +586,19 @@ export { flattenFieldErrors } from "@/lib/form";
 
 const LEDGER_SORT_FIELD_SET = new Set<string>(LEDGER_SORT_FIELDS);
 const AWOL_LEDGER_SORT_FIELD_SET = new Set<string>(AWOL_LEDGER_SORT_FIELDS);
+const SICKNESS_LEDGER_SORT_FIELD_SET = new Set<string>(SICKNESS_LEDGER_SORT_FIELDS);
 const LEDGER_SORT_DIRECTION_SET = new Set<string>(LEDGER_SORT_DIRECTIONS);
 const LEDGER_VIEW_SET = new Set<string>(LEDGER_VIEWS);
+
+function defaultLedgerSort(view: LedgerView): LedgerSortField {
+  if (view === "awol") {
+    return DEFAULT_AWOL_LEDGER_SORT;
+  }
+  if (view === "sickness") {
+    return DEFAULT_SICKNESS_LEDGER_SORT;
+  }
+  return DEFAULT_LEDGER_SORT;
+}
 
 function optionalLedgerDate(value: unknown): string {
   if (typeof value !== "string") {
@@ -608,8 +622,7 @@ function optionalLedgerSort(
   value: unknown,
   view: LedgerView,
 ): LedgerSortField {
-  const fallback =
-    view === "awol" ? DEFAULT_AWOL_LEDGER_SORT : DEFAULT_LEDGER_SORT;
+  const fallback = defaultLedgerSort(view);
   if (typeof value !== "string") {
     return fallback;
   }
@@ -618,10 +631,19 @@ function optionalLedgerSort(
       ? (value as LedgerSortField)
       : fallback;
   }
+  if (view === "sickness") {
+    return SICKNESS_LEDGER_SORT_FIELD_SET.has(value)
+      ? (value as LedgerSortField)
+      : fallback;
+  }
   if (LEDGER_SORT_FIELD_SET.has(value)) {
     return value as LedgerSortField;
   }
   return fallback;
+}
+
+function optionalLedgerIncludeArchived(value: unknown): boolean {
+  return value === "1" || value === 1 || value === true;
 }
 
 function optionalLedgerDirection(value: unknown): LedgerSortDirection {
@@ -652,7 +674,10 @@ export const ledgerListQuerySchema = z.object({
   reportedTo: z.string(),
   eventFrom: z.string(),
   eventTo: z.string(),
-  sort: z.enum(LEDGER_SORT_FIELDS),
+  firstDayFrom: z.string(),
+  firstDayTo: z.string(),
+  includeArchived: z.boolean(),
+  sort: z.enum(ALL_LEDGER_SORT_FIELDS),
   direction: z.enum(LEDGER_SORT_DIRECTIONS),
   page: z.number().int().min(1),
   view: z.enum(LEDGER_VIEWS),
@@ -670,7 +695,10 @@ export const defaultLedgerListQuery = (
   reportedTo: "",
   eventFrom: "",
   eventTo: "",
-  sort: view === "awol" ? DEFAULT_AWOL_LEDGER_SORT : DEFAULT_LEDGER_SORT,
+  firstDayFrom: "",
+  firstDayTo: "",
+  includeArchived: false,
+  sort: defaultLedgerSort(view),
   direction: DEFAULT_LEDGER_DIRECTION,
   page: 1,
   view,
@@ -684,6 +712,9 @@ export function parseLedgerListQuery(raw: {
   reportedTo?: string;
   eventFrom?: string;
   eventTo?: string;
+  firstDayFrom?: string;
+  firstDayTo?: string;
+  includeArchived?: string;
   sort?: string;
   direction?: string;
   page?: string;
@@ -698,6 +729,9 @@ export function parseLedgerListQuery(raw: {
     reportedTo: optionalLedgerDate(raw.reportedTo),
     eventFrom: optionalLedgerDate(raw.eventFrom),
     eventTo: optionalLedgerDate(raw.eventTo),
+    firstDayFrom: optionalLedgerDate(raw.firstDayFrom),
+    firstDayTo: optionalLedgerDate(raw.firstDayTo),
+    includeArchived: optionalLedgerIncludeArchived(raw.includeArchived),
     sort: optionalLedgerSort(raw.sort, view),
     direction: optionalLedgerDirection(raw.direction),
     page: optionalLedgerPage(raw.page),
@@ -720,6 +754,14 @@ export function isLedgerEventDateRangeInvalid(query: LedgerListQuery): boolean {
   );
 }
 
+export function isLedgerFirstDayRangeInvalid(query: LedgerListQuery): boolean {
+  return Boolean(
+    query.firstDayFrom &&
+      query.firstDayTo &&
+      query.firstDayFrom > query.firstDayTo,
+  );
+}
+
 export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
   return Boolean(
     query.q ||
@@ -729,6 +771,10 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
         (query.reportedFrom || query.reportedTo)) ||
       (query.view === "awol" &&
         !isLedgerEventDateRangeInvalid(query) &&
-        (query.eventFrom || query.eventTo)),
+        (query.eventFrom || query.eventTo)) ||
+      (query.view === "sickness" &&
+        (query.includeArchived ||
+          (!isLedgerFirstDayRangeInvalid(query) &&
+            (query.firstDayFrom || query.firstDayTo)))),
   );
 }

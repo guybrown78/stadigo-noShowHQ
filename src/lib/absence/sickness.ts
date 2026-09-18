@@ -31,6 +31,19 @@ export const NO_SICKNESS_STARTED_RECORDED = "Not recorded";
 export const NO_ISSUE_SUMMARY_RECORDED = "No issue summary recorded";
 export const ISSUE_SUMMARY_PRESENT_LABEL = "Issue summary recorded";
 export const SICKNESS_INITIAL_STATUS_LABEL = "Initial report recorded";
+export const SICKNESS_LEDGER_SUPPORTING_COPY =
+  "Review recorded initial sickness reports. This view does not indicate whether a sickness episode is ongoing or closed.";
+export const SICKNESS_LEDGER_EMPTY_TITLE = "No Sickness reports recorded yet.";
+export const SICKNESS_LEDGER_EMPTY_DESCRIPTION =
+  "Initial sickness reports will appear here after they are recorded.";
+export const SICKNESS_LEDGER_NO_ARCHIVED_TITLE =
+  "No archived Sickness reports found.";
+export const SICKNESS_LEDGER_NO_ARCHIVED_DESCRIPTION =
+  "Turn off Show archived to return to active reports.";
+export const SICKNESS_LEDGER_NO_MATCH_TITLE =
+  "No Sickness reports match these filters.";
+export const SICKNESS_LEDGER_NO_MATCH_DESCRIPTION =
+  "Try a different search, or reset the filters to see all active Sickness reports.";
 
 export const SICKNESS_FORBIDDEN_FIELDS = [
   "eventId",

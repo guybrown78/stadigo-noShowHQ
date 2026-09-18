@@ -227,6 +227,9 @@ describe("createSickness", () => {
     expect(absence.notes).toBeNull();
     expect(absence.sickness?.sicknessStartedDate).toBeNull();
     expect(absence.sickness?.issueSummary).toBeNull();
+    expect(absence.sickness?.staffFirstNameSnapshot).toBe("Jamie");
+    expect(absence.sickness?.staffLastNameSnapshot).toBe("Cole a");
+    expect(absence.sickness?.staffIdNumberSnapshot).toBe("SK-A");
     expect(absence.history[0]?.action).toBe("CREATED");
     const staff = await prisma.staff.findUniqueOrThrow({
       where: { id: tenantA.staffId },
@@ -516,6 +519,9 @@ describe("correctSickness and archiveSickness", () => {
       created.id,
     );
     expect(updated.staffId).toBe(tenantA.otherStaffId);
+    expect(updated.sickness?.staffFirstNameSnapshot).toBe("Jamie");
+    expect(updated.sickness?.staffLastNameSnapshot).toBe("Cole a-b");
+    expect(updated.sickness?.staffIdNumberSnapshot).toBe("SK-A-B");
     const correction = updated.history.find((row) => row.action === "CORRECTED");
     const changes = parseHistoryChanges(correction?.changes);
     expect(changes.some((change) => change.field === "staffId")).toBe(true);

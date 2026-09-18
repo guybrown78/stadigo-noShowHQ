@@ -628,6 +628,7 @@ model Absence {
   @@index([tenantId, staffId, recordStatus])
   @@index([tenantId, eventId])
   @@index([tenantId, type, recordStatus, reportedDate])
+  @@index([tenantId, type, recordStatus, firstWorkingDaySick])
   @@index([tenantId, followUpStatus, recordStatus])
   @@index([tenantId, staffId, firstWorkingDaySick])
   @@index([staffId])
@@ -677,15 +678,18 @@ model AwolDetail {
 }
 
 model SicknessDetail {
-  absenceId           String    @id
-  tenantId            String
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  absence             Absence   @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
-  firstWorkingDaySick DateTime  @db.Date
-  sicknessStartedDate DateTime? @db.Date
-  issueSummary        String?   @db.VarChar(1000)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  absenceId               String    @id
+  tenantId                String
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence                 Absence   @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  firstWorkingDaySick     DateTime  @db.Date
+  sicknessStartedDate     DateTime? @db.Date
+  issueSummary            String?   @db.VarChar(1000)
+  staffFirstNameSnapshot  String
+  staffLastNameSnapshot   String
+  staffIdNumberSnapshot   String
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@unique([absenceId, tenantId])
   @@index([tenantId])

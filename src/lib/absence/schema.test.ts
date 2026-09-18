@@ -11,6 +11,7 @@ import {
   parseSicknessFormData,
   parseLedgerListQuery,
   isLedgerDateRangeInvalid,
+  isLedgerFirstDayRangeInvalid,
   ledgerHasActiveFilters,
   defaultLedgerListQuery,
 } from "@/lib/absence/schema";
@@ -159,18 +160,51 @@ describe("ledgerListQuerySchema", () => {
     expect(ledgerHasActiveFilters(parsed)).toBe(true);
   });
 
-  it("allow-lists ledger views and defaults AWOL sort to event date", () => {
+  it("allow-lists ledger views and defaults Sickness sort to first working day", () => {
     const awol = parseLedgerListQuery({ view: "awol" });
     expect(awol.view).toBe("awol");
     expect(awol.sort).toBe("eventDate");
     expect(awol.page).toBe(1);
 
-    const unknown = parseLedgerListQuery({ view: "sickness" });
+    const sickness = parseLedgerListQuery({ view: "sickness" });
+    expect(sickness.view).toBe("sickness");
+    expect(sickness.sort).toBe("firstDay");
+    expect(sickness.includeArchived).toBe(false);
+    expect(sickness.page).toBe(1);
+
+    const unknown = parseLedgerListQuery({ view: "payroll" });
     expect(unknown.view).toBe("cancellations");
     expect(unknown.sort).toBe("reported");
 
     const noticeSort = parseLedgerListQuery({ view: "awol", sort: "notice" });
     expect(noticeSort.sort).toBe("eventDate");
+
+    const invalidSicknessSort = parseLedgerListQuery({
+      view: "sickness",
+      sort: "notice",
+    });
+    expect(invalidSicknessSort.sort).toBe("firstDay");
+
+    const includeArchived = parseLedgerListQuery({
+      view: "sickness",
+      includeArchived: "1",
+    });
+    expect(includeArchived.includeArchived).toBe(true);
+    expect(ledgerHasActiveFilters(includeArchived)).toBe(true);
+
+    const ignoredArchived = parseLedgerListQuery({
+      view: "sickness",
+      includeArchived: "true",
+    });
+    expect(ignoredArchived.includeArchived).toBe(false);
+
+    const invertedFirstDay = parseLedgerListQuery({
+      view: "sickness",
+      firstDayFrom: "2026-09-20",
+      firstDayTo: "2026-09-01",
+    });
+    expect(isLedgerFirstDayRangeInvalid(invertedFirstDay)).toBe(true);
+    expect(ledgerHasActiveFilters(invertedFirstDay)).toBe(false);
   });
 });
 
@@ -220,10 +254,27 @@ describe("ledgerListHref", () => {
     );
   });
 
-  it("emits the AWOL view and keeps Cancellation URLs stable", () => {
+  it("emits the AWOL and Sickness views and keeps Cancellation URLs stable", () => {
     expect(ledgerListHref(defaultLedgerListQuery())).toBe("/ledger");
     expect(ledgerListHref(defaultLedgerListQuery("awol"))).toBe(
       "/ledger?view=awol",
+    );
+    expect(ledgerListHref(defaultLedgerListQuery("sickness"))).toBe(
+      "/ledger?view=sickness",
+    );
+    expect(
+      ledgerListHref({
+        ...defaultLedgerListQuery("sickness"),
+        q: "Jamie",
+        firstDayFrom: "2026-09-01",
+        firstDayTo: "2026-09-30",
+        includeArchived: true,
+        sort: "staff",
+        direction: "asc",
+        page: 2,
+      }),
+    ).toBe(
+      "/ledger?view=sickness&q=Jamie&firstDayFrom=2026-09-01&firstDayTo=2026-09-30&includeArchived=1&sort=staff&direction=asc&page=2",
     );
   });
 });

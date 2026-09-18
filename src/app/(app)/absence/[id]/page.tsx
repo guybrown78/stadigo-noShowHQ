@@ -477,7 +477,7 @@ function SicknessDetail({
     <div>
       <PageHeader
         breadcrumbs={[
-          { href: `/staff/${absence.staff.id}`, label: staffName },
+          { href: "/ledger?view=sickness", label: "Ledger" },
           { label: "Sickness" },
         ]}
         title="Sickness"
