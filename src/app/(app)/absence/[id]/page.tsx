@@ -235,7 +235,7 @@ function CancellationDetail({
     <div>
       <PageHeader
         breadcrumbs={[
-          { href: "/ledger", label: "Ledger" },
+          { href: "/ledger?view=cancellations", label: "Ledger" },
           { label: "Cancellation" },
         ]}
         title="Cancellation"

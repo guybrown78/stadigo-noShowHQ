@@ -7,8 +7,8 @@ export const CREATABLE_ABSENCE_TYPES = [
   "AWOL",
   "SICKNESS",
 ] as const;
-export const LEDGER_VIEWS = ["cancellations", "awol", "sickness"] as const;
-export const DEFAULT_LEDGER_VIEW = "cancellations" as const;
+export const LEDGER_VIEWS = ["all", "cancellations", "awol", "sickness"] as const;
+export const DEFAULT_LEDGER_VIEW = "all" as const;
 export const AWOL_CREATE_IDEMPOTENCY_OPERATION = "AWOL_CREATE";
 export const SICKNESS_CREATE_IDEMPOTENCY_OPERATION = "SICKNESS_CREATE";
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -45,31 +45,40 @@ export const ABSENCE_EVENT_SEARCH_LIMIT = 20;
 export const STAFF_ABSENCE_HISTORY_PAGE_SIZE = 10;
 export const LEDGER_PAGE_SIZE = 25;
 
-export const LEDGER_SORT_FIELDS = [
-  "reported",
-  "eventDate",
+export const UNIFIED_LEDGER_SORT_FIELDS = [
+  "type",
   "staff",
+  "reported",
+  "affected",
+  "created",
+] as const;
+export const LEDGER_SORT_FIELDS = [
+  ...UNIFIED_LEDGER_SORT_FIELDS,
+  "eventDate",
   "event",
   "notice",
 ] as const;
 export const AWOL_LEDGER_SORT_FIELDS = [
-  "reported",
+  ...UNIFIED_LEDGER_SORT_FIELDS,
   "eventDate",
-  "staff",
   "event",
 ] as const;
 export const SICKNESS_LEDGER_SORT_FIELDS = [
+  ...UNIFIED_LEDGER_SORT_FIELDS,
   "firstDay",
-  "reported",
   "sicknessStarted",
-  "staff",
-  "created",
 ] as const;
 export const ALL_LEDGER_SORT_FIELDS = [
-  ...LEDGER_SORT_FIELDS,
+  "type",
+  "staff",
+  "reported",
+  "affected",
+  "created",
+  "eventDate",
+  "event",
+  "notice",
   "firstDay",
   "sicknessStarted",
-  "created",
 ] as const;
 export const LEDGER_SORT_DIRECTIONS = ["asc", "desc"] as const;
 export const DEFAULT_LEDGER_SORT = "reported" as const;
@@ -82,3 +91,50 @@ export type LedgerSortField = (typeof ALL_LEDGER_SORT_FIELDS)[number];
 export type LedgerSortDirection = (typeof LEDGER_SORT_DIRECTIONS)[number];
 export type AwolLedgerSortField = (typeof AWOL_LEDGER_SORT_FIELDS)[number];
 export type SicknessLedgerSortField = (typeof SICKNESS_LEDGER_SORT_FIELDS)[number];
+
+export const LEDGER_ABSENCE_TYPES_BY_VIEW = {
+  all: ["CANCELLATION", "AWOL", "SICKNESS"],
+  cancellations: ["CANCELLATION"],
+  awol: ["AWOL"],
+  sickness: ["SICKNESS"],
+} as const;
+
+export function defaultLedgerSortForView(view: LedgerView): LedgerSortField {
+  if (view === "awol") {
+    return DEFAULT_AWOL_LEDGER_SORT;
+  }
+  if (view === "sickness") {
+    return DEFAULT_SICKNESS_LEDGER_SORT;
+  }
+  return DEFAULT_LEDGER_SORT;
+}
+
+export function sortFieldsForLedgerView(view: LedgerView): readonly LedgerSortField[] {
+  if (view === "awol") {
+    return AWOL_LEDGER_SORT_FIELDS;
+  }
+  if (view === "sickness") {
+    return SICKNESS_LEDGER_SORT_FIELDS;
+  }
+  if (view === "cancellations") {
+    return LEDGER_SORT_FIELDS;
+  }
+  return [...UNIFIED_LEDGER_SORT_FIELDS, "eventDate", "firstDay"];
+}
+
+export function isLedgerSortAllowed(
+  view: LedgerView,
+  sort: string,
+): sort is LedgerSortField {
+  return (sortFieldsForLedgerView(view) as readonly string[]).includes(sort);
+}
+
+export function ledgerAbsenceTypesForView(
+  view: LedgerView,
+): readonly (typeof LEDGER_ABSENCE_TYPES_BY_VIEW)[LedgerView][number][] {
+  return LEDGER_ABSENCE_TYPES_BY_VIEW[view];
+}
+
+export function ledgerShowsEventFilters(view: LedgerView): boolean {
+  return view !== "sickness";
+}

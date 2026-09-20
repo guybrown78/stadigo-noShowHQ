@@ -8,8 +8,8 @@ Use it as a **look-and-feel** reference for screens that already exist. It is no
 
 Keep out of scope unless a later ticket asks for them:
 
-- Dashboard widgets, charts, Reports
+- Live dashboard widgets, charts, Reports
 - Serial-offender scoring, reliability %, strike counts
 - SMS, auto-reminders, notification centre
-- Live AWOL / Sickness types (Cancellation only today)
+- Sickness lifecycle beyond the initial report (paused until the unified Ledger is accepted)
 - Branding as “Stadigo” — product name stays **NoShowHQ**

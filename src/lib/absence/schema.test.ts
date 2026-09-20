@@ -18,6 +18,7 @@ import {
 import {
   absenceCancelHref,
   ledgerListHref,
+  ledgerViewHref,
   parseAbsenceReturnOrigin,
 } from "@/lib/absence/url";
 import { CREATABLE_ABSENCE_TYPES } from "@/lib/absence/catalog";
@@ -118,10 +119,12 @@ describe("ledgerListQuerySchema", () => {
   it("applies defaults and trims search", () => {
     const parsed = parseLedgerListQuery({ q: "  Alex  " });
     expect(parsed.q).toBe("Alex");
+    expect(parsed.view).toBe("all");
     expect(parsed.sort).toBe("reported");
     expect(parsed.direction).toBe("desc");
     expect(parsed.page).toBe(1);
     expect(parsed.venue).toBe("");
+    expect(parsed.includeArchived).toBe(false);
   });
 
   it("falls back safely for invalid sort, direction, page and dates", () => {
@@ -161,6 +164,14 @@ describe("ledgerListQuerySchema", () => {
   });
 
   it("allow-lists ledger views and defaults Sickness sort to first working day", () => {
+    const all = parseLedgerListQuery({});
+    expect(all.view).toBe("all");
+    expect(all.sort).toBe("reported");
+
+    const cancellations = parseLedgerListQuery({ view: "cancellations" });
+    expect(cancellations.view).toBe("cancellations");
+    expect(cancellations.sort).toBe("reported");
+
     const awol = parseLedgerListQuery({ view: "awol" });
     expect(awol.view).toBe("awol");
     expect(awol.sort).toBe("eventDate");
@@ -173,11 +184,17 @@ describe("ledgerListQuerySchema", () => {
     expect(sickness.page).toBe(1);
 
     const unknown = parseLedgerListQuery({ view: "payroll" });
-    expect(unknown.view).toBe("cancellations");
+    expect(unknown.view).toBe("all");
     expect(unknown.sort).toBe("reported");
 
     const noticeSort = parseLedgerListQuery({ view: "awol", sort: "notice" });
     expect(noticeSort.sort).toBe("eventDate");
+
+    const invalidAllSort = parseLedgerListQuery({
+      view: "all",
+      sort: "notice",
+    });
+    expect(invalidAllSort.sort).toBe("reported");
 
     const invalidSicknessSort = parseLedgerListQuery({
       view: "sickness",
@@ -186,7 +203,7 @@ describe("ledgerListQuerySchema", () => {
     expect(invalidSicknessSort.sort).toBe("firstDay");
 
     const includeArchived = parseLedgerListQuery({
-      view: "sickness",
+      view: "all",
       includeArchived: "1",
     });
     expect(includeArchived.includeArchived).toBe(true);
@@ -204,7 +221,18 @@ describe("ledgerListQuerySchema", () => {
       firstDayTo: "2026-09-01",
     });
     expect(isLedgerFirstDayRangeInvalid(invertedFirstDay)).toBe(true);
+    expect(invertedFirstDay.affectedFrom).toBe("2026-09-20");
+    expect(invertedFirstDay.affectedTo).toBe("2026-09-01");
     expect(ledgerHasActiveFilters(invertedFirstDay)).toBe(false);
+
+    const affectedAlias = parseLedgerListQuery({
+      view: "awol",
+      eventFrom: "2026-08-01",
+      eventTo: "2026-08-31",
+    });
+    expect(affectedAlias.affectedFrom).toBe("2026-08-01");
+    expect(affectedAlias.affectedTo).toBe("2026-08-31");
+    expect(ledgerHasActiveFilters(affectedAlias)).toBe(true);
   });
 });
 
@@ -245,17 +273,22 @@ describe("ledgerListHref", () => {
         eventType: "type_1",
         reportedFrom: "2026-09-01",
         reportedTo: "2026-09-30",
-        sort: "eventDate",
+        affectedFrom: "2026-09-02",
+        affectedTo: "2026-09-20",
+        sort: "affected",
         direction: "asc",
         page: 2,
       }),
     ).toBe(
-      "/ledger?q=Patel&venue=venue_1&eventType=type_1&reportedFrom=2026-09-01&reportedTo=2026-09-30&sort=eventDate&direction=asc&page=2",
+      "/ledger?q=Patel&venue=venue_1&eventType=type_1&reportedFrom=2026-09-01&reportedTo=2026-09-30&affectedFrom=2026-09-02&affectedTo=2026-09-20&sort=affected&direction=asc&page=2",
     );
   });
 
-  it("emits the AWOL and Sickness views and keeps Cancellation URLs stable", () => {
+  it("emits focused views and maps affected-date aliases", () => {
     expect(ledgerListHref(defaultLedgerListQuery())).toBe("/ledger");
+    expect(ledgerListHref(defaultLedgerListQuery("cancellations"))).toBe(
+      "/ledger?view=cancellations",
+    );
     expect(ledgerListHref(defaultLedgerListQuery("awol"))).toBe(
       "/ledger?view=awol",
     );
@@ -274,7 +307,25 @@ describe("ledgerListHref", () => {
         page: 2,
       }),
     ).toBe(
-      "/ledger?view=sickness&q=Jamie&firstDayFrom=2026-09-01&firstDayTo=2026-09-30&includeArchived=1&sort=staff&direction=asc&page=2",
+      "/ledger?view=sickness&q=Jamie&affectedFrom=2026-09-01&affectedTo=2026-09-30&includeArchived=1&sort=staff&direction=asc&page=2",
+    );
+  });
+
+  it("preserves compatible filters when switching views", () => {
+    const current = {
+      ...defaultLedgerListQuery("all"),
+      q: "Patel",
+      venue: "venue_1",
+      includeArchived: true,
+      sort: "notice" as const,
+      direction: "asc" as const,
+      page: 3,
+    };
+    expect(ledgerViewHref(current, "sickness")).toBe(
+      "/ledger?view=sickness&q=Patel&includeArchived=1",
+    );
+    expect(ledgerViewHref(current, "cancellations")).toBe(
+      "/ledger?view=cancellations&q=Patel&venue=venue_1&includeArchived=1&sort=notice&direction=asc",
     );
   });
 });
