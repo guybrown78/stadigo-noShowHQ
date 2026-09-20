@@ -1,19 +1,20 @@
 import {
-  DEFAULT_AWOL_LEDGER_SORT,
   DEFAULT_LEDGER_DIRECTION,
-  DEFAULT_LEDGER_SORT,
-  DEFAULT_SICKNESS_LEDGER_SORT,
+  DEFAULT_LEDGER_VIEW,
+  defaultLedgerSortForView,
+  isLedgerSortAllowed,
+  type LedgerView,
 } from "@/lib/absence/catalog";
 import type { LedgerListQuery } from "@/lib/absence/schema";
 
-function defaultSortForView(view: LedgerListQuery["view"]): string {
-  if (view === "awol") {
-    return DEFAULT_AWOL_LEDGER_SORT;
+function resolvedAffected(
+  query: Partial<LedgerListQuery>,
+  bound: "from" | "to",
+): string {
+  if (bound === "from") {
+    return query.affectedFrom || query.eventFrom || query.firstDayFrom || "";
   }
-  if (view === "sickness") {
-    return DEFAULT_SICKNESS_LEDGER_SORT;
-  }
-  return DEFAULT_LEDGER_SORT;
+  return query.affectedTo || query.eventTo || query.firstDayTo || "";
 }
 
 export function ledgerListHref(
@@ -22,26 +23,24 @@ export function ledgerListHref(
 ): string {
   const merged = { ...query, ...overrides };
   const params = new URLSearchParams();
-  const view = merged.view ?? "cancellations";
-  const defaultSort = defaultSortForView(view);
+  const view = merged.view ?? DEFAULT_LEDGER_VIEW;
+  const defaultSort = defaultLedgerSortForView(view);
+  const affectedFrom = resolvedAffected(merged, "from");
+  const affectedTo = resolvedAffected(merged, "to");
 
-  if (view === "awol" || view === "sickness") {
+  if (view !== DEFAULT_LEDGER_VIEW) {
     params.set("view", view);
   }
   if (merged.q) params.set("q", merged.q);
-  if (merged.venue) params.set("venue", merged.venue);
-  if (merged.eventType) params.set("eventType", merged.eventType);
+  if (view !== "sickness") {
+    if (merged.venue) params.set("venue", merged.venue);
+    if (merged.eventType) params.set("eventType", merged.eventType);
+  }
   if (merged.reportedFrom) params.set("reportedFrom", merged.reportedFrom);
   if (merged.reportedTo) params.set("reportedTo", merged.reportedTo);
-  if (view === "awol") {
-    if (merged.eventFrom) params.set("eventFrom", merged.eventFrom);
-    if (merged.eventTo) params.set("eventTo", merged.eventTo);
-  }
-  if (view === "sickness") {
-    if (merged.firstDayFrom) params.set("firstDayFrom", merged.firstDayFrom);
-    if (merged.firstDayTo) params.set("firstDayTo", merged.firstDayTo);
-    if (merged.includeArchived) params.set("includeArchived", "1");
-  }
+  if (affectedFrom) params.set("affectedFrom", affectedFrom);
+  if (affectedTo) params.set("affectedTo", affectedTo);
+  if (merged.includeArchived) params.set("includeArchived", "1");
 
   const sort = merged.sort ?? defaultSort;
   const direction = merged.direction ?? DEFAULT_LEDGER_DIRECTION;
@@ -54,6 +53,31 @@ export function ledgerListHref(
 
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";
+}
+
+export function ledgerViewHref(
+  query: LedgerListQuery,
+  view: LedgerView,
+): string {
+  const sortAllowed = isLedgerSortAllowed(view, query.sort);
+  return ledgerListHref(query, {
+    view,
+    page: 1,
+    venue: view === "sickness" ? "" : query.venue,
+    eventType: view === "sickness" ? "" : query.eventType,
+    sort: sortAllowed ? query.sort : defaultLedgerSortForView(view),
+    direction: sortAllowed ? query.direction : DEFAULT_LEDGER_DIRECTION,
+  });
+}
+
+export function ledgerLogAbsenceHref(view: LedgerView): string {
+  if (view === "awol") {
+    return "/absence/new?type=awol";
+  }
+  if (view === "sickness") {
+    return "/absence/new?type=sickness";
+  }
+  return "/absence/new";
 }
 
 export function parseAbsenceReturnOrigin(

@@ -95,7 +95,7 @@ Events are tenant-isolated records (type, subtype, venue, date, staffing, risk t
 
 Staff are tenant-isolated operational records (staff ID, name, role, department, manager, employment status, clearance summary, and a tenant-safe probation workflow). See [docs/staff.md](docs/staff.md). Creating a staff member does not create a login. New tenants receive a 90-day probation default under **Settings → Probation**; changing it applies to staff created afterwards only. Due and overdue reviews are chased in-app from **Staff → Probation** (no email or SMS).
 
-Absences are tenant-isolated records attached to Staff and (for Cancellation) Events. See [docs/absences.md](docs/absences.md). This release logs Cancellations only; AWOL and Sickness will use the same parent model. Logging a cancellation does not change employment or event status.
+Absences are tenant-isolated records attached to Staff and, for Cancellation and AWOL, Events. See [docs/absences.md](docs/absences.md). The Ledger defaults to All absences, with Cancellations, AWOL and Sickness as type filters. Logging an absence does not change employment or event status.
 
 Run `npm run reconcile-probation` (or the daily `/api/cron/probation-reconcile` cron with `CRON_SECRET`) to backfill legacy dates and create missing in-app tasks.
 

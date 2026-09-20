@@ -227,3 +227,8 @@ export function formatIssueSummary(
   }
   return trimmed;
 }
+
+export const LEDGER_EVENT_FILTER_HELP =
+  "Venue and Event type filters apply only to Cancellations and AWOLs. Sickness records are not linked to an Event, so they will not appear when these filters are applied.";
+
+export const SICKNESS_INITIAL_REPORT_LABEL = "Initial sickness report";

@@ -4,23 +4,19 @@ import {
   ALL_LEDGER_SORT_FIELDS,
   ARCHIVE_REASON_MAX_LENGTH,
   ARCHIVE_REASON_MIN_LENGTH,
-  AWOL_LEDGER_SORT_FIELDS,
   CORRECTION_REASON_MAX_LENGTH,
   CORRECTION_REASON_MIN_LENGTH,
-  DEFAULT_AWOL_LEDGER_SORT,
   DEFAULT_LEDGER_DIRECTION,
-  DEFAULT_LEDGER_SORT,
   DEFAULT_LEDGER_VIEW,
-  DEFAULT_SICKNESS_LEDGER_SORT,
   ISSUE_SUMMARY_MAX_CODE_POINTS,
   LEDGER_SORT_DIRECTIONS,
-  LEDGER_SORT_FIELDS,
   LEDGER_VIEWS,
   NOTES_MAX_LENGTH,
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
-  SICKNESS_LEDGER_SORT_FIELDS,
+  defaultLedgerSortForView,
+  isLedgerSortAllowed,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
@@ -584,21 +580,8 @@ export function parseArchiveAwolFormData(formData: FormData) {
 
 export { flattenFieldErrors } from "@/lib/form";
 
-const LEDGER_SORT_FIELD_SET = new Set<string>(LEDGER_SORT_FIELDS);
-const AWOL_LEDGER_SORT_FIELD_SET = new Set<string>(AWOL_LEDGER_SORT_FIELDS);
-const SICKNESS_LEDGER_SORT_FIELD_SET = new Set<string>(SICKNESS_LEDGER_SORT_FIELDS);
 const LEDGER_SORT_DIRECTION_SET = new Set<string>(LEDGER_SORT_DIRECTIONS);
 const LEDGER_VIEW_SET = new Set<string>(LEDGER_VIEWS);
-
-function defaultLedgerSort(view: LedgerView): LedgerSortField {
-  if (view === "awol") {
-    return DEFAULT_AWOL_LEDGER_SORT;
-  }
-  if (view === "sickness") {
-    return DEFAULT_SICKNESS_LEDGER_SORT;
-  }
-  return DEFAULT_LEDGER_SORT;
-}
 
 function optionalLedgerDate(value: unknown): string {
   if (typeof value !== "string") {
@@ -622,22 +605,9 @@ function optionalLedgerSort(
   value: unknown,
   view: LedgerView,
 ): LedgerSortField {
-  const fallback = defaultLedgerSort(view);
-  if (typeof value !== "string") {
-    return fallback;
-  }
-  if (view === "awol") {
-    return AWOL_LEDGER_SORT_FIELD_SET.has(value)
-      ? (value as LedgerSortField)
-      : fallback;
-  }
-  if (view === "sickness") {
-    return SICKNESS_LEDGER_SORT_FIELD_SET.has(value)
-      ? (value as LedgerSortField)
-      : fallback;
-  }
-  if (LEDGER_SORT_FIELD_SET.has(value)) {
-    return value as LedgerSortField;
+  const fallback = defaultLedgerSortForView(view);
+  if (typeof value === "string" && isLedgerSortAllowed(view, value)) {
+    return value;
   }
   return fallback;
 }
@@ -672,6 +642,8 @@ export const ledgerListQuerySchema = z.object({
   eventType: z.string(),
   reportedFrom: z.string(),
   reportedTo: z.string(),
+  affectedFrom: z.string(),
+  affectedTo: z.string(),
   eventFrom: z.string(),
   eventTo: z.string(),
   firstDayFrom: z.string(),
@@ -693,12 +665,14 @@ export const defaultLedgerListQuery = (
   eventType: "",
   reportedFrom: "",
   reportedTo: "",
+  affectedFrom: "",
+  affectedTo: "",
   eventFrom: "",
   eventTo: "",
   firstDayFrom: "",
   firstDayTo: "",
   includeArchived: false,
-  sort: defaultLedgerSort(view),
+  sort: defaultLedgerSortForView(view),
   direction: DEFAULT_LEDGER_DIRECTION,
   page: 1,
   view,
@@ -710,6 +684,8 @@ export function parseLedgerListQuery(raw: {
   eventType?: string;
   reportedFrom?: string;
   reportedTo?: string;
+  affectedFrom?: string;
+  affectedTo?: string;
   eventFrom?: string;
   eventTo?: string;
   firstDayFrom?: string;
@@ -721,16 +697,23 @@ export function parseLedgerListQuery(raw: {
   view?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
+  const eventFrom = optionalLedgerDate(raw.eventFrom);
+  const eventTo = optionalLedgerDate(raw.eventTo);
+  const firstDayFrom = optionalLedgerDate(raw.firstDayFrom);
+  const firstDayTo = optionalLedgerDate(raw.firstDayTo);
   const parsed = ledgerListQuerySchema.safeParse({
     q: typeof raw.q === "string" ? raw.q.trim().slice(0, 160) : "",
     venue: typeof raw.venue === "string" ? raw.venue.trim() : "",
     eventType: typeof raw.eventType === "string" ? raw.eventType.trim() : "",
     reportedFrom: optionalLedgerDate(raw.reportedFrom),
     reportedTo: optionalLedgerDate(raw.reportedTo),
-    eventFrom: optionalLedgerDate(raw.eventFrom),
-    eventTo: optionalLedgerDate(raw.eventTo),
-    firstDayFrom: optionalLedgerDate(raw.firstDayFrom),
-    firstDayTo: optionalLedgerDate(raw.firstDayTo),
+    affectedFrom:
+      optionalLedgerDate(raw.affectedFrom) || eventFrom || firstDayFrom,
+    affectedTo: optionalLedgerDate(raw.affectedTo) || eventTo || firstDayTo,
+    eventFrom,
+    eventTo,
+    firstDayFrom,
+    firstDayTo,
     includeArchived: optionalLedgerIncludeArchived(raw.includeArchived),
     sort: optionalLedgerSort(raw.sort, view),
     direction: optionalLedgerDirection(raw.direction),
@@ -748,6 +731,22 @@ export function isLedgerDateRangeInvalid(query: LedgerListQuery): boolean {
   );
 }
 
+export function resolvedLedgerAffectedFrom(query: LedgerListQuery): string {
+  return query.affectedFrom || query.eventFrom || query.firstDayFrom;
+}
+
+export function resolvedLedgerAffectedTo(query: LedgerListQuery): string {
+  return query.affectedTo || query.eventTo || query.firstDayTo;
+}
+
+export function isLedgerAffectedDateRangeInvalid(
+  query: LedgerListQuery,
+): boolean {
+  const from = resolvedLedgerAffectedFrom(query);
+  const to = resolvedLedgerAffectedTo(query);
+  return Boolean(from && to && from > to);
+}
+
 export function isLedgerEventDateRangeInvalid(query: LedgerListQuery): boolean {
   return Boolean(
     query.eventFrom && query.eventTo && query.eventFrom > query.eventTo,
@@ -763,18 +762,16 @@ export function isLedgerFirstDayRangeInvalid(query: LedgerListQuery): boolean {
 }
 
 export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
+  const affectedFrom = resolvedLedgerAffectedFrom(query);
+  const affectedTo = resolvedLedgerAffectedTo(query);
   return Boolean(
     query.q ||
       query.venue ||
       query.eventType ||
+      query.includeArchived ||
       (!isLedgerDateRangeInvalid(query) &&
         (query.reportedFrom || query.reportedTo)) ||
-      (query.view === "awol" &&
-        !isLedgerEventDateRangeInvalid(query) &&
-        (query.eventFrom || query.eventTo)) ||
-      (query.view === "sickness" &&
-        (query.includeArchived ||
-          (!isLedgerFirstDayRangeInvalid(query) &&
-            (query.firstDayFrom || query.firstDayTo)))),
+      (!isLedgerAffectedDateRangeInvalid(query) &&
+        (affectedFrom || affectedTo)),
   );
 }
