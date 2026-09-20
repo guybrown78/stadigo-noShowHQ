@@ -7,7 +7,7 @@ export const CREATABLE_ABSENCE_TYPES = [
   "AWOL",
   "SICKNESS",
 ] as const;
-export const LEDGER_VIEWS = ["cancellations", "awol"] as const;
+export const LEDGER_VIEWS = ["cancellations", "awol", "sickness"] as const;
 export const DEFAULT_LEDGER_VIEW = "cancellations" as const;
 export const AWOL_CREATE_IDEMPOTENCY_OPERATION = "AWOL_CREATE";
 export const SICKNESS_CREATE_IDEMPOTENCY_OPERATION = "SICKNESS_CREATE";
@@ -58,12 +58,27 @@ export const AWOL_LEDGER_SORT_FIELDS = [
   "staff",
   "event",
 ] as const;
+export const SICKNESS_LEDGER_SORT_FIELDS = [
+  "firstDay",
+  "reported",
+  "sicknessStarted",
+  "staff",
+  "created",
+] as const;
+export const ALL_LEDGER_SORT_FIELDS = [
+  ...LEDGER_SORT_FIELDS,
+  "firstDay",
+  "sicknessStarted",
+  "created",
+] as const;
 export const LEDGER_SORT_DIRECTIONS = ["asc", "desc"] as const;
 export const DEFAULT_LEDGER_SORT = "reported" as const;
 export const DEFAULT_AWOL_LEDGER_SORT = "eventDate" as const;
+export const DEFAULT_SICKNESS_LEDGER_SORT = "firstDay" as const;
 export const DEFAULT_LEDGER_DIRECTION = "desc" as const;
 
 export type LedgerView = (typeof LEDGER_VIEWS)[number];
-export type LedgerSortField = (typeof LEDGER_SORT_FIELDS)[number];
+export type LedgerSortField = (typeof ALL_LEDGER_SORT_FIELDS)[number];
 export type LedgerSortDirection = (typeof LEDGER_SORT_DIRECTIONS)[number];
 export type AwolLedgerSortField = (typeof AWOL_LEDGER_SORT_FIELDS)[number];
+export type SicknessLedgerSortField = (typeof SICKNESS_LEDGER_SORT_FIELDS)[number];

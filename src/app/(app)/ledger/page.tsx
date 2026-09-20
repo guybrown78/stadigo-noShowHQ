@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { AwolLedgerPanel } from "@/app/(app)/ledger/awol-panel";
+import { SicknessLedgerPanel } from "@/app/(app)/ledger/sickness-panel";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
 import { AbsenceTypeBadge, NoticeWarningBadges } from "@/components/absence/absence-badges";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -188,6 +189,9 @@ export default async function LedgerPage({
     reportedTo: first(raw.reportedTo),
     eventFrom: first(raw.eventFrom),
     eventTo: first(raw.eventTo),
+    firstDayFrom: first(raw.firstDayFrom),
+    firstDayTo: first(raw.firstDayTo),
+    includeArchived: first(raw.includeArchived),
     sort: first(raw.sort),
     direction: first(raw.direction),
     page: first(raw.page),
@@ -196,6 +200,10 @@ export default async function LedgerPage({
 
   if (query.view === "awol") {
     return <AwolLedgerPanel tenantId={user.tenantId} query={query} />;
+  }
+
+  if (query.view === "sickness") {
+    return <SicknessLedgerPanel tenantId={user.tenantId} query={query} />;
   }
 
   const dateRangeInvalid = isLedgerDateRangeInvalid(query);

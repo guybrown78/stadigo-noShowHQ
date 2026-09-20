@@ -2,6 +2,18 @@ import { Badge } from "@/components/ui/badge";
 import { SegmentedNav } from "@/components/ui/segmented-nav";
 import type { LedgerView } from "@/lib/absence/catalog";
 
+function activeCountLabel(view: LedgerView, activeCount: number): string {
+  if (view === "awol") {
+    return activeCount === 1 ? "active AWOL" : "active AWOLs";
+  }
+  if (view === "sickness") {
+    return activeCount === 1
+      ? "active Sickness report"
+      : "active Sickness reports";
+  }
+  return activeCount === 1 ? "active Cancellation" : "active Cancellations";
+}
+
 export function LedgerTypeNav({
   view,
   activeCount,
@@ -9,7 +21,6 @@ export function LedgerTypeNav({
   view: LedgerView;
   activeCount: number;
 }) {
-  const awol = view === "awol";
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
       <SegmentedNav
@@ -18,25 +29,22 @@ export function LedgerTypeNav({
           {
             href: "/ledger",
             label: "Cancellations",
-            active: !awol,
+            active: view === "cancellations",
           },
           {
             href: "/ledger?view=awol",
             label: "AWOL",
-            active: awol,
+            active: view === "awol",
           },
-          { href: "/ledger", label: "Sickness", disabled: true },
+          {
+            href: "/ledger?view=sickness",
+            label: "Sickness",
+            active: view === "sickness",
+          },
         ]}
       />
       <Badge tone="neutral">
-        {activeCount}{" "}
-        {awol
-          ? activeCount === 1
-            ? "active AWOL"
-            : "active AWOLs"
-          : activeCount === 1
-            ? "active Cancellation"
-            : "active Cancellations"}
+        {activeCount} {activeCountLabel(view, activeCount)}
       </Badge>
     </div>
   );

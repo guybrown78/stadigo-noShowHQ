@@ -180,6 +180,18 @@ function staffLabel(staff: {
   return `${formatStaffName(staff)} (${staff.staffIdNumber})`;
 }
 
+function staffDisplaySnapshot(staff: {
+  firstName: string;
+  lastName: string;
+  staffIdNumber: string;
+}) {
+  return {
+    staffFirstNameSnapshot: staff.firstName,
+    staffLastNameSnapshot: staff.lastName,
+    staffIdNumberSnapshot: staff.staffIdNumber,
+  };
+}
+
 function eventLabel(event: LoadedEvent): string {
   return `${event.name} (${dateString(event.eventDate)})`;
 }
@@ -1608,6 +1620,7 @@ export async function createSickness(
               firstWorkingDaySick: resolved.firstWorkingDaySick,
               sicknessStartedDate: resolved.sicknessStartedDate,
               issueSummary: resolved.issueSummary,
+              ...staffDisplaySnapshot(resolved.staff),
             },
           });
 
@@ -1818,6 +1831,7 @@ export async function correctSickness(
                   firstWorkingDaySick: resolved.firstWorkingDaySick,
                   sicknessStartedDate: resolved.sicknessStartedDate,
                   issueSummary: resolved.issueSummary,
+                  ...staffDisplaySnapshot(resolved.staff),
                 },
               },
             },

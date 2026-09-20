@@ -14,6 +14,7 @@ import {
 import {
   isLedgerDateRangeInvalid,
   isLedgerEventDateRangeInvalid,
+  isLedgerFirstDayRangeInvalid,
   type LedgerListQuery,
 } from "@/lib/absence/schema";
 import { requireIanaTimeZone } from "@/lib/absence/timezone";
@@ -975,4 +976,256 @@ export async function listActiveAwolsForLedger(
   }
 
   return { rows, total, activeTotal, page: query.page, pageCount };
+}
+
+const sicknessLedgerListSelect = {
+  id: true,
+  type: true,
+  recordStatus: true,
+  reportedDate: true,
+  createdAt: true,
+  firstWorkingDaySick: true,
+  staff: {
+    select: {
+      id: true,
+      deletedAt: true,
+    },
+  },
+  sickness: {
+    select: {
+      firstWorkingDaySick: true,
+      sicknessStartedDate: true,
+      staffFirstNameSnapshot: true,
+      staffLastNameSnapshot: true,
+      staffIdNumberSnapshot: true,
+    },
+  },
+} satisfies Prisma.AbsenceSelect;
+
+type SicknessLedgerSelectRow = Prisma.AbsenceGetPayload<{
+  select: typeof sicknessLedgerListSelect;
+}>;
+
+export type LedgerSicknessRow = SicknessLedgerSelectRow & {
+  issueSummaryPresent: boolean;
+};
+
+function sicknessLedgerSearchWhere(search: string): Prisma.AbsenceWhereInput[] {
+  const tokens = search.split(/\s+/).filter(Boolean);
+  const clauses: Prisma.AbsenceWhereInput[] = [
+    {
+      sickness: {
+        staffFirstNameSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+    {
+      sickness: {
+        staffLastNameSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+    {
+      sickness: {
+        staffIdNumberSnapshot: { contains: search, mode: "insensitive" },
+      },
+    },
+    { staff: { firstName: { contains: search, mode: "insensitive" } } },
+    { staff: { lastName: { contains: search, mode: "insensitive" } } },
+    { staff: { staffIdNumber: { contains: search, mode: "insensitive" } } },
+  ];
+  if (tokens.length >= 2) {
+    const first = tokens[0];
+    const last = tokens.slice(1).join(" ");
+    clauses.push({
+      sickness: {
+        AND: [
+          { staffFirstNameSnapshot: { contains: first, mode: "insensitive" } },
+          { staffLastNameSnapshot: { contains: last, mode: "insensitive" } },
+        ],
+      },
+    });
+    clauses.push({
+      staff: {
+        AND: [
+          { firstName: { contains: first, mode: "insensitive" } },
+          { lastName: { contains: last, mode: "insensitive" } },
+        ],
+      },
+    });
+  }
+  return clauses;
+}
+
+function sicknessLedgerListWhere(
+  tenantId: string,
+  query: LedgerListQuery,
+): Prisma.AbsenceWhereInput {
+  const search = query.q.trim();
+  const skipReported = isLedgerDateRangeInvalid(query);
+  const skipFirstDay = isLedgerFirstDayRangeInvalid(query);
+  const reportedFrom =
+    !skipReported && query.reportedFrom
+      ? parseLocalDate(query.reportedFrom)
+      : null;
+  const reportedTo =
+    !skipReported && query.reportedTo ? parseLocalDate(query.reportedTo) : null;
+  const firstFrom =
+    !skipFirstDay && query.firstDayFrom
+      ? parseLocalDate(query.firstDayFrom)
+      : null;
+  const firstTo =
+    !skipFirstDay && query.firstDayTo ? parseLocalDate(query.firstDayTo) : null;
+
+  const reportedDate: Prisma.DateTimeFilter = {};
+  if (reportedFrom) reportedDate.gte = reportedFrom;
+  if (reportedTo) reportedDate.lte = reportedTo;
+
+  const firstWorkingDaySick: Prisma.DateTimeNullableFilter = {};
+  if (firstFrom) firstWorkingDaySick.gte = firstFrom;
+  if (firstTo) firstWorkingDaySick.lte = firstTo;
+
+  return {
+    tenantId,
+    type: "SICKNESS",
+    recordStatus: query.includeArchived
+      ? { in: ["ACTIVE", "ARCHIVED"] }
+      : "ACTIVE",
+    sickness: { isNot: null },
+    ...(Object.keys(reportedDate).length > 0 ? { reportedDate } : {}),
+    ...(Object.keys(firstWorkingDaySick).length > 0
+      ? { firstWorkingDaySick }
+      : {}),
+    ...(search ? { OR: sicknessLedgerSearchWhere(search) } : {}),
+  };
+}
+
+function sicknessLedgerOrderBy(
+  sort: LedgerSortField,
+  direction: LedgerSortDirection,
+): Prisma.AbsenceOrderByWithRelationInput[] {
+  const ties: Prisma.AbsenceOrderByWithRelationInput[] = [];
+  if (sort !== "firstDay") {
+    ties.push({ firstWorkingDaySick: direction });
+  }
+  if (sort !== "reported") {
+    ties.push({ reportedDate: direction });
+  }
+  if (sort !== "created") {
+    ties.push({ createdAt: direction });
+  }
+  ties.push({ id: direction });
+
+  if (sort === "staff") {
+    return [
+      { sickness: { staffLastNameSnapshot: direction } },
+      { sickness: { staffFirstNameSnapshot: direction } },
+      ...ties,
+    ];
+  }
+  if (sort === "sicknessStarted") {
+    return [
+      {
+        sickness: {
+          sicknessStartedDate: { sort: direction, nulls: "last" },
+        },
+      },
+      ...ties,
+    ];
+  }
+  if (sort === "reported") {
+    return [{ reportedDate: direction }, ...ties];
+  }
+  if (sort === "created") {
+    return [{ createdAt: direction }, ...ties];
+  }
+  return [{ firstWorkingDaySick: direction }, ...ties];
+}
+
+const activeSicknessWhere = (tenantId: string): Prisma.AbsenceWhereInput => ({
+  tenantId,
+  type: "SICKNESS",
+  recordStatus: "ACTIVE",
+  sickness: { isNot: null },
+});
+
+async function sicknessIssueSummaryPresence(
+  db: PrismaClient,
+  tenantId: string,
+  ids: string[],
+): Promise<Map<string, boolean>> {
+  if (ids.length === 0) {
+    return new Map();
+  }
+  const rows = await db.$queryRaw<{ absenceId: string; present: boolean }[]>`
+    SELECT s."absenceId",
+      (s."issueSummary" IS NOT NULL AND btrim(s."issueSummary") <> '') AS present
+    FROM "SicknessDetail" s
+    WHERE s."tenantId" = ${tenantId}
+      AND s."absenceId" IN (${Prisma.join(ids)})
+  `;
+  return new Map(rows.map((row) => [row.absenceId, Boolean(row.present)]));
+}
+
+function withIssueSummaryPresence(
+  rows: SicknessLedgerSelectRow[],
+  presence: Map<string, boolean>,
+): LedgerSicknessRow[] {
+  return rows.map((row) => ({
+    ...row,
+    issueSummaryPresent: presence.get(row.id) ?? false,
+  }));
+}
+
+export async function listSicknessForLedger(
+  db: PrismaClient,
+  tenantId: string,
+  query: LedgerListQuery,
+): Promise<{
+  rows: LedgerSicknessRow[];
+  total: number;
+  activeTotal: number;
+  page: number;
+  pageCount: number;
+}> {
+  const where = sicknessLedgerListWhere(tenantId, query);
+  const orderBy = sicknessLedgerOrderBy(query.sort, query.direction);
+  const skip = (query.page - 1) * LEDGER_PAGE_SIZE;
+
+  const [total, activeTotal, loaded] = await Promise.all([
+    db.absence.count({ where }),
+    db.absence.count({ where: activeSicknessWhere(tenantId) }),
+    db.absence.findMany({
+      where,
+      select: sicknessLedgerListSelect,
+      orderBy,
+      skip,
+      take: LEDGER_PAGE_SIZE,
+    }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE));
+  const page = Math.min(query.page, pageCount);
+  const rows =
+    page !== query.page && total > 0
+      ? await db.absence.findMany({
+          where,
+          select: sicknessLedgerListSelect,
+          orderBy,
+          skip: (page - 1) * LEDGER_PAGE_SIZE,
+          take: LEDGER_PAGE_SIZE,
+        })
+      : loaded;
+
+  const presence = await sicknessIssueSummaryPresence(
+    db,
+    tenantId,
+    rows.map((row) => row.id),
+  );
+
+  return {
+    rows: withIssueSummaryPresence(rows, presence),
+    total,
+    activeTotal,
+    page: page !== query.page && total > 0 ? page : query.page,
+    pageCount,
+  };
 }

@@ -40,14 +40,15 @@ One-to-one type-specific row for the Part 1 initial sickness report:
 - `firstWorkingDaySick` — first booked working day or shift affected (not verified against a rota in Part 1)
 - optional `sicknessStartedDate` — when the sickness itself began, on or before the first working day
 - optional `issueSummary` — short operational summary, not a diagnosis. Outer whitespace trimmed, blank normalised to null, max 1,000 Unicode code points, inner line breaks preserved and rendered as escaped text
+- `staffFirstNameSnapshot`, `staffLastNameSnapshot`, `staffIdNumberSnapshot` — historical Staff display for the Ledger and lists. Written server-side from trusted same-tenant Staff on create and Staff correction. Not used for authorisation, duplicate checks, or Staff mutations.
 
 `Absence.firstWorkingDaySick` is a denormalised copy of the detail date used only for the race-safe active duplicate index. Writes copy both values in the same transaction.
 
-Sickness is an operational absence record, not a medical record. Issue summary is never previewed in Staff history or general lists. Raw text is returned only on the authorised Sickness detail and correction paths, and in the tenant-scoped `AbsenceHistory` payload rendered on that detail page.
+Sickness is an operational absence record, not a medical record. Issue summary is never previewed in Staff history or general lists. Raw text is returned only on the authorised Sickness detail and correction paths, and in the tenant-scoped `AbsenceHistory` payload rendered on that detail page. The Sickness Ledger returns only an **Issue summary recorded** presence flag.
 
 Advance-report acknowledgement is request-only. When a future first working day is saved, the create or correction audit event records `futureFirstWorkingDayConfirmed` with the confirmed date. It is not stored on `SicknessDetail`.
 
-Part 1 does not add end date, certificates, follow-ups, letters, return-to-work, or a Sickness Ledger.
+Part 1 and Part 2 do not add end date, certificates, follow-ups, letters, or return-to-work. An `ACTIVE` Sickness record is operationally discoverable; it does not mean the Staff member is currently sick.
 
 ### AbsenceHistory
 Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**.
@@ -127,15 +128,18 @@ Staff history has a **Show archived** control that includes authorised archived 
 
 ## Ledger
 
-`/ledger` is a tenant-scoped read-only list. `view=cancellations` (default) lists active Cancellations. `view=awol` lists active AWOLs. Sickness remains Coming soon. It does not copy rows into a separate Ledger table, mutate records, or show payment / follow-up status.
+`/ledger` is a tenant-scoped read-only list. `view=cancellations` (default) lists active Cancellations. `view=awol` lists active AWOLs. `view=sickness` lists Sickness initial reports. It does not copy rows into a separate Ledger table, mutate records, or show payment / follow-up status. Viewing the Ledger does not create operational audit events.
 
 Cancellation default order is newest reported date, then reported time (`NULL` last), then `createdAt`, then `id`. Search covers Staff name/ID and Event snapshot name plus live Event reference. Filters are Venue (snapshot id), Event type (live Event), and inclusive reported-date bounds. Page size is 25.
 
 AWOL default order is Event date descending, then Date recorded, `createdAt`, then `id`. Search covers Staff name/ID and Event name/reference **snapshots**. Venue and Event Type filters are built from distinct AWOL snapshots. Event Date and Date recorded ranges are inclusive local dates. Notes are previewed, never searched.
 
+Sickness default order is first working day descending, then Date sickness reported, `createdAt`, then `id`. Search covers Staff name/ID on both the live record and the stored display snapshot. Filters are inclusive Date sickness reported and First day sick from work bounds, plus **Show archived** (`includeArchived=1`). The default view is active records only. Issue summary text is never selected, searched, or returned; rows show **Issue summary recorded** when present. Staff names use the snapshot so a later Staff edit cannot rewrite historical Ledger rows. Existing Sickness rows created before snapshots were added were backfilled from current Staff data, which may not match the original report-time name.
+
 Indexes:
 
 - `Absence (tenantId, type, recordStatus, reportedDate)` — type list and Date recorded range.
+- `Absence (tenantId, type, recordStatus, firstWorkingDaySick)` — Sickness Ledger default order and first-day range.
 - `CancellationDetail (tenantId, eventDateSnapshot)` — Cancellation Event-date sort.
 - `AwolDetail (tenantId, eventDateSnapshot)` — AWOL Event-date sort.
 - `SicknessDetail (tenantId, firstWorkingDaySick)` — Staff history Sickness sort.
@@ -145,6 +149,7 @@ Indexes:
 
 - `/ledger` — Cancellation Ledger
 - `/ledger?view=awol` — AWOL Ledger
+- `/ledger?view=sickness` — Sickness Ledger (`q`, `reportedFrom`, `reportedTo`, `firstDayFrom`, `firstDayTo`, `includeArchived=1`, `sort`, `direction`, `page`)
 - `/absence/new` — log Cancellation, AWOL, or Sickness (`?staffId=` preselects Staff, `?type=awol` or `?type=sickness` opens that form)
 - `/absence/[id]` — type-aware detail
 - `/absence/[id]/edit` — type-aware correction
@@ -152,7 +157,7 @@ Indexes:
 
 ## Future types
 
-Later Sickness work (ledger, episode end date, certificates, documents, follow-up, return to work) should extend `SicknessDetail` or add related entities. Do not redesign tenant, staff, event, follow-up, record status, or history. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
+Later Sickness work (episode end date, certificates, documents, follow-up, return to work) should extend `SicknessDetail` or add related entities. Do not redesign tenant, staff, event, follow-up, record status, or history. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 
