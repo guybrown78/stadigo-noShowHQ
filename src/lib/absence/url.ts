@@ -3,6 +3,7 @@ import {
   DEFAULT_LEDGER_VIEW,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
+  ledgerFilterApplies,
   type LedgerView,
 } from "@/lib/absence/catalog";
 import type { LedgerListQuery } from "@/lib/absence/schema";
@@ -32,9 +33,11 @@ export function ledgerListHref(
     params.set("view", view);
   }
   if (merged.q) params.set("q", merged.q);
-  if (view !== "sickness") {
-    if (merged.venue) params.set("venue", merged.venue);
-    if (merged.eventType) params.set("eventType", merged.eventType);
+  if (ledgerFilterApplies(view, "venue") && merged.venue) {
+    params.set("venue", merged.venue);
+  }
+  if (ledgerFilterApplies(view, "eventType") && merged.eventType) {
+    params.set("eventType", merged.eventType);
   }
   if (merged.reportedFrom) params.set("reportedFrom", merged.reportedFrom);
   if (merged.reportedTo) params.set("reportedTo", merged.reportedTo);
@@ -63,8 +66,8 @@ export function ledgerViewHref(
   return ledgerListHref(query, {
     view,
     page: 1,
-    venue: view === "sickness" ? "" : query.venue,
-    eventType: view === "sickness" ? "" : query.eventType,
+    venue: ledgerFilterApplies(view, "venue") ? query.venue : "",
+    eventType: ledgerFilterApplies(view, "eventType") ? query.eventType : "",
     sort: sortAllowed ? query.sort : defaultLedgerSortForView(view),
     direction: sortAllowed ? query.direction : DEFAULT_LEDGER_DIRECTION,
   });

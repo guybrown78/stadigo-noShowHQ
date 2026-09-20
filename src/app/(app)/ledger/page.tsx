@@ -24,19 +24,22 @@ import {
   ledgerShowsEventFilters,
   type LedgerSortDirection,
   type LedgerSortField,
-  type LedgerView,
 } from "@/lib/absence/catalog";
 import {
   LEDGER_EVENT_FILTER_HELP,
   NO_SICKNESS_STARTED_RECORDED,
   RECORD_STATUS_LABELS,
   SICKNESS_INITIAL_REPORT_LABEL,
+  formatLedgerResultsSummary,
   formatNoticeSummary,
+  ledgerItemLabel,
+  ledgerSearchPlaceholder,
 } from "@/lib/absence/display";
 import {
   isLedgerAffectedDateRangeInvalid,
   isLedgerDateRangeInvalid,
   ledgerHasActiveFilters,
+  ledgerRawHasIncompatibleEventFilters,
   parseLedgerListQuery,
   resolvedLedgerAffectedFrom,
   resolvedLedgerAffectedTo,
@@ -53,7 +56,6 @@ import {
   ledgerStaffDisplay,
   type LedgerAbsenceRow,
   type LedgerFilterOptions,
-  type LedgerTypeCounts,
 } from "@/lib/absence/ledger-query";
 import { ledgerListHref, ledgerLogAbsenceHref } from "@/lib/absence/url";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
@@ -253,35 +255,6 @@ function viewLabel(row: LedgerAbsenceRow, compact: boolean): string {
   return "View cancellation";
 }
 
-function itemLabel(view: LedgerView): string {
-  if (view === "awol") return "AWOLs";
-  if (view === "sickness") return "Sickness reports";
-  if (view === "cancellations") return "Cancellations";
-  return "absences";
-}
-
-function singularNoun(view: LedgerView): string {
-  if (view === "awol") return "AWOL";
-  if (view === "sickness") return "Sickness report";
-  if (view === "cancellations") return "Cancellation";
-  return "absence";
-}
-
-function activeCountPhrase(view: LedgerView, count: number): string {
-  if (view === "awol") {
-    return count === 1 ? "active AWOL" : "active AWOLs";
-  }
-  if (view === "sickness") {
-    return count === 1
-      ? "active Sickness report"
-      : "active Sickness reports";
-  }
-  if (view === "cancellations") {
-    return count === 1 ? "active Cancellation" : "active Cancellations";
-  }
-  return count === 1 ? "active absence" : "active absences";
-}
-
 function emptyState(query: LedgerListQuery, hasFilters: boolean) {
   const onlyArchived =
     query.includeArchived &&
@@ -292,7 +265,7 @@ function emptyState(query: LedgerListQuery, hasFilters: boolean) {
     !query.reportedTo &&
     !resolvedLedgerAffectedFrom(query) &&
     !resolvedLedgerAffectedTo(query);
-  const noun = itemLabel(query.view);
+  const noun = ledgerItemLabel(query.view);
   if (onlyArchived) {
     return {
       title:
@@ -326,14 +299,6 @@ function emptyState(query: LedgerListQuery, hasFilters: boolean) {
   };
 }
 
-function typeCountSummary(counts: LedgerTypeCounts): string {
-  return [
-    `Cancellations ${counts.CANCELLATION}`,
-    `AWOL ${counts.AWOL}`,
-    `Sickness ${counts.SICKNESS}`,
-  ].join(", ");
-}
-
 export default async function LedgerPage({
   searchParams,
 }: {
@@ -360,6 +325,16 @@ export default async function LedgerPage({
     view: first(raw.view),
   });
 
+  if (
+    ledgerRawHasIncompatibleEventFilters({
+      view: first(raw.view),
+      venue: first(raw.venue),
+      eventType: first(raw.eventType),
+    })
+  ) {
+    redirect(ledgerListHref(query));
+  }
+
   const showEventFilters = ledgerShowsEventFilters(query.view);
   const reportedRangeInvalid = isLedgerDateRangeInvalid(query);
   const affectedRangeInvalid = isLedgerAffectedDateRangeInvalid(query);
@@ -384,7 +359,15 @@ export default async function LedgerPage({
     listAbsencesForLedger(prisma, user.tenantId, query),
   ]);
 
-  const { rows, total, activeTotal, activeTypeCounts, page, pageCount } = list;
+  const {
+    rows,
+    total,
+    activeTotal,
+    activeTypeCounts,
+    matchingTypeCounts,
+    page,
+    pageCount,
+  } = list;
   if (page !== query.page) {
     redirect(ledgerListHref(query, { page }));
   }
@@ -466,7 +449,7 @@ export default async function LedgerPage({
               name="q"
               type="search"
               defaultValue={query.q}
-              placeholder="Staff name, Staff ID, or Event"
+              placeholder={ledgerSearchPlaceholder(query.view)}
               className={filterControlClassName()}
             />
           </FilterField>
@@ -600,8 +583,12 @@ export default async function LedgerPage({
           <p className="mt-2 text-xs text-slate-500" aria-live="polite">
             Active filters:
             {query.q ? ` search “${query.q}”` : ""}
-            {selectedVenue ? ` · Venue ${selectedVenue.name}` : ""}
-            {selectedType ? ` · Event type ${selectedType.name}` : ""}
+            {showEventFilters && selectedVenue
+              ? ` · Venue ${selectedVenue.name}`
+              : ""}
+            {showEventFilters && selectedType
+              ? ` · Event type ${selectedType.name}`
+              : ""}
             {!reportedRangeInvalid && (query.reportedFrom || query.reportedTo)
               ? ` · Recorded ${query.reportedFrom || "…"}–${query.reportedTo || "…"}`
               : ""}
@@ -609,8 +596,12 @@ export default async function LedgerPage({
               ? ` · Affected ${affectedFrom || "…"}–${affectedTo || "…"}`
               : ""}
             {query.includeArchived ? " · Show archived" : ""}
-            {!selectedVenue && query.venue ? " · Venue (unknown)" : ""}
-            {!selectedType && query.eventType ? " · Event type (unknown)" : ""}
+            {showEventFilters && !selectedVenue && query.venue
+              ? " · Venue (unknown)"
+              : ""}
+            {showEventFilters && !selectedType && query.eventType
+              ? " · Event type (unknown)"
+              : ""}
           </p>
         ) : null}
       </form>
@@ -634,15 +625,21 @@ export default async function LedgerPage({
         />
       ) : (
         <>
-          <p className="mt-4 text-sm text-slate-500" aria-live="polite">
-            {hasFilters
-              ? `${total} matching · ${activeTotal} ${activeCountPhrase(query.view, activeTotal)}`
-              : `${total} ${total === 1 ? singularNoun(query.view) : itemLabel(query.view)}`}
-            {query.view === "all"
-              ? ` · ${typeCountSummary(activeTypeCounts)}`
-              : ""}
-            {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
-          </p>
+          <div className="mt-4 space-y-0.5 text-sm text-slate-500" aria-live="polite">
+            {formatLedgerResultsSummary({
+              view: query.view,
+              total,
+              activeTotal,
+              matchingTypeCounts,
+              activeTypeCounts,
+              hasFilters,
+              includeArchived: query.includeArchived,
+              page,
+              pageCount,
+            }).map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
 
           <DataTable className="mt-3 hidden xl:block">
             <DataTableHead>
@@ -747,7 +744,7 @@ export default async function LedgerPage({
             total={total}
             from={(page - 1) * LEDGER_PAGE_SIZE + 1}
             to={Math.min(page * LEDGER_PAGE_SIZE, total)}
-            itemLabel={itemLabel(query.view)}
+            itemLabel={ledgerItemLabel(query.view)}
             hrefForPage={(nextPage) =>
               ledgerListHref(query, { page: nextPage })
             }

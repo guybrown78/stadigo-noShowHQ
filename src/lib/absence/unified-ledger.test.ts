@@ -416,6 +416,11 @@ describe("listAbsencesForLedger", () => {
       AWOL: 1,
       SICKNESS: 1,
     });
+    expect(list.matchingTypeCounts).toEqual({
+      CANCELLATION: 1,
+      AWOL: 1,
+      SICKNESS: 1,
+    });
   });
 
   it("filters by type view and keeps counts scoped to that view", async () => {
@@ -459,6 +464,16 @@ describe("listAbsencesForLedger", () => {
     expect(ids).toContain(archivedSicknessId);
     expect(list.total).toBe(6);
     expect(list.activeTotal).toBe(3);
+    expect(list.matchingTypeCounts).toEqual({
+      CANCELLATION: 2,
+      AWOL: 2,
+      SICKNESS: 2,
+    });
+    expect(list.activeTypeCounts).toEqual({
+      CANCELLATION: 1,
+      AWOL: 1,
+      SICKNESS: 1,
+    });
     expect(
       list.rows.find((row) => row.id === archivedSicknessId)?.recordStatus,
     ).toBe("ARCHIVED");
@@ -571,7 +586,18 @@ describe("listAbsencesForLedger", () => {
       [cancellationId, awolId].sort(),
     );
     expect(venue.rows.some((row) => row.type === "SICKNESS")).toBe(false);
+    expect(venue.total).toBe(2);
     expect(venue.activeTotal).toBe(3);
+    expect(venue.matchingTypeCounts).toEqual({
+      CANCELLATION: 1,
+      AWOL: 1,
+      SICKNESS: 0,
+    });
+    expect(venue.activeTypeCounts).toEqual({
+      CANCELLATION: 1,
+      AWOL: 1,
+      SICKNESS: 1,
+    });
 
     const eventType = await listAbsencesForLedger(
       prisma,
@@ -580,6 +606,88 @@ describe("listAbsencesForLedger", () => {
     );
     expect(eventType.rows.every((row) => row.type !== "SICKNESS")).toBe(true);
     expect(eventType.total).toBe(2);
+    expect(eventType.matchingTypeCounts).toEqual({
+      CANCELLATION: 1,
+      AWOL: 1,
+      SICKNESS: 0,
+    });
+  });
+
+  it("ignores Venue and Event type on Sickness so stale params do not zero the list", async () => {
+    const withVenue = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({
+        view: "sickness",
+        q: "Patel",
+        venue: tenantA.venueId,
+        reportedFrom: "2026-09-10",
+        reportedTo: "2026-09-10",
+      }),
+    );
+    expect(withVenue.rows.map((row) => row.id)).toEqual([sicknessId]);
+    expect(withVenue.total).toBe(1);
+    expect(withVenue.activeTotal).toBe(1);
+
+    const withEventType = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({
+        view: "sickness",
+        eventType: tenantA.typeId,
+        affectedFrom: "2026-09-13",
+        affectedTo: "2026-09-13",
+      }),
+    );
+    expect(withEventType.rows.map((row) => row.id)).toEqual([sicknessId]);
+    expect(withEventType.total).toBe(1);
+  });
+
+  it("still applies Venue, Event type, dates and archived on Cancellations and AWOL", async () => {
+    const cancellations = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "cancellations", venue: tenantA.venueId }),
+    );
+    expect(cancellations.rows.map((row) => row.id)).toEqual([cancellationId]);
+
+    const cancellationsType = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "cancellations", eventType: tenantA.typeId }),
+    );
+    expect(cancellationsType.rows.map((row) => row.id)).toEqual([
+      cancellationId,
+    ]);
+
+    const awols = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "awol", venue: tenantA.venueId }),
+    );
+    expect(awols.rows.map((row) => row.id)).toEqual([awolId]);
+
+    const awolDates = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({
+        view: "awol",
+        reportedFrom: "2026-09-11",
+        reportedTo: "2026-09-11",
+      }),
+    );
+    expect(awolDates.rows.map((row) => row.id)).toEqual([awolId]);
+
+    const cancellationsArchived = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "cancellations", includeArchived: true }),
+    );
+    expect(cancellationsArchived.rows.map((row) => row.id).sort()).toEqual(
+      [cancellationId, archivedCancellationId].sort(),
+    );
+    expect(cancellationsArchived.total).toBe(2);
+    expect(cancellationsArchived.activeTotal).toBe(1);
   });
 
   it("orders mixed types deterministically and allow-lists sort fields", async () => {

@@ -17,6 +17,8 @@ import {
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
+  ledgerFilterApplies,
+  ledgerShowsEventFilters,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
@@ -697,14 +699,19 @@ export function parseLedgerListQuery(raw: {
   view?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
+  const eventFiltersApply = ledgerShowsEventFilters(view);
   const eventFrom = optionalLedgerDate(raw.eventFrom);
   const eventTo = optionalLedgerDate(raw.eventTo);
   const firstDayFrom = optionalLedgerDate(raw.firstDayFrom);
   const firstDayTo = optionalLedgerDate(raw.firstDayTo);
   const parsed = ledgerListQuerySchema.safeParse({
     q: typeof raw.q === "string" ? raw.q.trim().slice(0, 160) : "",
-    venue: typeof raw.venue === "string" ? raw.venue.trim() : "",
-    eventType: typeof raw.eventType === "string" ? raw.eventType.trim() : "",
+    venue:
+      eventFiltersApply && typeof raw.venue === "string" ? raw.venue.trim() : "",
+    eventType:
+      eventFiltersApply && typeof raw.eventType === "string"
+        ? raw.eventType.trim()
+        : "",
     reportedFrom: optionalLedgerDate(raw.reportedFrom),
     reportedTo: optionalLedgerDate(raw.reportedTo),
     affectedFrom:
@@ -766,12 +773,27 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
   const affectedTo = resolvedLedgerAffectedTo(query);
   return Boolean(
     query.q ||
-      query.venue ||
-      query.eventType ||
+      (ledgerFilterApplies(query.view, "venue") && query.venue) ||
+      (ledgerFilterApplies(query.view, "eventType") && query.eventType) ||
       query.includeArchived ||
       (!isLedgerDateRangeInvalid(query) &&
         (query.reportedFrom || query.reportedTo)) ||
       (!isLedgerAffectedDateRangeInvalid(query) &&
         (affectedFrom || affectedTo)),
   );
+}
+
+export function ledgerRawHasIncompatibleEventFilters(raw: {
+  view?: string;
+  venue?: string;
+  eventType?: string;
+}): boolean {
+  const view = optionalLedgerView(raw.view);
+  if (ledgerShowsEventFilters(view)) {
+    return false;
+  }
+  const venue = typeof raw.venue === "string" ? raw.venue.trim() : "";
+  const eventType =
+    typeof raw.eventType === "string" ? raw.eventType.trim() : "";
+  return Boolean(venue || eventType);
 }

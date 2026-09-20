@@ -4,6 +4,7 @@ import {
   defaultLedgerSortForView,
   isLedgerSortAllowed,
   ledgerAbsenceTypesForView,
+  ledgerFilterApplies,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
@@ -110,6 +111,7 @@ export type LedgerListResult = {
   total: number;
   activeTotal: number;
   activeTypeCounts: LedgerTypeCounts;
+  matchingTypeCounts: LedgerTypeCounts;
   page: number;
   pageCount: number;
 };
@@ -262,11 +264,17 @@ function ledgerWhereSql(
         affectedTo ? Prisma.sql`AND ${affectedExpr} <= ${affectedTo}` : Prisma.empty
       }
       ${
-        applyFilters && query.venue
+        applyFilters &&
+        query.venue &&
+        ledgerFilterApplies(query.view, "venue")
           ? Prisma.sql`AND (c."venueIdSnapshot" = ${query.venue} OR w."venueIdSnapshot" = ${query.venue})`
           : Prisma.empty
       }
-      ${applyFilters ? ledgerEventTypeSql(tenantId, query) : Prisma.empty}
+      ${
+        applyFilters && ledgerFilterApplies(query.view, "eventType")
+          ? ledgerEventTypeSql(tenantId, query)
+          : Prisma.empty
+      }
       ${applyFilters ? ledgerSearchSql(query.q) : Prisma.empty}
   `;
 }
@@ -319,6 +327,16 @@ function ledgerOrderSql(query: LedgerListQuery) {
 
 function emptyTypeCounts(): LedgerTypeCounts {
   return { CANCELLATION: 0, AWOL: 0, SICKNESS: 0 };
+}
+
+function typeCountsFromRows(
+  rows: Array<{ type: "CANCELLATION" | "AWOL" | "SICKNESS"; count: unknown }>,
+): LedgerTypeCounts {
+  const counts = emptyTypeCounts();
+  for (const row of rows) {
+    counts[row.type] = asCount(row.count);
+  }
+  return counts;
 }
 
 function asCount(value: unknown): number {
@@ -480,7 +498,7 @@ export async function listAbsencesForLedger(
     { filters: false, includeArchived: false },
   );
 
-  const [totalRows, activeRows, typeRows] = await Promise.all([
+  const [totalRows, activeRows, typeRows, matchingTypeRows] = await Promise.all([
     db.$queryRaw<Array<{ total: unknown }>>`
       SELECT COUNT(*)::int AS total
       ${ledgerFromSql()}
@@ -497,14 +515,18 @@ export async function listAbsencesForLedger(
       ${allActiveWhere}
       GROUP BY a.type
     `,
+    db.$queryRaw<Array<{ type: "CANCELLATION" | "AWOL" | "SICKNESS"; count: unknown }>>`
+      SELECT a.type, COUNT(*)::int AS count
+      ${ledgerFromSql()}
+      ${filteredWhere}
+      GROUP BY a.type
+    `,
   ]);
 
   const total = asCount(totalRows[0]?.total);
   const activeTotal = asCount(activeRows[0]?.total);
-  const activeTypeCounts = emptyTypeCounts();
-  for (const row of typeRows) {
-    activeTypeCounts[row.type] = asCount(row.count);
-  }
+  const activeTypeCounts = typeCountsFromRows(typeRows);
+  const matchingTypeCounts = typeCountsFromRows(matchingTypeRows);
 
   const pageCount = Math.max(1, Math.ceil(total / LEDGER_PAGE_SIZE));
   const page = Math.min(Math.max(1, query.page), pageCount);
@@ -543,6 +565,7 @@ export async function listAbsencesForLedger(
     total,
     activeTotal,
     activeTypeCounts,
+    matchingTypeCounts,
     page,
     pageCount,
   };
