@@ -581,6 +581,13 @@ enum AbsenceHistoryAction {
   CREATED
   CORRECTED
   ARCHIVED
+  EPISODE_UPDATED
+}
+
+enum SicknessEpisodeState {
+  NOT_CONFIRMED
+  ONGOING
+  ENDED
 }
 
 model Absence {
@@ -678,18 +685,20 @@ model AwolDetail {
 }
 
 model SicknessDetail {
-  absenceId               String    @id
+  absenceId               String               @id
   tenantId                String
-  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  absence                 Absence   @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
-  firstWorkingDaySick     DateTime  @db.Date
-  sicknessStartedDate     DateTime? @db.Date
-  issueSummary            String?   @db.VarChar(1000)
+  tenant                  Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence                 Absence              @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  firstWorkingDaySick     DateTime             @db.Date
+  sicknessStartedDate     DateTime?            @db.Date
+  sicknessEndedDate       DateTime?            @db.Date
+  episodeState            SicknessEpisodeState @default(NOT_CONFIRMED)
+  issueSummary            String?              @db.VarChar(1000)
   staffFirstNameSnapshot  String
   staffLastNameSnapshot   String
   staffIdNumberSnapshot   String
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
 
   @@unique([absenceId, tenantId])
   @@index([tenantId])

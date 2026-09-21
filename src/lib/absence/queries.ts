@@ -111,6 +111,8 @@ export type StaffAbsenceHistoryItem = {
   sickness: {
     firstWorkingDaySick: Date;
     sicknessStartedDate: Date | null;
+    sicknessEndedDate: Date | null;
+    episodeState: "NOT_CONFIRMED" | "ONGOING" | "ENDED";
     issueSummaryPresent: boolean;
   } | null;
 };
@@ -414,6 +416,8 @@ export async function listActiveAbsencesForStaff(
       ? {
           firstWorkingDaySick: absence.sickness.firstWorkingDaySick,
           sicknessStartedDate: absence.sickness.sicknessStartedDate,
+          sicknessEndedDate: absence.sickness.sicknessEndedDate,
+          episodeState: absence.sickness.episodeState,
           issueSummaryPresent: issueSummaryPresent(
             absence.sickness.issueSummary,
           ),

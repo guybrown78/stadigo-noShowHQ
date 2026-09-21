@@ -8,7 +8,9 @@ import type {
 import {
   NOTES_PREVIEW_MAX_LENGTH,
   type LedgerView,
+  type SicknessEpisodeState,
 } from "@/lib/absence/catalog";
+import { SICKNESS_EPISODE_STATE_LABELS } from "@/lib/absence/sickness";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
 export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
@@ -53,6 +55,10 @@ export function absenceArchiveActionLabel(type: AbsenceType): string {
   return "Archive cancellation";
 }
 
+export function absenceEpisodeUpdateActionLabel(): string {
+  return "Update sickness episode";
+}
+
 export const ABSENCE_DETAIL_LABEL = {
   staff: "Staff",
   event: "Event",
@@ -67,6 +73,9 @@ export const ABSENCE_DETAIL_LABEL = {
   dateSicknessReported: "Date sickness reported",
   firstDaySick: "First day sick from work",
   sicknessStarted: "Sickness started",
+  episodeStatus: "Episode status",
+  sicknessEnded: "Sickness ended",
+  calendarDaySpan: "Calendar-day span",
   issueSummary: "Issue summary",
   created: "Created",
   lastUpdated: "Last updated",
@@ -86,9 +95,12 @@ export function absenceDetailBodyLabels(type: AbsenceType): readonly string[] {
     return [
       ABSENCE_DETAIL_LABEL.staff,
       ABSENCE_DETAIL_LABEL.recordStatus,
+      ABSENCE_DETAIL_LABEL.episodeStatus,
       ABSENCE_DETAIL_LABEL.dateSicknessReported,
       ABSENCE_DETAIL_LABEL.firstDaySick,
       ABSENCE_DETAIL_LABEL.sicknessStarted,
+      ABSENCE_DETAIL_LABEL.sicknessEnded,
+      ABSENCE_DETAIL_LABEL.calendarDaySpan,
       ABSENCE_DETAIL_LABEL.issueSummary,
       ABSENCE_DETAIL_LABEL.created,
     ];
@@ -145,6 +157,7 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   CREATED: "Created",
   CORRECTED: "Corrected",
   ARCHIVED: "Archived",
+  EPISODE_UPDATED: "Episode updated",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -152,6 +165,7 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     CREATED: "Sickness report created",
     CORRECTED: "Sickness report corrected",
     ARCHIVED: "Sickness report archived",
+    EPISODE_UPDATED: "Sickness episode updated",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -177,6 +191,8 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   recordStatus: "Record status",
   firstWorkingDaySick: "First day sick from work",
   sicknessStartedDate: "Sickness started",
+  sicknessEndedDate: "Sickness ended",
+  episodeState: "Episode status",
   issueSummary: "Issue summary",
   futureFirstWorkingDayConfirmed: "Advance report confirmed",
 };
@@ -187,6 +203,8 @@ export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
 
 export const SICKNESS_HISTORY_FIELD_LABELS: Record<string, string> = {
   reportedDate: "Date sickness reported",
+  episodeState: "Episode status",
+  sicknessEndedDate: "Sickness ended",
 };
 
 export function historyActionLabel(
@@ -276,6 +294,7 @@ export function formatHistoryValue(field: string, value: string | null): string 
     field === "reportedDate" ||
     field === "firstWorkingDaySick" ||
     field === "sicknessStartedDate" ||
+    field === "sicknessEndedDate" ||
     field === "futureFirstWorkingDayConfirmed"
   ) {
     const date = new Date(`${value}T00:00:00.000Z`);
@@ -288,6 +307,9 @@ export function formatHistoryValue(field: string, value: string | null): string 
   }
   if (field === "noticeBasis") {
     return NOTICE_BASIS_LABELS[value as AbsenceNoticeBasis] ?? value;
+  }
+  if (field === "episodeState") {
+    return SICKNESS_EPISODE_STATE_LABELS[value as SicknessEpisodeState] ?? value;
   }
   return value;
 }
@@ -437,3 +459,14 @@ export function formatLedgerResultsSummary(input: {
 }
 
 export const SICKNESS_INITIAL_REPORT_LABEL = "Initial sickness report";
+
+export function formatSicknessLedgerEpisodeContext(sickness: {
+  episodeState: SicknessEpisodeState;
+  sicknessEndedDate: Date | null;
+}): string {
+  const label = SICKNESS_EPISODE_STATE_LABELS[sickness.episodeState];
+  if (sickness.episodeState === "ENDED" && sickness.sicknessEndedDate) {
+    return `${label} · ${formatLocalDateDisplay(sickness.sicknessEndedDate)}`;
+  }
+  return label;
+}

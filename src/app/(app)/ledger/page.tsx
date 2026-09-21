@@ -31,9 +31,9 @@ import {
   LEDGER_EVENT_FILTER_HELP,
   NO_SICKNESS_STARTED_RECORDED,
   RECORD_STATUS_LABELS,
-  SICKNESS_INITIAL_REPORT_LABEL,
   formatLedgerResultsSummary,
   formatNoticeSummary,
+  formatSicknessLedgerEpisodeContext,
   ledgerItemLabel,
   ledgerSearchPlaceholder,
   ledgerViewDetailsLabel,
@@ -61,14 +61,16 @@ import {
   type LedgerFilterOptions,
 } from "@/lib/absence/ledger-query";
 import { AbsenceAccessError } from "@/lib/absence/errors";
-import { getAbsenceForTenant } from "@/lib/absence/queries";
+import { getAbsenceForTenant, getTenantTimezone } from "@/lib/absence/queries";
 import {
   ledgerArchiveReturnHref,
   ledgerCloseDetailHref,
   ledgerDetailHref,
+  ledgerEpisodeUpdateReturnHref,
   ledgerListHref,
   ledgerLogAbsenceHref,
 } from "@/lib/absence/url";
+import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 
@@ -228,7 +230,9 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
   if (row.type === "SICKNESS" && row.sickness) {
     return (
       <div className="min-w-0">
-        <p className="text-sm text-slate-800">{SICKNESS_INITIAL_REPORT_LABEL}</p>
+        <p className="text-sm text-slate-800">
+          {formatSicknessLedgerEpisodeContext(row.sickness)}
+        </p>
         <p className="text-xs text-slate-500">
           Sickness started{" "}
           {row.sickness.sicknessStartedDate
@@ -394,6 +398,18 @@ export default async function LedgerPage({
         redirect(ledgerCloseDetailHref(query));
       }
       throw error;
+    }
+  }
+
+  let timeZone = "";
+  let todayIso = "";
+  if (detailAbsence?.type === "SICKNESS") {
+    try {
+      timeZone = await getTenantTimezone(prisma, user.tenantId);
+      todayIso = todayIsoInTimeZone(timeZone);
+    } catch {
+      timeZone = "";
+      todayIso = "";
     }
   }
 
@@ -796,10 +812,17 @@ export default async function LedgerPage({
               created: first(raw.created),
               updated: first(raw.updated),
               archived: first(raw.archived),
+              episodeUpdated: first(raw.episodeUpdated),
             }}
             layout="drawer"
             titleId="ledger-absence-detail-title"
             archiveReturnTo={ledgerArchiveReturnHref(query, detailAbsence.id)}
+            episodeUpdateReturnTo={ledgerEpisodeUpdateReturnHref(
+              query,
+              detailAbsence.id,
+            )}
+            timeZone={timeZone || undefined}
+            todayIso={todayIso || undefined}
           />
         ) : null}
       </LedgerDetailDrawer>

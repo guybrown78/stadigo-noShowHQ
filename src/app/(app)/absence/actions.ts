@@ -22,6 +22,7 @@ import {
   parseCorrectCancellationFormData,
   parseCorrectSicknessFormData,
   parseSicknessFormData,
+  parseUpdateSicknessEpisodeFormData,
 } from "@/lib/absence/schema";
 import {
   archiveAwol,
@@ -33,6 +34,7 @@ import {
   createAwol,
   createCancellation,
   createSickness,
+  updateSicknessEpisode,
 } from "@/lib/absence/service";
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
@@ -86,6 +88,17 @@ function redirectAfterArchive(absenceId: string, formData: FormData): never {
     redirect(returnTo);
   }
   redirect(`/absence/${absenceId}?archived=1`);
+}
+
+function redirectAfterEpisodeUpdate(
+  absenceId: string,
+  formData: FormData,
+): never {
+  const returnTo = safeLedgerReturnTo(formData.get("returnTo"));
+  if (returnTo) {
+    redirect(returnTo);
+  }
+  redirect(`/absence/${absenceId}?episodeUpdated=1`);
 }
 
 export async function createCancellationAction(
@@ -456,6 +469,58 @@ export async function archiveSicknessAction(
       revalidatePath(`/staff/${existing.staffId}`);
     }
     redirectAfterArchive(result.id, formData);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function updateSicknessEpisodeAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const absenceId = String(formData.get("absenceId") ?? "");
+  if (!absenceId) {
+    notFound();
+  }
+
+  const parsed = parseUpdateSicknessEpisodeFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+
+  try {
+    const existing = await prisma.absence.findFirst({
+      where: { id: absenceId, tenantId: user.tenantId },
+      select: { staffId: true },
+    });
+    const result = await updateSicknessEpisode(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId,
+      input: parsed.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: result.error,
+        fieldErrors: result.fieldErrors,
+      };
+    }
+
+    if (existing?.staffId) {
+      revalidateAbsence(result.id, existing.staffId);
+    } else {
+      revalidatePath(`/absence/${result.id}`);
+      revalidatePath("/ledger");
+    }
+    redirectAfterEpisodeUpdate(result.id, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();

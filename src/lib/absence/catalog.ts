@@ -11,6 +11,8 @@ export const LEDGER_VIEWS = ["all", "cancellations", "awol", "sickness"] as cons
 export const DEFAULT_LEDGER_VIEW = "all" as const;
 export const AWOL_CREATE_IDEMPOTENCY_OPERATION = "AWOL_CREATE";
 export const SICKNESS_CREATE_IDEMPOTENCY_OPERATION = "SICKNESS_CREATE";
+export const SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION =
+  "SICKNESS_EPISODE_UPDATE";
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 export const NOTES_PREVIEW_MAX_LENGTH = 80;
 export const ISSUE_SUMMARY_MAX_CODE_POINTS = 1000;
@@ -29,7 +31,18 @@ export const ABSENCE_HISTORY_ACTIONS = [
   "CREATED",
   "CORRECTED",
   "ARCHIVED",
+  "EPISODE_UPDATED",
 ] as const;
+export const SICKNESS_EPISODE_STATES = [
+  "NOT_CONFIRMED",
+  "ONGOING",
+  "ENDED",
+] as const;
+export const SICKNESS_EPISODE_UPDATE_STATES = ["ONGOING", "ENDED"] as const;
+
+export type SicknessEpisodeState = (typeof SICKNESS_EPISODE_STATES)[number];
+export type SicknessEpisodeUpdateState =
+  (typeof SICKNESS_EPISODE_UPDATE_STATES)[number];
 
 export const SHORT_NOTICE_MINUTES = 24 * 60;
 export const REASON_MIN_LENGTH = 2;

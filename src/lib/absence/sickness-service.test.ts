@@ -5,14 +5,21 @@ import {
   correctSickness,
   createCancellation,
   createSickness,
+  updateSicknessEpisode,
 } from "@/lib/absence/service";
 import {
   getAbsenceForTenant,
   listActiveAbsencesForStaff,
+  listSicknessForLedger,
 } from "@/lib/absence/queries";
 import { parseHistoryChanges } from "@/lib/absence/history";
 import { redactHistoryChangesForPublicFeed } from "@/lib/absence/sensitive";
-import type { SicknessInput } from "@/lib/absence/schema";
+import {
+  defaultLedgerListQuery,
+  type SicknessInput,
+  type UpdateSicknessEpisodeInput,
+} from "@/lib/absence/schema";
+import { AbsenceAccessError } from "@/lib/absence/errors";
 import { prisma } from "@/lib/db";
 import { provisionTenantEventCatalog } from "@/lib/events/provision";
 import type { EventInput } from "@/lib/events/schema";
@@ -227,6 +234,8 @@ describe("createSickness", () => {
     expect(absence.notes).toBeNull();
     expect(absence.sickness?.sicknessStartedDate).toBeNull();
     expect(absence.sickness?.issueSummary).toBeNull();
+    expect(absence.sickness?.episodeState).toBe("NOT_CONFIRMED");
+    expect(absence.sickness?.sicknessEndedDate).toBeNull();
     expect(absence.sickness?.staffFirstNameSnapshot).toBe("Jamie");
     expect(absence.sickness?.staffLastNameSnapshot).toBe("Cole a");
     expect(absence.sickness?.staffIdNumberSnapshot).toBe("SK-A");
@@ -690,5 +699,381 @@ describe("correctSickness and archiveSickness", () => {
     );
     expect(stillThere.recordStatus).toBe("ARCHIVED");
     expect(stillThere.sickness?.firstWorkingDaySick).toBeTruthy();
+  });
+});
+
+describe("updateSicknessEpisode", () => {
+  function episodeInput(
+    expectedUpdatedAt: string,
+    overrides: Partial<UpdateSicknessEpisodeInput> = {},
+  ): UpdateSicknessEpisodeInput {
+    return {
+      episodeState: "ONGOING",
+      sicknessEndedDate: null,
+      correctionReason: null,
+      confirmClearEndDate: false,
+      expectedUpdatedAt,
+      idempotencyKey: `episode-${Math.random().toString(36).slice(2)}`,
+      ...overrides,
+    };
+  }
+
+  async function createReport(firstWorkingDaySick: string) {
+    const created = await createSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: sicknessInput(tenantA, { firstWorkingDaySick }),
+      now,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      throw new Error("expected create");
+    }
+    const absence = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    return absence;
+  }
+
+  it("records Ongoing and Ended, then keeps ended records in the active Ledger", async () => {
+    const unconfirmed = await createReport("2026-03-10");
+    const ongoing = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: unconfirmed.id,
+      now,
+      input: episodeInput(unconfirmed.updatedAt.toISOString()),
+    });
+    expect(ongoing.ok).toBe(true);
+    const afterOngoing = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      unconfirmed.id,
+    );
+    expect(afterOngoing.sickness?.episodeState).toBe("ONGOING");
+    expect(afterOngoing.sickness?.sicknessEndedDate).toBeNull();
+    expect(
+      afterOngoing.history.some((row) => row.action === "EPISODE_UPDATED"),
+    ).toBe(true);
+
+    const ended = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      now,
+      input: episodeInput(afterOngoing.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-03-10",
+      }),
+    });
+    expect(ended.ok).toBe(true);
+    const afterEnded = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      unconfirmed.id,
+    );
+    expect(afterEnded.sickness?.episodeState).toBe("ENDED");
+    expect(afterEnded.recordStatus).toBe("ACTIVE");
+    const list = await listSicknessForLedger(
+      prisma,
+      tenantA.tenant.id,
+      defaultLedgerListQuery("sickness"),
+    );
+    expect(list.rows.some((row) => row.id === unconfirmed.id)).toBe(true);
+    expect(list.activeTypeCounts.SICKNESS).toBeGreaterThan(0);
+  });
+
+  it("corrects an ended date with a reason and can clear it to Ongoing", async () => {
+    const created = await createReport("2026-03-11");
+    const first = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-03-12",
+      }),
+    });
+    expect(first.ok).toBe(true);
+    const ended = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const corrected = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: ended.id,
+      now,
+      input: episodeInput(ended.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-03-13",
+        correctionReason: "Wrong last day",
+      }),
+    });
+    expect(corrected.ok).toBe(true);
+    const afterCorrect = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const correction = afterCorrect.history.find(
+      (row) =>
+        row.action === "EPISODE_UPDATED" && row.reason === "Wrong last day",
+    );
+    const changes = parseHistoryChanges(correction?.changes);
+    expect(
+      changes.find((change) => change.field === "sicknessEndedDate"),
+    ).toEqual({
+      field: "sicknessEndedDate",
+      previous: "2026-03-12",
+      next: "2026-03-13",
+    });
+
+    const cleared = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterCorrect.id,
+      now,
+      input: episodeInput(afterCorrect.updatedAt.toISOString(), {
+        episodeState: "ONGOING",
+        correctionReason: "End date was incorrect",
+        confirmClearEndDate: true,
+      }),
+    });
+    expect(cleared.ok).toBe(true);
+    const afterClear = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(afterClear.sickness?.episodeState).toBe("ONGOING");
+    expect(afterClear.sickness?.sicknessEndedDate).toBeNull();
+  });
+
+  it("rejects no-change, archived, stale, future and invalid dates", async () => {
+    const created = await createReport("2026-03-14");
+    const ongoing = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString()),
+    });
+    expect(ongoing.ok).toBe(true);
+    const afterOngoing = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const noChange = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      now,
+      input: episodeInput(afterOngoing.updatedAt.toISOString()),
+    });
+    expect(noChange.ok).toBe(false);
+
+    const future = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      now,
+      input: episodeInput(afterOngoing.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-09-15",
+      }),
+    });
+    expect(future.ok).toBe(false);
+
+    const beforeFirst = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      now,
+      input: episodeInput(afterOngoing.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-02-04",
+      }),
+    });
+    expect(beforeFirst.ok).toBe(false);
+
+    const stale = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-02-05",
+      }),
+    });
+    expect(stale.ok).toBe(false);
+
+    const archived = await archiveSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: afterOngoing.id,
+      input: {
+        archiveReason: "QA cleanup",
+        confirmArchive: true,
+        expectedUpdatedAt: afterOngoing.updatedAt.toISOString(),
+      },
+    });
+    expect(archived.ok).toBe(true);
+    const archivedRecord = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const hidden = await listSicknessForLedger(
+      prisma,
+      tenantA.tenant.id,
+      defaultLedgerListQuery("sickness"),
+    );
+    expect(hidden.rows.some((row) => row.id === created.id)).toBe(false);
+    const shown = await listSicknessForLedger(
+      prisma,
+      tenantA.tenant.id,
+      { ...defaultLedgerListQuery("sickness"), includeArchived: true },
+    );
+    expect(shown.rows.some((row) => row.id === created.id)).toBe(true);
+    const denied = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: archivedRecord.id,
+      now,
+      input: episodeInput(archivedRecord.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-02-05",
+      }),
+    });
+    expect(denied.ok).toBe(false);
+  });
+
+  it("replays the same idempotency key and rejects a payload mismatch", async () => {
+    const created = await createReport("2026-03-15");
+    const key = "episode-idem-same-key-01";
+    const first = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString(), {
+        idempotencyKey: key,
+      }),
+    });
+    expect(first.ok).toBe(true);
+    const replay = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString(), {
+        idempotencyKey: key,
+      }),
+    });
+    expect(replay.ok).toBe(true);
+    const after = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(
+      after.history.filter((row) => row.action === "EPISODE_UPDATED"),
+    ).toHaveLength(1);
+    const mismatch = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(after.updatedAt.toISOString(), {
+        idempotencyKey: key,
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-03-15",
+      }),
+    });
+    expect(mismatch.ok).toBe(false);
+  });
+
+  it("rolls back an episode update when a later write fails", async () => {
+    const created = await createReport("2026-03-16");
+    await expect(
+      updateSicknessEpisode(prisma, {
+        tenantId: tenantA.tenant.id,
+        userId: "missing-user",
+        absenceId: created.id,
+        now,
+        input: episodeInput(created.updatedAt.toISOString(), {
+          episodeState: "ENDED",
+          sicknessEndedDate: "2026-03-16",
+        }),
+      }),
+    ).rejects.toThrow();
+    const after = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(after.sickness?.episodeState).toBe("NOT_CONFIRMED");
+    expect(after.sickness?.sicknessEndedDate).toBeNull();
+    expect(
+      after.history.some((row) => row.action === "EPISODE_UPDATED"),
+    ).toBe(false);
+  });
+
+  it("rejects a Part 1 correction that would move first day after the end date", async () => {
+    const created = await createReport("2026-03-17");
+    const ended = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      now,
+      input: episodeInput(created.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-03-17",
+      }),
+    });
+    expect(ended.ok).toBe(true);
+    const current = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const corrected = await correctSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: current.id,
+      now,
+      input: {
+        type: "SICKNESS",
+        staffId: tenantA.staffId,
+        reportedDate: "2026-09-14",
+        firstWorkingDaySick: "2026-03-18",
+        sicknessStartedDate: null,
+        issueSummary: null,
+        futureFirstWorkingDayConfirmed: false,
+        correctionReason: "Wrong first day",
+        expectedUpdatedAt: current.updatedAt.toISOString(),
+      },
+    });
+    expect(corrected.ok).toBe(false);
+  });
+
+  it("denies cross-tenant episode updates without leaking the record", async () => {
+    const created = await createReport("2026-03-19");
+    await expect(
+      updateSicknessEpisode(prisma, {
+        tenantId: tenantB.tenant.id,
+        userId: tenantB.user.id,
+        absenceId: created.id,
+        now,
+        input: episodeInput(created.updatedAt.toISOString()),
+      }),
+    ).rejects.toBeInstanceOf(AbsenceAccessError);
   });
 });

@@ -10,7 +10,7 @@ import {
   listActiveAbsencesForStaff,
   STAFF_ABSENCE_HISTORY_PAGE_SIZE,
 } from "@/lib/absence/queries";
-import { ISSUE_SUMMARY_PRESENT_LABEL } from "@/lib/absence/sickness";
+import { ISSUE_SUMMARY_PRESENT_LABEL, sicknessEpisodeStateLabel } from "@/lib/absence/sickness";
 import { prisma } from "@/lib/db";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
@@ -97,6 +97,11 @@ export async function StaffAbsenceHistory({
                         <p className="mt-1 text-sm text-slate-600">
                           Reported{" "}
                           {formatLocalDateDisplay(absence.reportedDate)}
+                          {` · ${sicknessEpisodeStateLabel(absence.sickness.episodeState)}`}
+                          {absence.sickness.episodeState === "ENDED" &&
+                          absence.sickness.sicknessEndedDate
+                            ? ` · Ended ${formatLocalDateDisplay(absence.sickness.sicknessEndedDate)}`
+                            : ""}
                           {absence.sickness.sicknessStartedDate
                             ? ` · Sickness started ${formatLocalDateDisplay(absence.sickness.sicknessStartedDate)}`
                             : ""}
