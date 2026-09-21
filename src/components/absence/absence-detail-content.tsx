@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
+import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { Banner } from "@/components/ui/banner";
 import { ButtonLink } from "@/components/ui/button";
@@ -30,8 +31,11 @@ import {
   formatLondonDateTime,
 } from "@/lib/events/dates";
 import {
+  formatCalendarDaySpan,
+  inclusiveCalendarDaySpan,
   NO_SICKNESS_STARTED_RECORDED,
-  SICKNESS_INITIAL_STATUS_LABEL,
+  SICKNESS_CALENDAR_DAY_SPAN_HINT,
+  sicknessEpisodeStateLabel,
 } from "@/lib/absence/sickness";
 import { formatStaffName } from "@/lib/staff/display";
 import { EmploymentStatusBadge } from "@/components/staff/staff-status-badge";
@@ -41,6 +45,7 @@ export type AbsenceDetailFlash = {
   created?: string;
   updated?: string;
   archived?: string;
+  episodeUpdated?: string;
 };
 
 function Detail({
@@ -285,6 +290,11 @@ function FlashBanners({
           {updated}
         </Banner>
       ) : null}
+      {flash.episodeUpdated === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Sickness episode updated.
+        </Banner>
+      ) : null}
       {flash.archived === "1" ? (
         <Banner tone="success" className="mt-4">
           {archivedFlash}
@@ -302,10 +312,16 @@ function FlashBanners({
 function AbsenceActions({
   absence,
   archiveReturnTo,
+  episodeUpdateReturnTo,
+  timeZone,
+  todayIso,
   compact = false,
 }: {
   absence: AbsenceDetail;
   archiveReturnTo?: string;
+  episodeUpdateReturnTo?: string;
+  timeZone?: string;
+  todayIso?: string;
   compact?: boolean;
 }) {
   if (!absenceAllowsCorrectAndArchive(absence.recordStatus)) {
@@ -323,6 +339,47 @@ function AbsenceActions({
           absenceId={absence.id}
           staffName={staffName}
           eventName={absence.awol.eventNameSnapshot}
+          expectedUpdatedAt={absence.updatedAt.toISOString()}
+          returnTo={archiveReturnTo}
+        />
+      </>
+    );
+  }
+  if (absence.type === "SICKNESS" && absence.sickness && timeZone && todayIso) {
+    return (
+      <>
+        <UpdateSicknessEpisodeDialog
+          absenceId={absence.id}
+          staffName={staffName}
+          reportedDateDisplay={formatLocalDateDisplay(absence.reportedDate)}
+          firstWorkingDayDisplay={formatLocalDateDisplay(
+            absence.sickness.firstWorkingDaySick,
+          )}
+          firstWorkingDaySick={formatLocalDateIso(
+            absence.sickness.firstWorkingDaySick,
+          )}
+          sicknessStartedDate={
+            absence.sickness.sicknessStartedDate
+              ? formatLocalDateIso(absence.sickness.sicknessStartedDate)
+              : ""
+          }
+          currentEpisodeState={absence.sickness.episodeState}
+          currentSicknessEndedDate={
+            absence.sickness.sicknessEndedDate
+              ? formatLocalDateIso(absence.sickness.sicknessEndedDate)
+              : ""
+          }
+          expectedUpdatedAt={absence.updatedAt.toISOString()}
+          todayIso={todayIso}
+          timeZone={timeZone}
+          returnTo={episodeUpdateReturnTo}
+        />
+        <ButtonLink href={`/absence/${absence.id}/edit`} size={size}>
+          {absenceCorrectActionLabel(absence.type)}
+        </ButtonLink>
+        <ArchiveSicknessDialog
+          absenceId={absence.id}
+          staffName={staffName}
           expectedUpdatedAt={absence.updatedAt.toISOString()}
           returnTo={archiveReturnTo}
         />
@@ -474,6 +531,13 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
   const staffName = formatStaffName(absence.staff);
   const updatedDistinct =
     absence.updatedAt.getTime() !== absence.createdAt.getTime();
+  const ended = detail.episodeState === "ENDED" && detail.sicknessEndedDate;
+  const calendarSpan = ended
+    ? inclusiveCalendarDaySpan(
+        formatLocalDateIso(detail.firstWorkingDaySick),
+        formatLocalDateIso(detail.sicknessEndedDate!),
+      )
+    : null;
   return (
     <dl className="grid gap-6 sm:grid-cols-2">
       <Detail label={ABSENCE_DETAIL_LABEL.staff}>
@@ -504,6 +568,27 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
           </p>
         ) : null}
       </Detail>
+      <Detail label={ABSENCE_DETAIL_LABEL.episodeStatus}>
+        {sicknessEpisodeStateLabel(detail.episodeState)}
+        {detail.episodeState === "ENDED" ? (
+          <p className="mt-1 text-sm text-slate-600">
+            Ended means an end date was recorded. It does not mean recovered,
+            fit for work, returned to work or archived.
+          </p>
+        ) : null}
+        {detail.episodeState === "ONGOING" ? (
+          <p className="mt-1 text-sm text-slate-600">
+            Ongoing means the organisation has confirmed that no end date has
+            been recorded yet.
+          </p>
+        ) : null}
+        {detail.episodeState === "NOT_CONFIRMED" ? (
+          <p className="mt-1 text-sm text-slate-600">
+            Episode status not confirmed means no end date or explicit ongoing
+            confirmation has been recorded.
+          </p>
+        ) : null}
+      </Detail>
       <Detail label={ABSENCE_DETAIL_LABEL.dateSicknessReported}>
         {formatLocalDateDisplay(absence.reportedDate)}
         <span className="sr-only">
@@ -529,6 +614,23 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
           </span>
         ) : null}
       </Detail>
+      {ended ? (
+        <Detail label={ABSENCE_DETAIL_LABEL.sicknessEnded}>
+          {formatLocalDateDisplay(detail.sicknessEndedDate!)}
+          <span className="sr-only">
+            {" "}
+            {formatLocalDateIso(detail.sicknessEndedDate!)}
+          </span>
+        </Detail>
+      ) : null}
+      {ended && calendarSpan != null ? (
+        <Detail label={ABSENCE_DETAIL_LABEL.calendarDaySpan}>
+          {formatCalendarDaySpan(calendarSpan)}
+          <p className="mt-1 text-sm text-slate-600">
+            {SICKNESS_CALENDAR_DAY_SPAN_HINT}
+          </p>
+        </Detail>
+      ) : null}
       <Detail label={ABSENCE_DETAIL_LABEL.issueSummary} className="sm:col-span-2">
         <p className="whitespace-pre-wrap break-words">
           {formatIssueSummary(detail.issueSummary)}
@@ -557,15 +659,21 @@ function DrawerHeader({
   absence,
   titleId,
   archiveReturnTo,
+  episodeUpdateReturnTo,
+  timeZone,
+  todayIso,
 }: {
   absence: AbsenceDetail;
   titleId: string;
   archiveReturnTo?: string;
+  episodeUpdateReturnTo?: string;
+  timeZone?: string;
+  todayIso?: string;
 }) {
   const staffName = formatStaffName(absence.staff);
   const heading =
-    absence.type === "SICKNESS"
-      ? SICKNESS_INITIAL_STATUS_LABEL
+    absence.type === "SICKNESS" && absence.sickness
+      ? sicknessEpisodeStateLabel(absence.sickness.episodeState)
       : ABSENCE_TYPE_LABELS[absence.type];
   return (
     <header className="border-b border-border pb-4">
@@ -586,6 +694,9 @@ function DrawerHeader({
           <AbsenceActions
             absence={absence}
             archiveReturnTo={archiveReturnTo}
+            episodeUpdateReturnTo={episodeUpdateReturnTo}
+            timeZone={timeZone}
+            todayIso={todayIso}
             compact
           />
         </div>
@@ -600,12 +711,18 @@ export function AbsenceDetailContent({
   layout,
   titleId,
   archiveReturnTo,
+  episodeUpdateReturnTo,
+  timeZone,
+  todayIso,
 }: {
   absence: AbsenceDetail;
   flash?: AbsenceDetailFlash;
   layout: "page" | "drawer";
   titleId?: string;
   archiveReturnTo?: string;
+  episodeUpdateReturnTo?: string;
+  timeZone?: string;
+  todayIso?: string;
 }) {
   const archived = absence.recordStatus === "ARCHIVED";
   const staffName = formatStaffName(absence.staff);
@@ -618,6 +735,9 @@ export function AbsenceDetailContent({
           absence={absence}
           titleId={titleId ?? "absence-detail-title"}
           archiveReturnTo={archiveReturnTo}
+          episodeUpdateReturnTo={episodeUpdateReturnTo}
+          timeZone={timeZone}
+          todayIso={todayIso}
         />
         <FlashBanners type={absence.type} flash={flash} archived={archived} />
         <div className="mt-4">
@@ -635,13 +755,16 @@ export function AbsenceDetailContent({
   const eventDate =
     absence.cancellation?.eventDateSnapshot ??
     absence.awol?.eventDateSnapshot;
+  const sicknessHeading =
+    absence.type === "SICKNESS" && absence.sickness
+      ? sicknessEpisodeStateLabel(absence.sickness.episodeState)
+      : null;
   const description =
     absence.type === "SICKNESS" ? (
       <>
         <AbsenceTypeBadge type={absence.type} />
         <span className="ml-2">
-          {SICKNESS_INITIAL_STATUS_LABEL} · {staffName} ·{" "}
-          {absence.staff.staffIdNumber}
+          {sicknessHeading} · {staffName} · {absence.staff.staffIdNumber}
         </span>
       </>
     ) : absence.type === "AWOL" ? (
@@ -688,6 +811,9 @@ export function AbsenceDetailContent({
             <AbsenceActions
               absence={absence}
               archiveReturnTo={archiveReturnTo}
+              episodeUpdateReturnTo={episodeUpdateReturnTo}
+              timeZone={timeZone}
+              todayIso={todayIso}
             />
           ) : undefined
         }

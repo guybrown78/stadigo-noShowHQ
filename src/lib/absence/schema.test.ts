@@ -9,6 +9,7 @@ import {
   parseCorrectCancellationFormData,
   parseCorrectSicknessFormData,
   parseSicknessFormData,
+  parseUpdateSicknessEpisodeFormData,
   parseLedgerListQuery,
   isLedgerDateRangeInvalid,
   isLedgerFirstDayRangeInvalid,
@@ -21,6 +22,7 @@ import {
   ledgerArchiveReturnHref,
   ledgerCloseDetailHref,
   ledgerDetailHref,
+  ledgerEpisodeUpdateReturnHref,
   ledgerListHref,
   ledgerViewHref,
   parseAbsenceReturnOrigin,
@@ -486,6 +488,9 @@ describe("ledgerListHref", () => {
     expect(ledgerArchiveReturnHref(open, open.detail)).toBe(
       "/ledger?q=Jamal&venue=venue_1&includeArchived=1&sort=staff&direction=asc&page=2&detail=cmmabsenceid000000000001&archived=1",
     );
+    expect(ledgerEpisodeUpdateReturnHref(open, open.detail)).toBe(
+      "/ledger?q=Jamal&venue=venue_1&includeArchived=1&sort=staff&direction=asc&page=2&detail=cmmabsenceid000000000001&episodeUpdated=1",
+    );
   });
 
   it("only accepts same-origin Ledger return paths after archive", () => {
@@ -737,5 +742,50 @@ describe("sicknessInputSchema", () => {
     data.set("confirmArchive", "on");
     data.set("expectedUpdatedAt", new Date().toISOString());
     expect(parseArchiveSicknessFormData(data).success).toBe(true);
+  });
+
+  it("parses an episode update to Ongoing or Ended and rejects forbidden fields", () => {
+    function episodeData(overrides: Record<string, string> = {}) {
+      const data = new FormData();
+      const values = {
+        episodeState: "ONGOING",
+        sicknessEndedDate: "",
+        expectedUpdatedAt: new Date().toISOString(),
+        idempotencyKey: "idem-key-episode",
+        currentEpisodeState: "NOT_CONFIRMED",
+        todayIso: "2026-09-14",
+        firstWorkingDaySick: "2026-09-14",
+        ...overrides,
+      };
+      for (const [key, value] of Object.entries(values)) {
+        data.set(key, value);
+      }
+      return data;
+    }
+
+    expect(parseUpdateSicknessEpisodeFormData(episodeData()).success).toBe(true);
+    expect(
+      parseUpdateSicknessEpisodeFormData(
+        episodeData({ episodeState: "ENDED", sicknessEndedDate: "2026-09-14" }),
+      ).success,
+    ).toBe(true);
+    expect(
+      parseUpdateSicknessEpisodeFormData(
+        episodeData({ episodeState: "ENDED" }),
+      ).success,
+    ).toBe(false);
+    expect(
+      parseUpdateSicknessEpisodeFormData(
+        episodeData({ eventId: "event_1" }),
+      ).success,
+    ).toBe(false);
+    expect(
+      parseUpdateSicknessEpisodeFormData(
+        episodeData({
+          episodeState: "ENDED",
+          sicknessEndedDate: "2026-09-15",
+        }),
+      ).success,
+    ).toBe(false);
   });
 });

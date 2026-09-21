@@ -15,6 +15,8 @@ import {
   REASON_MAX_LENGTH,
   REASON_MIN_LENGTH,
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
+  SICKNESS_EPISODE_STATES,
+  SICKNESS_EPISODE_UPDATE_STATES,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
   ledgerFilterApplies,
@@ -27,15 +29,24 @@ import { DATE_RECORDED_BEFORE_EVENT_MESSAGE } from "@/lib/absence/eligibility";
 import {
   SICKNESS_ADVANCE_BEYOND_LIMIT_MESSAGE,
   SICKNESS_ADVANCE_UNCONFIRMED_MESSAGE,
+  SICKNESS_ENDED_BEFORE_FIRST_DAY_MESSAGE,
+  SICKNESS_ENDED_BEFORE_STARTED_MESSAGE,
+  SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE,
+  SICKNESS_ENDED_FUTURE_MESSAGE,
+  SICKNESS_ENDED_REQUIRED_MESSAGE,
+  SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE,
   SICKNESS_EVENT_FORBIDDEN_MESSAGE,
   SICKNESS_OUT_OF_SCOPE_FIELDS_MESSAGE,
   SICKNESS_REPORTED_FUTURE_MESSAGE,
   SICKNESS_STARTED_AFTER_FIRST_DAY_MESSAGE,
   SICKNESS_STARTED_FUTURE_MESSAGE,
   calendarDaysBetween,
+  episodeUpdateRequiresClearConfirmation,
+  episodeUpdateRequiresCorrectionReason,
   forbiddenSicknessFieldMessage,
   requiresAdvanceConfirmation,
   requiresCorrectionAdvanceConfirmation,
+  sicknessEpisodeHasForbiddenFields,
   sicknessHasForbiddenFields,
   unicodeCodePointLength,
 } from "@/lib/absence/sickness";
@@ -435,6 +446,133 @@ export type CorrectSicknessInput = Omit<
 
 export type ArchiveSicknessInput = z.infer<typeof archiveSicknessInputSchema>;
 
+const optionalSicknessEndedSchema = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .refine(
+    (value) => value === null || parseLocalDate(value) !== null,
+    "Enter a valid date",
+  );
+
+const optionalEpisodeCorrectionReasonSchema = z
+  .string()
+  .transform((value) => emptyToNull(value))
+  .refine(
+    (value) => value === null || value.length >= CORRECTION_REASON_MIN_LENGTH,
+    `Correction reason must be at least ${CORRECTION_REASON_MIN_LENGTH} characters`,
+  )
+  .refine(
+    (value) => value === null || value.length <= CORRECTION_REASON_MAX_LENGTH,
+    `Correction reason must be ${CORRECTION_REASON_MAX_LENGTH} characters or fewer`,
+  );
+
+export const updateSicknessEpisodeInputSchema = z
+  .object({
+    episodeState: z.enum(SICKNESS_EPISODE_UPDATE_STATES, {
+      error: "Select Ongoing or Ended",
+    }),
+    sicknessEndedDate: optionalSicknessEndedSchema,
+    correctionReason: optionalEpisodeCorrectionReasonSchema,
+    confirmClearEndDate: z.boolean(),
+    expectedUpdatedAt: expectedUpdatedAtSchema,
+    idempotencyKey: idempotencyKeySchema,
+    currentEpisodeState: z.enum(SICKNESS_EPISODE_STATES).optional(),
+    currentSicknessEndedDate: optionalSicknessEndedSchema.optional(),
+    firstWorkingDaySick: z.string().optional(),
+    sicknessStartedDate: optionalSicknessStartedSchema.optional(),
+    todayIso: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.episodeState === "ENDED" && !value.sicknessEndedDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sicknessEndedDate"],
+        message: SICKNESS_ENDED_REQUIRED_MESSAGE,
+      });
+    }
+    if (value.episodeState === "ONGOING" && value.sicknessEndedDate) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sicknessEndedDate"],
+        message: SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE,
+      });
+    }
+
+    const todayIso = value.todayIso?.trim();
+    if (
+      value.sicknessEndedDate &&
+      todayIso &&
+      parseLocalDate(todayIso) &&
+      value.sicknessEndedDate > todayIso
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sicknessEndedDate"],
+        message: SICKNESS_ENDED_FUTURE_MESSAGE,
+      });
+    }
+    if (
+      value.sicknessEndedDate &&
+      value.firstWorkingDaySick &&
+      parseLocalDate(value.firstWorkingDaySick) &&
+      value.sicknessEndedDate < value.firstWorkingDaySick
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sicknessEndedDate"],
+        message: SICKNESS_ENDED_BEFORE_FIRST_DAY_MESSAGE,
+      });
+    }
+    if (
+      value.sicknessEndedDate &&
+      value.sicknessStartedDate &&
+      parseLocalDate(value.sicknessStartedDate) &&
+      value.sicknessEndedDate < value.sicknessStartedDate
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sicknessEndedDate"],
+        message: SICKNESS_ENDED_BEFORE_STARTED_MESSAGE,
+      });
+    }
+
+    if (value.currentEpisodeState) {
+      if (
+        episodeUpdateRequiresCorrectionReason({
+          currentState: value.currentEpisodeState,
+          currentEndedDateIso: value.currentSicknessEndedDate ?? null,
+          nextState: value.episodeState,
+          nextEndedDateIso: value.sicknessEndedDate,
+        }) &&
+        !value.correctionReason
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["correctionReason"],
+          message: `Correction reason must be at least ${CORRECTION_REASON_MIN_LENGTH} characters`,
+        });
+      }
+      if (
+        episodeUpdateRequiresClearConfirmation({
+          currentState: value.currentEpisodeState,
+          nextState: value.episodeState,
+        }) &&
+        !value.confirmClearEndDate
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["confirmClearEndDate"],
+          message: SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE,
+        });
+      }
+    }
+  });
+
+export type UpdateSicknessEpisodeInput = z.infer<
+  typeof updateSicknessEpisodeInputSchema
+>;
+
 function sicknessFormObject(formData: FormData) {
   return {
     type: formData.get("type") ?? "SICKNESS",
@@ -507,6 +645,54 @@ export function parseArchiveSicknessFormData(formData: FormData) {
     archiveReason: formData.get("archiveReason") ?? "",
     confirmArchive: formData.get("confirmArchive") === "on",
     expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+  });
+}
+
+function rejectForbiddenSicknessEpisodeFields(
+  formData: FormData,
+): { success: false; error: z.ZodError } | null {
+  if (!sicknessEpisodeHasForbiddenFields(formData)) {
+    return null;
+  }
+  const message = forbiddenSicknessFieldMessage(formData);
+  const parsed =
+    message === SICKNESS_EVENT_FORBIDDEN_MESSAGE
+      ? z
+          .object({
+            eventId: z.string().max(0, SICKNESS_EVENT_FORBIDDEN_MESSAGE),
+          })
+          .safeParse({ eventId: String(formData.get("eventId") ?? "event") })
+      : z
+          .object({
+            form: z.string().max(0, SICKNESS_OUT_OF_SCOPE_FIELDS_MESSAGE),
+          })
+          .safeParse({ form: message });
+  if (parsed.success) {
+    return z.object({ form: z.literal("ok") }).safeParse({
+      form: "fail",
+    }) as { success: false; error: z.ZodError };
+  }
+  return parsed;
+}
+
+export function parseUpdateSicknessEpisodeFormData(formData: FormData) {
+  const forbidden = rejectForbiddenSicknessEpisodeFields(formData);
+  if (forbidden) {
+    return forbidden;
+  }
+  const currentEpisodeState = String(formData.get("currentEpisodeState") ?? "");
+  return updateSicknessEpisodeInputSchema.safeParse({
+    episodeState: formData.get("episodeState") ?? "",
+    sicknessEndedDate: formData.get("sicknessEndedDate") ?? "",
+    correctionReason: formData.get("correctionReason") ?? "",
+    confirmClearEndDate: formData.get("confirmClearEndDate") === "on",
+    expectedUpdatedAt: formData.get("expectedUpdatedAt") ?? "",
+    idempotencyKey: formData.get("idempotencyKey") ?? "",
+    currentEpisodeState: currentEpisodeState || undefined,
+    currentSicknessEndedDate: formData.get("currentSicknessEndedDate") ?? "",
+    firstWorkingDaySick: String(formData.get("firstWorkingDaySick") ?? ""),
+    sicknessStartedDate: formData.get("sicknessStartedDate") ?? "",
+    todayIso: String(formData.get("todayIso") ?? ""),
   });
 }
 

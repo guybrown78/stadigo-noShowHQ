@@ -79,6 +79,8 @@ const ledgerListSelect = {
     select: {
       firstWorkingDaySick: true,
       sicknessStartedDate: true,
+      sicknessEndedDate: true,
+      episodeState: true,
       staffFirstNameSnapshot: true,
       staffLastNameSnapshot: true,
       staffIdNumberSnapshot: true,

@@ -3,7 +3,8 @@ import { AbsenceDetailContent } from "@/components/absence/absence-detail-conten
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AbsenceAccessError } from "@/lib/absence/errors";
-import { getAbsenceForTenant } from "@/lib/absence/queries";
+import { getAbsenceForTenant, getTenantTimezone } from "@/lib/absence/queries";
+import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 
 export async function generateMetadata({
   params,
@@ -36,6 +37,7 @@ export default async function AbsenceDetailPage({
     created?: string;
     updated?: string;
     archived?: string;
+    episodeUpdated?: string;
   }>;
 }) {
   const user = await requireTenant();
@@ -52,5 +54,25 @@ export default async function AbsenceDetailPage({
     throw error;
   }
 
-  return <AbsenceDetailContent absence={absence} flash={flash} layout="page" />;
+  let timeZone: string | undefined;
+  let todayIso: string | undefined;
+  if (absence.type === "SICKNESS") {
+    try {
+      timeZone = await getTenantTimezone(prisma, user.tenantId);
+      todayIso = todayIsoInTimeZone(timeZone);
+    } catch {
+      timeZone = undefined;
+      todayIso = undefined;
+    }
+  }
+
+  return (
+    <AbsenceDetailContent
+      absence={absence}
+      flash={flash}
+      layout="page"
+      timeZone={timeZone}
+      todayIso={todayIso}
+    />
+  );
 }

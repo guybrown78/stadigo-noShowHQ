@@ -9,6 +9,7 @@ import {
   AWOL_CREATE_IDEMPOTENCY_OPERATION,
   IDEMPOTENCY_TTL_MS,
   SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
+  SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
 } from "@/lib/absence/catalog";
 import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
 import { calculateNotice } from "@/lib/absence/notice";
@@ -33,12 +34,18 @@ import type {
   CorrectCancellationInput,
   CorrectSicknessInput,
   SicknessInput,
+  UpdateSicknessEpisodeInput,
 } from "@/lib/absence/schema";
 import {
   DUPLICATE_SICKNESS_MESSAGE,
+  SICKNESS_ARCHIVED_CANNOT_UPDATE,
   SICKNESS_NO_CHANGE_MESSAGE,
+  correctionConflictsWithEndedEpisode,
+  defaultSicknessEpisodeState,
   evaluateSicknessDates,
+  evaluateSicknessEpisodeUpdate,
   requiresCorrectionAdvanceConfirmation,
+  sicknessEpisodeHistoryChanges,
 } from "@/lib/absence/sickness";
 import { TenantTimezoneError, todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
@@ -1619,6 +1626,8 @@ export async function createSickness(
               tenantId: params.tenantId,
               firstWorkingDaySick: resolved.firstWorkingDaySick,
               sicknessStartedDate: resolved.sicknessStartedDate,
+              sicknessEndedDate: null,
+              episodeState: defaultSicknessEpisodeState(),
               issueSummary: resolved.issueSummary,
               ...staffDisplaySnapshot(resolved.staff),
             },
@@ -1741,6 +1750,25 @@ export async function correctSickness(
         });
         if (!resolved.ok) {
           return resolved;
+        }
+
+        const existingEndedIso = existing.sickness.sicknessEndedDate
+          ? dateString(existing.sickness.sicknessEndedDate)
+          : null;
+        const dateConflict = correctionConflictsWithEndedEpisode({
+          firstWorkingDaySickIso: dateString(resolved.firstWorkingDaySick),
+          sicknessStartedDateIso: resolved.sicknessStartedDate
+            ? dateString(resolved.sicknessStartedDate)
+            : null,
+          episodeState: existing.sickness.episodeState,
+          sicknessEndedDateIso: existingEndedIso,
+        });
+        if (dateConflict) {
+          return {
+            ok: false,
+            error: FORM_CHECK_MESSAGE,
+            fieldErrors: { [dateConflict.field]: [dateConflict.message] },
+          };
         }
 
         const previousStaffLabel = staffLabel(existing.staff);
@@ -1908,6 +1936,219 @@ export async function archiveSickness(
           next: "ARCHIVED",
         },
       ],
+    });
+
+    return { ok: true, id: existing.id };
+  });
+}
+
+function sicknessEpisodePayloadHash(params: {
+  absenceId: string;
+  episodeState: string;
+  sicknessEndedDate: string | null;
+  correctionReason: string | null;
+  confirmClearEndDate: boolean;
+}): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        absenceId: params.absenceId,
+        episodeState: params.episodeState,
+        sicknessEndedDate: params.sicknessEndedDate,
+        correctionReason: params.correctionReason,
+        confirmClearEndDate: params.confirmClearEndDate,
+      }),
+    )
+    .digest("hex");
+}
+
+export async function updateSicknessEpisode(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    input: UpdateSicknessEpisodeInput;
+    now?: Date;
+  },
+): Promise<AbsenceMutationResult> {
+  const now = params.now ?? new Date();
+  const payloadHash = sicknessEpisodePayloadHash({
+    absenceId: params.absenceId,
+    episodeState: params.input.episodeState,
+    sicknessEndedDate: params.input.sicknessEndedDate,
+    correctionReason: params.input.correctionReason,
+    confirmClearEndDate: params.input.confirmClearEndDate,
+  });
+
+  return db.$transaction(async (tx) => {
+    await tx.absenceIdempotencyKey.deleteMany({
+      where: {
+        tenantId: params.tenantId,
+        actorId: params.userId,
+        operation: SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
+        expiresAt: { lt: now },
+      },
+    });
+
+    const existingKey = await tx.absenceIdempotencyKey.findUnique({
+      where: {
+        tenantId_actorId_operation_key: {
+          tenantId: params.tenantId,
+          actorId: params.userId,
+          operation: SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
+          key: params.input.idempotencyKey,
+        },
+      },
+    });
+    if (existingKey) {
+      if (existingKey.payloadHash !== payloadHash) {
+        return { ok: false, error: IDEMPOTENCY_REUSE_MESSAGE };
+      }
+      if (existingKey.absenceId) {
+        return { ok: true, id: existingKey.absenceId };
+      }
+    } else {
+      try {
+        await tx.absenceIdempotencyKey.create({
+          data: {
+            tenantId: params.tenantId,
+            actorId: params.userId,
+            operation: SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
+            key: params.input.idempotencyKey,
+            payloadHash,
+            expiresAt: new Date(now.getTime() + IDEMPOTENCY_TTL_MS),
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const raced = await tx.absenceIdempotencyKey.findUnique({
+            where: {
+              tenantId_actorId_operation_key: {
+                tenantId: params.tenantId,
+                actorId: params.userId,
+                operation: SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
+                key: params.input.idempotencyKey,
+              },
+            },
+          });
+          if (raced?.payloadHash !== payloadHash) {
+            return { ok: false, error: IDEMPOTENCY_REUSE_MESSAGE };
+          }
+          if (raced?.absenceId) {
+            return { ok: true, id: raced.absenceId };
+          }
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    await lockAbsenceRow(tx, params.tenantId, params.absenceId);
+    const existing = await tx.absence.findFirst({
+      where: { id: params.absenceId, tenantId: params.tenantId },
+      include: { sickness: true },
+    });
+    if (!existing) {
+      throw new AbsenceAccessError();
+    }
+    if (existing.type !== "SICKNESS" || !existing.sickness) {
+      return { ok: false, error: "This record cannot be updated here." };
+    }
+    if (existing.recordStatus !== "ACTIVE") {
+      return { ok: false, error: SICKNESS_ARCHIVED_CANNOT_UPDATE };
+    }
+    if (!timestampsMatch(existing.updatedAt, params.input.expectedUpdatedAt)) {
+      return { ok: false, error: STALE_WRITE_MESSAGE };
+    }
+
+    let timeZone: string;
+    try {
+      timeZone = await getTenantTimezone(tx, params.tenantId);
+    } catch (error) {
+      if (error instanceof TenantTimezoneError) {
+        return {
+          ok: false,
+          error: error.message,
+          fieldErrors: { timezone: [error.message] },
+        };
+      }
+      throw error;
+    }
+
+    const currentEndedDateIso = existing.sickness.sicknessEndedDate
+      ? dateString(existing.sickness.sicknessEndedDate)
+      : null;
+    const resolved = evaluateSicknessEpisodeUpdate({
+      currentState: existing.sickness.episodeState,
+      currentEndedDateIso,
+      nextState: params.input.episodeState,
+      nextEndedDateIso: params.input.sicknessEndedDate,
+      firstWorkingDaySick: dateString(existing.sickness.firstWorkingDaySick),
+      sicknessStartedDate: existing.sickness.sicknessStartedDate
+        ? dateString(existing.sickness.sicknessStartedDate)
+        : null,
+      correctionReason: params.input.correctionReason,
+      confirmClearEndDate: params.input.confirmClearEndDate,
+      timeZone,
+      now,
+    });
+    if (!resolved.ok) {
+      return {
+        ok: false,
+        error:
+          resolved.field === "form" ? resolved.message : FORM_CHECK_MESSAGE,
+        fieldErrors:
+          resolved.field === "form"
+            ? undefined
+            : { [resolved.field]: [resolved.message] },
+      };
+    }
+
+    const nextEndedDateIso = resolved.sicknessEndedDate
+      ? dateString(resolved.sicknessEndedDate)
+      : null;
+
+    await tx.absence.update({
+      where: { id: existing.id },
+      data: {
+        updatedById: params.userId,
+        sickness: {
+          update: {
+            episodeState: resolved.episodeState,
+            sicknessEndedDate: resolved.sicknessEndedDate,
+          },
+        },
+      },
+    });
+
+    await writeAbsenceHistory(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
+      action: "EPISODE_UPDATED",
+      reason: resolved.requiresCorrectionReason
+        ? params.input.correctionReason
+        : null,
+      actedById: params.userId,
+      changes: sicknessEpisodeHistoryChanges({
+        previousState: existing.sickness.episodeState,
+        nextState: resolved.episodeState,
+        previousEndedDateIso: currentEndedDateIso,
+        nextEndedDateIso,
+      }),
+    });
+
+    await tx.absenceIdempotencyKey.updateMany({
+      where: {
+        tenantId: params.tenantId,
+        actorId: params.userId,
+        operation: SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
+        key: params.input.idempotencyKey,
+      },
+      data: { absenceId: existing.id, payloadHash },
     });
 
     return { ok: true, id: existing.id };

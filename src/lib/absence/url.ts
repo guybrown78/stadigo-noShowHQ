@@ -78,6 +78,16 @@ export function ledgerArchiveReturnHref(
   return href.includes("?") ? `${href}&archived=1` : `${href}?archived=1`;
 }
 
+export function ledgerEpisodeUpdateReturnHref(
+  query: LedgerListQuery,
+  absenceId: string,
+): string {
+  const href = ledgerDetailHref(query, absenceId);
+  return href.includes("?")
+    ? `${href}&episodeUpdated=1`
+    : `${href}?episodeUpdated=1`;
+}
+
 export function safeLedgerReturnTo(value: unknown): string | null {
   if (typeof value !== "string" || !value.startsWith("/ledger")) {
     return null;

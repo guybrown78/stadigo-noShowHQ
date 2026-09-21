@@ -9,7 +9,9 @@ import {
   absenceDetailBodyLabels,
   absenceDetailShowsEvent,
   absenceDetailShowsVenue,
+  absenceEpisodeUpdateActionLabel,
   ABSENCE_DETAIL_LABEL,
+  formatSicknessLedgerEpisodeContext,
 } from "@/lib/absence/display";
 
 const emptyTypeCounts = {
@@ -65,6 +67,7 @@ describe("absence detail drawer contract", () => {
     expect(absenceArchiveActionLabel("SICKNESS")).toBe(
       "Archive sickness report",
     );
+    expect(absenceEpisodeUpdateActionLabel()).toBe("Update sickness episode");
   });
 
   it("keeps type-specific bodies and does not invent Event or Venue for Sickness", () => {
@@ -95,9 +98,12 @@ describe("absence detail drawer contract", () => {
     expect(absenceDetailBodyLabels("SICKNESS")).toEqual([
       ABSENCE_DETAIL_LABEL.staff,
       ABSENCE_DETAIL_LABEL.recordStatus,
+      ABSENCE_DETAIL_LABEL.episodeStatus,
       ABSENCE_DETAIL_LABEL.dateSicknessReported,
       ABSENCE_DETAIL_LABEL.firstDaySick,
       ABSENCE_DETAIL_LABEL.sicknessStarted,
+      ABSENCE_DETAIL_LABEL.sicknessEnded,
+      ABSENCE_DETAIL_LABEL.calendarDaySpan,
       ABSENCE_DETAIL_LABEL.issueSummary,
       ABSENCE_DETAIL_LABEL.created,
     ]);
@@ -119,6 +125,29 @@ describe("absence detail drawer contract", () => {
         "Documents",
       ]),
     );
+  });
+});
+
+describe("formatSicknessLedgerEpisodeContext", () => {
+  it("shows episode status and the end date for ended records", () => {
+    expect(
+      formatSicknessLedgerEpisodeContext({
+        episodeState: "NOT_CONFIRMED",
+        sicknessEndedDate: null,
+      }),
+    ).toBe("Episode status not confirmed");
+    expect(
+      formatSicknessLedgerEpisodeContext({
+        episodeState: "ONGOING",
+        sicknessEndedDate: null,
+      }),
+    ).toBe("Ongoing");
+    expect(
+      formatSicknessLedgerEpisodeContext({
+        episodeState: "ENDED",
+        sicknessEndedDate: new Date("2026-09-17T00:00:00.000Z"),
+      }),
+    ).toBe("Ended · 17 Sept 2026");
   });
 });
 
