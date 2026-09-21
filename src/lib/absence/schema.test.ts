@@ -18,9 +18,13 @@ import {
 } from "@/lib/absence/schema";
 import {
   absenceCancelHref,
+  ledgerArchiveReturnHref,
+  ledgerCloseDetailHref,
+  ledgerDetailHref,
   ledgerListHref,
   ledgerViewHref,
   parseAbsenceReturnOrigin,
+  safeLedgerReturnTo,
 } from "@/lib/absence/url";
 import { CREATABLE_ABSENCE_TYPES } from "@/lib/absence/catalog";
 import { noticeWarningFlags, formatInternalNotes } from "@/lib/absence/display";
@@ -126,6 +130,7 @@ describe("ledgerListQuerySchema", () => {
     expect(parsed.page).toBe(1);
     expect(parsed.venue).toBe("");
     expect(parsed.includeArchived).toBe(false);
+    expect(parsed.detail).toBe("");
   });
 
   it("falls back safely for invalid sort, direction, page and dates", () => {
@@ -431,6 +436,66 @@ describe("ledgerListHref", () => {
         }),
       ),
     ).toBe("/ledger?view=sickness&q=Jamal");
+  });
+
+  it("round-trips a Ledger detail id without treating it as a filter", () => {
+    const parsed = parseLedgerListQuery({
+      q: "Jamal",
+      detail: "cmmabsenceid000000000001",
+      venue: "venue_1",
+    });
+    expect(parsed.detail).toBe("cmmabsenceid000000000001");
+    expect(ledgerHasActiveFilters(parsed)).toBe(true);
+    expect(ledgerDetailHref(parsed, parsed.detail)).toBe(
+      "/ledger?q=Jamal&venue=venue_1&detail=cmmabsenceid000000000001",
+    );
+    expect(ledgerCloseDetailHref(parsed)).toBe(
+      "/ledger?q=Jamal&venue=venue_1",
+    );
+
+    const eventOnly = parseLedgerListQuery({
+      detail: "cmmabsenceid000000000001",
+    });
+    expect(eventOnly.detail).toBe("cmmabsenceid000000000001");
+    expect(ledgerHasActiveFilters(eventOnly)).toBe(false);
+
+    expect(parseLedgerListQuery({ detail: "no" }).detail).toBe("");
+    expect(parseLedgerListQuery({ detail: "../secret" }).detail).toBe("");
+    expect(
+      ledgerListHref({
+        ...defaultLedgerListQuery("sickness"),
+        q: "Jamal",
+        venue: "venue_1",
+        detail: "cmmabsenceid000000000001",
+      }),
+    ).toBe("/ledger?view=sickness&q=Jamal&detail=cmmabsenceid000000000001");
+
+    const open = {
+      ...defaultLedgerListQuery("all"),
+      q: "Jamal",
+      venue: "venue_1",
+      includeArchived: true,
+      sort: "staff" as const,
+      direction: "asc" as const,
+      page: 2,
+      detail: "cmmabsenceid000000000001",
+    };
+    expect(ledgerViewHref(open, "sickness")).toBe(
+      "/ledger?view=sickness&q=Jamal&includeArchived=1&sort=staff&direction=asc",
+    );
+    expect(ledgerArchiveReturnHref(open, open.detail)).toBe(
+      "/ledger?q=Jamal&venue=venue_1&includeArchived=1&sort=staff&direction=asc&page=2&detail=cmmabsenceid000000000001&archived=1",
+    );
+  });
+
+  it("only accepts same-origin Ledger return paths after archive", () => {
+    expect(safeLedgerReturnTo("/ledger?view=sickness&detail=abc12345")).toBe(
+      "/ledger?view=sickness&detail=abc12345",
+    );
+    expect(safeLedgerReturnTo("/ledger")).toBe("/ledger");
+    expect(safeLedgerReturnTo("//evil.example/ledger")).toBeNull();
+    expect(safeLedgerReturnTo("/absence/abc")).toBeNull();
+    expect(safeLedgerReturnTo("https://example.com/ledger")).toBeNull();
   });
 });
 

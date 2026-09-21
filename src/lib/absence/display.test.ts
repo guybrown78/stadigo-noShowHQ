@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   formatLedgerResultsSummary,
   ledgerSearchPlaceholder,
+  ledgerViewDetailsLabel,
+  absenceAllowsCorrectAndArchive,
+  absenceArchiveActionLabel,
+  absenceCorrectActionLabel,
+  absenceDetailBodyLabels,
+  absenceDetailShowsEvent,
+  absenceDetailShowsVenue,
+  ABSENCE_DETAIL_LABEL,
 } from "@/lib/absence/display";
 
 const emptyTypeCounts = {
@@ -24,6 +32,92 @@ describe("ledgerSearchPlaceholder", () => {
     );
     expect(ledgerSearchPlaceholder("awol")).toBe(
       "Staff name, Staff ID, Event name or reference",
+    );
+  });
+});
+
+describe("ledgerViewDetailsLabel", () => {
+  it("names the Ledger View action by absence type", () => {
+    expect(ledgerViewDetailsLabel("CANCELLATION")).toBe(
+      "View Cancellation details",
+    );
+    expect(ledgerViewDetailsLabel("AWOL")).toBe("View AWOL details");
+    expect(ledgerViewDetailsLabel("SICKNESS")).toBe("View Sickness details");
+  });
+});
+
+describe("absence detail drawer contract", () => {
+  it("exposes Correct and Archive only for Active records, with type-specific labels", () => {
+    expect(absenceAllowsCorrectAndArchive("ACTIVE")).toBe(true);
+    expect(absenceAllowsCorrectAndArchive("ARCHIVED")).toBe(false);
+
+    expect(absenceCorrectActionLabel("CANCELLATION")).toBe(
+      "Correct cancellation",
+    );
+    expect(absenceArchiveActionLabel("CANCELLATION")).toBe(
+      "Archive cancellation",
+    );
+    expect(absenceCorrectActionLabel("AWOL")).toBe("Correct AWOL");
+    expect(absenceArchiveActionLabel("AWOL")).toBe("Archive AWOL");
+    expect(absenceCorrectActionLabel("SICKNESS")).toBe(
+      "Correct sickness report",
+    );
+    expect(absenceArchiveActionLabel("SICKNESS")).toBe(
+      "Archive sickness report",
+    );
+  });
+
+  it("keeps type-specific bodies and does not invent Event or Venue for Sickness", () => {
+    expect(absenceDetailShowsEvent("CANCELLATION")).toBe(true);
+    expect(absenceDetailShowsEvent("AWOL")).toBe(true);
+    expect(absenceDetailShowsEvent("SICKNESS")).toBe(false);
+    expect(absenceDetailShowsVenue("AWOL")).toBe(true);
+    expect(absenceDetailShowsVenue("CANCELLATION")).toBe(true);
+    expect(absenceDetailShowsVenue("SICKNESS")).toBe(false);
+
+    expect(absenceDetailBodyLabels("CANCELLATION")).toEqual([
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.event,
+      ABSENCE_DETAIL_LABEL.venue,
+      ABSENCE_DETAIL_LABEL.reported,
+      ABSENCE_DETAIL_LABEL.noticeGiven,
+      ABSENCE_DETAIL_LABEL.reason,
+      ABSENCE_DETAIL_LABEL.internalNotes,
+      ABSENCE_DETAIL_LABEL.created,
+      ABSENCE_DETAIL_LABEL.lastUpdated,
+    ]);
+    expect(absenceDetailBodyLabels("AWOL")).toContain(
+      ABSENCE_DETAIL_LABEL.internalNotes,
+    );
+    expect(absenceDetailBodyLabels("AWOL")).toContain(
+      ABSENCE_DETAIL_LABEL.eventDetails,
+    );
+    expect(absenceDetailBodyLabels("SICKNESS")).toEqual([
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.recordStatus,
+      ABSENCE_DETAIL_LABEL.dateSicknessReported,
+      ABSENCE_DETAIL_LABEL.firstDaySick,
+      ABSENCE_DETAIL_LABEL.sicknessStarted,
+      ABSENCE_DETAIL_LABEL.issueSummary,
+      ABSENCE_DETAIL_LABEL.created,
+    ]);
+    expect(absenceDetailBodyLabels("SICKNESS")).not.toContain(
+      ABSENCE_DETAIL_LABEL.event,
+    );
+    expect(absenceDetailBodyLabels("SICKNESS")).not.toContain(
+      ABSENCE_DETAIL_LABEL.eventDetails,
+    );
+    expect(absenceDetailBodyLabels("SICKNESS")).not.toContain(
+      ABSENCE_DETAIL_LABEL.venue,
+    );
+    expect(absenceDetailBodyLabels("SICKNESS")).not.toEqual(
+      expect.arrayContaining([
+        "Fit note",
+        "Self-certification",
+        "Return to work",
+        "Duration",
+        "Documents",
+      ]),
     );
   });
 });

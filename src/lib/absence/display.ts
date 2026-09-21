@@ -17,6 +17,106 @@ export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
   SICKNESS: "Sickness",
 };
 
+export function ledgerViewDetailsLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "View AWOL details";
+  }
+  if (type === "SICKNESS") {
+    return "View Sickness details";
+  }
+  return "View Cancellation details";
+}
+
+export function absenceAllowsCorrectAndArchive(
+  recordStatus: AbsenceRecordStatus,
+): boolean {
+  return recordStatus === "ACTIVE";
+}
+
+export function absenceCorrectActionLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "Correct AWOL";
+  }
+  if (type === "SICKNESS") {
+    return "Correct sickness report";
+  }
+  return "Correct cancellation";
+}
+
+export function absenceArchiveActionLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "Archive AWOL";
+  }
+  if (type === "SICKNESS") {
+    return "Archive sickness report";
+  }
+  return "Archive cancellation";
+}
+
+export const ABSENCE_DETAIL_LABEL = {
+  staff: "Staff",
+  event: "Event",
+  eventDetails: "Event details",
+  venue: "Venue",
+  reported: "Reported",
+  noticeGiven: "Notice given",
+  reason: "Reason",
+  internalNotes: "Internal notes",
+  dateRecorded: "Date recorded",
+  recordStatus: "Record status",
+  dateSicknessReported: "Date sickness reported",
+  firstDaySick: "First day sick from work",
+  sicknessStarted: "Sickness started",
+  issueSummary: "Issue summary",
+  created: "Created",
+  lastUpdated: "Last updated",
+  archived: "Archived",
+} as const;
+
+export function absenceDetailShowsEvent(type: AbsenceType): boolean {
+  return type !== "SICKNESS";
+}
+
+export function absenceDetailShowsVenue(type: AbsenceType): boolean {
+  return type !== "SICKNESS";
+}
+
+export function absenceDetailBodyLabels(type: AbsenceType): readonly string[] {
+  if (type === "SICKNESS") {
+    return [
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.recordStatus,
+      ABSENCE_DETAIL_LABEL.dateSicknessReported,
+      ABSENCE_DETAIL_LABEL.firstDaySick,
+      ABSENCE_DETAIL_LABEL.sicknessStarted,
+      ABSENCE_DETAIL_LABEL.issueSummary,
+      ABSENCE_DETAIL_LABEL.created,
+    ];
+  }
+  if (type === "AWOL") {
+    return [
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.event,
+      ABSENCE_DETAIL_LABEL.eventDetails,
+      ABSENCE_DETAIL_LABEL.dateRecorded,
+      ABSENCE_DETAIL_LABEL.internalNotes,
+      ABSENCE_DETAIL_LABEL.created,
+      ABSENCE_DETAIL_LABEL.lastUpdated,
+    ];
+  }
+  return [
+    ABSENCE_DETAIL_LABEL.staff,
+    ABSENCE_DETAIL_LABEL.event,
+    ABSENCE_DETAIL_LABEL.venue,
+    ABSENCE_DETAIL_LABEL.reported,
+    ABSENCE_DETAIL_LABEL.noticeGiven,
+    ABSENCE_DETAIL_LABEL.reason,
+    ABSENCE_DETAIL_LABEL.internalNotes,
+    ABSENCE_DETAIL_LABEL.created,
+    ABSENCE_DETAIL_LABEL.lastUpdated,
+  ];
+}
+
 export const FOLLOW_UP_STATUS_LABELS: Record<AbsenceFollowUpStatus, string> = {
   PENDING: "Pending",
   IN_PROGRESS: "In progress",

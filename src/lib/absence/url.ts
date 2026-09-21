@@ -53,9 +53,54 @@ export function ledgerListHref(
   }
 
   if (merged.page && merged.page > 1) params.set("page", String(merged.page));
+  if (merged.detail) params.set("detail", merged.detail);
 
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";
+}
+
+export function ledgerDetailHref(
+  query: LedgerListQuery,
+  absenceId: string,
+): string {
+  return ledgerListHref(query, { detail: absenceId, page: query.page });
+}
+
+export function ledgerCloseDetailHref(query: LedgerListQuery): string {
+  return ledgerListHref(query, { detail: "" });
+}
+
+export function ledgerArchiveReturnHref(
+  query: LedgerListQuery,
+  absenceId: string,
+): string {
+  const href = ledgerDetailHref(query, absenceId);
+  return href.includes("?") ? `${href}&archived=1` : `${href}?archived=1`;
+}
+
+export function safeLedgerReturnTo(value: unknown): string | null {
+  if (typeof value !== "string" || !value.startsWith("/ledger")) {
+    return null;
+  }
+  if (
+    value.startsWith("//") ||
+    value.includes("\\") ||
+    value.includes("://")
+  ) {
+    return null;
+  }
+  try {
+    const url = new URL(value, "http://noshowhq.local");
+    if (url.pathname !== "/ledger") {
+      return null;
+    }
+    if (url.username || url.password || url.host !== "noshowhq.local") {
+      return null;
+    }
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
 }
 
 export function ledgerViewHref(
@@ -66,6 +111,7 @@ export function ledgerViewHref(
   return ledgerListHref(query, {
     view,
     page: 1,
+    detail: "",
     venue: ledgerFilterApplies(view, "venue") ? query.venue : "",
     eventType: ledgerFilterApplies(view, "eventType") ? query.eventType : "",
     sort: sortAllowed ? query.sort : defaultLedgerSortForView(view),

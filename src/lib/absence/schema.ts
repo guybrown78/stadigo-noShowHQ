@@ -638,6 +638,17 @@ function optionalLedgerPage(value: unknown): number {
   return raw;
 }
 
+function optionalLedgerDetail(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9_-]{8,64}$/.test(trimmed)) {
+    return "";
+  }
+  return trimmed;
+}
+
 export const ledgerListQuerySchema = z.object({
   q: z.string().max(160),
   venue: z.string(),
@@ -655,6 +666,7 @@ export const ledgerListQuerySchema = z.object({
   direction: z.enum(LEDGER_SORT_DIRECTIONS),
   page: z.number().int().min(1),
   view: z.enum(LEDGER_VIEWS),
+  detail: z.string(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -678,6 +690,7 @@ export const defaultLedgerListQuery = (
   direction: DEFAULT_LEDGER_DIRECTION,
   page: 1,
   view,
+  detail: "",
 });
 
 export function parseLedgerListQuery(raw: {
@@ -697,6 +710,7 @@ export function parseLedgerListQuery(raw: {
   direction?: string;
   page?: string;
   view?: string;
+  detail?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
   const eventFiltersApply = ledgerShowsEventFilters(view);
@@ -726,6 +740,7 @@ export function parseLedgerListQuery(raw: {
     direction: optionalLedgerDirection(raw.direction),
     page: optionalLedgerPage(raw.page),
     view,
+    detail: optionalLedgerDetail(raw.detail),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }

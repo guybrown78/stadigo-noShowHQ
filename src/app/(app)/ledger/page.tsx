@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
+import { AbsenceDetailContent } from "@/components/absence/absence-detail-content";
+import { LedgerDetailDrawer } from "@/components/absence/ledger-detail-drawer";
 import {
   AbsenceTypeBadge,
   NoticeWarningBadges,
@@ -34,6 +36,7 @@ import {
   formatNoticeSummary,
   ledgerItemLabel,
   ledgerSearchPlaceholder,
+  ledgerViewDetailsLabel,
 } from "@/lib/absence/display";
 import {
   isLedgerAffectedDateRangeInvalid,
@@ -57,7 +60,15 @@ import {
   type LedgerAbsenceRow,
   type LedgerFilterOptions,
 } from "@/lib/absence/ledger-query";
-import { ledgerListHref, ledgerLogAbsenceHref } from "@/lib/absence/url";
+import { AbsenceAccessError } from "@/lib/absence/errors";
+import { getAbsenceForTenant } from "@/lib/absence/queries";
+import {
+  ledgerArchiveReturnHref,
+  ledgerCloseDetailHref,
+  ledgerDetailHref,
+  ledgerListHref,
+  ledgerLogAbsenceHref,
+} from "@/lib/absence/url";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 
@@ -242,17 +253,27 @@ function StatusBadge({ row }: { row: LedgerAbsenceRow }) {
   );
 }
 
-function viewLabel(row: LedgerAbsenceRow, compact: boolean): string {
-  if (compact) {
-    return "View";
-  }
-  if (row.type === "AWOL") {
-    return "View AWOL";
-  }
-  if (row.type === "SICKNESS") {
-    return "View sickness report";
-  }
-  return "View cancellation";
+function ViewAbsenceLink({
+  row,
+  query,
+}: {
+  row: LedgerAbsenceRow;
+  query: LedgerListQuery;
+}) {
+  return (
+    <ButtonLink
+      href={ledgerDetailHref(query, row.id)}
+      scroll={false}
+      variant="secondary"
+      size="sm"
+      aria-label={ledgerViewDetailsLabel(row.type)}
+      aria-haspopup="dialog"
+      aria-expanded={query.detail === row.id}
+      data-ledger-view={row.id}
+    >
+      View
+    </ButtonLink>
+  );
 }
 
 function emptyState(query: LedgerListQuery, hasFilters: boolean) {
@@ -323,6 +344,7 @@ export default async function LedgerPage({
     direction: first(raw.direction),
     page: first(raw.page),
     view: first(raw.view),
+    detail: first(raw.detail),
   });
 
   if (
@@ -359,6 +381,22 @@ export default async function LedgerPage({
     listAbsencesForLedger(prisma, user.tenantId, query),
   ]);
 
+  let detailAbsence = null;
+  if (query.detail) {
+    try {
+      detailAbsence = await getAbsenceForTenant(
+        prisma,
+        user.tenantId,
+        query.detail,
+      );
+    } catch (error) {
+      if (error instanceof AbsenceAccessError) {
+        redirect(ledgerCloseDetailHref(query));
+      }
+      throw error;
+    }
+  }
+
   const {
     rows,
     total,
@@ -383,6 +421,7 @@ export default async function LedgerPage({
 
   return (
     <div>
+      <div inert={Boolean(detailAbsence) || undefined}>
       <PageHeader
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
@@ -413,6 +452,9 @@ export default async function LedgerPage({
       <form method="get" className="mt-4">
         {query.view !== "all" ? (
           <input type="hidden" name="view" value={query.view} />
+        ) : null}
+        {query.detail ? (
+          <input type="hidden" name="detail" value={query.detail} />
         ) : null}
         <FilterBar
           ariaLabel="Filter absences"
@@ -687,13 +729,7 @@ export default async function LedgerPage({
                     <StatusBadge row={row} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <ButtonLink
-                      href={`/absence/${row.id}`}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {viewLabel(row, true)}
-                    </ButtonLink>
+                    <ViewAbsenceLink row={row} query={query} />
                   </td>
                 </tr>
               ))}
@@ -724,13 +760,7 @@ export default async function LedgerPage({
                     <ContextCell row={row} />
                   </div>
                   <div className="mt-3">
-                    <ButtonLink
-                      href={`/absence/${row.id}`}
-                      variant="secondary"
-                      size="sm"
-                    >
-                      {viewLabel(row, false)}
-                    </ButtonLink>
+                    <ViewAbsenceLink row={row} query={query} />
                   </div>
                 </Card>
               </li>
@@ -751,6 +781,28 @@ export default async function LedgerPage({
           />
         </>
       )}
+      </div>
+
+      <LedgerDetailDrawer
+        open={Boolean(detailAbsence)}
+        titleId="ledger-absence-detail-title"
+        closeHref={ledgerCloseDetailHref(query)}
+        returnFocusId={detailAbsence?.id ?? ""}
+      >
+        {detailAbsence ? (
+          <AbsenceDetailContent
+            absence={detailAbsence}
+            flash={{
+              created: first(raw.created),
+              updated: first(raw.updated),
+              archived: first(raw.archived),
+            }}
+            layout="drawer"
+            titleId="ledger-absence-detail-title"
+            archiveReturnTo={ledgerArchiveReturnHref(query, detailAbsence.id)}
+          />
+        ) : null}
+      </LedgerDetailDrawer>
     </div>
   );
 }

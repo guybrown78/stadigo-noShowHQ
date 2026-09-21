@@ -17,10 +17,12 @@ export function ArchiveSicknessDialog({
   absenceId,
   staffName,
   expectedUpdatedAt,
+  returnTo,
 }: {
   absenceId: string;
   staffName: string;
   expectedUpdatedAt: string;
+  returnTo?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -67,6 +69,9 @@ export function ArchiveSicknessDialog({
           <form action={formAction} noValidate className="mt-4 space-y-3">
             <input type="hidden" name="absenceId" value={absenceId} />
             <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
+            {returnTo ? (
+              <input type="hidden" name="returnTo" value={returnTo} />
+            ) : null}
             <FormAlert>{state.error}</FormAlert>
             <div>
               <FieldLabel htmlFor={`${formId}-reason`} required>

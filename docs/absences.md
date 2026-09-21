@@ -147,6 +147,8 @@ The results summary distinguishes filtered matching counts from overall active t
 
 The table uses shared columns (Type, Staff, Recorded, Affected date, Context, Status, View) plus a compact type-aware Context cell: Cancellation event/venue/notice, AWOL event/venue/reference, Sickness initial-report label, started date, and **Issue summary recorded** when present. Raw Issue summary, full notes, and full Cancellation reasons are never selected or returned. Staff display uses live Staff for Cancellation/AWOL and Sickness snapshots. Status is Active or Archived only.
 
+**View** opens a type-aware detail drawer on the Ledger (`?detail=[absence-id]`) without leaving the current list, filters, sort or page. Desktop uses a right-hand sheet; narrow screens use a full-screen sheet. The drawer reuses `getAbsenceForTenant` and the same type-specific fields, Correct and Archive actions, and audit history as `/absence/[id]`. Cancellation detail shows the stored Venue name snapshot from `CancellationDetail` (the same snapshot as the Ledger row), not a live Event lookup. Direct `/absence/[id]` remains the canonical full-page fallback. Closing the drawer (Close, Escape, or Back) restores the originating View action and does not reset filters. Sickness Issue summary stays on authorised detail views and is never placed in the URL.
+
 Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 - `Absence (tenantId, type, recordStatus, reportedDate)` — type list and Recorded range.
@@ -158,7 +160,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 ## Routes
 
-- `/ledger` — All absences Ledger (default)
+- `/ledger` — All absences Ledger (default). `detail=[absence-id]` opens the type-aware review drawer.
 - `/ledger?view=cancellations` — Cancellations
 - `/ledger?view=awol` — AWOL
 - `/ledger?view=sickness` — Sickness (`q`, `reportedFrom`, `reportedTo`, `affectedFrom`, `affectedTo`, `includeArchived=1`, `sort`, `direction`, `page`)
@@ -171,7 +173,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 Sickness lifecycle work after the initial report and this unified Ledger is **paused** until the Ledger is accepted. Episode end date, duration, self-certification, fit notes, certificates, documents, follow-up, return to work, and reliability scoring are not approved delivery parts. Re-plan each slice against the combined Ledger, Centre Circle workflow, and privacy/retention decisions.
 
-Later Sickness work should extend `SicknessDetail` or add related entities. Do not redesign tenant, staff, event, follow-up, record status, or history. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
+Later Sickness work should extend `SicknessDetail` or add related entities, and appear only as type-specific sections on the shared detail component used by both the Ledger drawer and `/absence/[id]`. Do not redesign tenant, staff, event, follow-up, record status, or history, and do not add empty compliance, document, contact or return-to-work panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 
