@@ -1,23 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { SegmentedNav } from "@/components/ui/segmented-nav";
-import type { LedgerView } from "@/lib/absence/catalog";
 import type { LedgerListQuery } from "@/lib/absence/schema";
+import { ledgerActiveCountPhrase } from "@/lib/absence/display";
 import { ledgerViewHref } from "@/lib/absence/url";
-
-function activeCountLabel(view: LedgerView, activeCount: number): string {
-  if (view === "awol") {
-    return activeCount === 1 ? "active AWOL" : "active AWOLs";
-  }
-  if (view === "sickness") {
-    return activeCount === 1
-      ? "active Sickness report"
-      : "active Sickness reports";
-  }
-  if (view === "cancellations") {
-    return activeCount === 1 ? "active Cancellation" : "active Cancellations";
-  }
-  return activeCount === 1 ? "active absence" : "active absences";
-}
 
 export function LedgerTypeNav({
   query,
@@ -55,7 +40,7 @@ export function LedgerTypeNav({
         ]}
       />
       <Badge tone="neutral">
-        {activeCount} {activeCountLabel(view, activeCount)}
+        {activeCount} {ledgerActiveCountPhrase(view, activeCount)}
       </Badge>
     </div>
   );

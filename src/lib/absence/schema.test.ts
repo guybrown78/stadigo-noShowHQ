@@ -13,13 +13,18 @@ import {
   isLedgerDateRangeInvalid,
   isLedgerFirstDayRangeInvalid,
   ledgerHasActiveFilters,
+  ledgerRawHasIncompatibleEventFilters,
   defaultLedgerListQuery,
 } from "@/lib/absence/schema";
 import {
   absenceCancelHref,
+  ledgerArchiveReturnHref,
+  ledgerCloseDetailHref,
+  ledgerDetailHref,
   ledgerListHref,
   ledgerViewHref,
   parseAbsenceReturnOrigin,
+  safeLedgerReturnTo,
 } from "@/lib/absence/url";
 import { CREATABLE_ABSENCE_TYPES } from "@/lib/absence/catalog";
 import { noticeWarningFlags, formatInternalNotes } from "@/lib/absence/display";
@@ -125,6 +130,7 @@ describe("ledgerListQuerySchema", () => {
     expect(parsed.page).toBe(1);
     expect(parsed.venue).toBe("");
     expect(parsed.includeArchived).toBe(false);
+    expect(parsed.detail).toBe("");
   });
 
   it("falls back safely for invalid sort, direction, page and dates", () => {
@@ -234,6 +240,96 @@ describe("ledgerListQuerySchema", () => {
     expect(affectedAlias.affectedTo).toBe("2026-08-31");
     expect(ledgerHasActiveFilters(affectedAlias)).toBe(true);
   });
+
+  it("drops Venue and Event type from Sickness while keeping compatible filters", () => {
+    const parsed = parseLedgerListQuery({
+      view: "sickness",
+      q: "Jamal",
+      venue: "venue_1",
+      eventType: "type_1",
+      reportedFrom: "2026-09-01",
+      reportedTo: "2026-09-20",
+      affectedFrom: "2026-09-02",
+      includeArchived: "1",
+      sort: "staff",
+      direction: "asc",
+    });
+    expect(parsed.view).toBe("sickness");
+    expect(parsed.q).toBe("Jamal");
+    expect(parsed.venue).toBe("");
+    expect(parsed.eventType).toBe("");
+    expect(parsed.reportedFrom).toBe("2026-09-01");
+    expect(parsed.reportedTo).toBe("2026-09-20");
+    expect(parsed.affectedFrom).toBe("2026-09-02");
+    expect(parsed.includeArchived).toBe(true);
+    expect(parsed.sort).toBe("staff");
+    expect(parsed.direction).toBe("asc");
+    expect(ledgerHasActiveFilters(parsed)).toBe(true);
+    expect(
+      ledgerListHref(parsed),
+    ).toBe(
+      "/ledger?view=sickness&q=Jamal&reportedFrom=2026-09-01&reportedTo=2026-09-20&affectedFrom=2026-09-02&includeArchived=1&sort=staff&direction=asc",
+    );
+
+    const eventOnly = parseLedgerListQuery({
+      view: "sickness",
+      venue: "venue_1",
+      eventType: "type_1",
+    });
+    expect(eventOnly.venue).toBe("");
+    expect(eventOnly.eventType).toBe("");
+    expect(ledgerHasActiveFilters(eventOnly)).toBe(false);
+    expect(ledgerListHref(eventOnly)).toBe("/ledger?view=sickness");
+  });
+
+  it("keeps Venue and Event type on All, Cancellations and AWOL", () => {
+    const all = parseLedgerListQuery({
+      venue: "venue_1",
+      eventType: "type_1",
+    });
+    expect(all.venue).toBe("venue_1");
+    expect(all.eventType).toBe("type_1");
+    expect(ledgerHasActiveFilters(all)).toBe(true);
+
+    const cancellations = parseLedgerListQuery({
+      view: "cancellations",
+      venue: "venue_1",
+    });
+    expect(cancellations.venue).toBe("venue_1");
+
+    const awol = parseLedgerListQuery({
+      view: "awol",
+      eventType: "Match",
+    });
+    expect(awol.eventType).toBe("Match");
+  });
+
+  it("treats stale Sickness Event params as incompatible raw filters", () => {
+    expect(
+      ledgerRawHasIncompatibleEventFilters({
+        view: "sickness",
+        venue: "venue_1",
+        eventType: "",
+      }),
+    ).toBe(true);
+    expect(
+      ledgerRawHasIncompatibleEventFilters({
+        view: "sickness",
+        eventType: "type_1",
+      }),
+    ).toBe(true);
+    expect(
+      ledgerRawHasIncompatibleEventFilters({
+        view: "sickness",
+      }),
+    ).toBe(false);
+    expect(
+      ledgerRawHasIncompatibleEventFilters({
+        view: "all",
+        venue: "venue_1",
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("absence type cards", () => {
@@ -327,6 +423,79 @@ describe("ledgerListHref", () => {
     expect(ledgerViewHref(current, "cancellations")).toBe(
       "/ledger?view=cancellations&q=Patel&venue=venue_1&includeArchived=1&sort=notice&direction=asc",
     );
+  });
+
+  it("canonicalises a stale Sickness URL down to compatible params", () => {
+    expect(
+      ledgerListHref(
+        parseLedgerListQuery({
+          view: "sickness",
+          venue: "venue_1",
+          eventType: "type_1",
+          q: "Jamal",
+        }),
+      ),
+    ).toBe("/ledger?view=sickness&q=Jamal");
+  });
+
+  it("round-trips a Ledger detail id without treating it as a filter", () => {
+    const parsed = parseLedgerListQuery({
+      q: "Jamal",
+      detail: "cmmabsenceid000000000001",
+      venue: "venue_1",
+    });
+    expect(parsed.detail).toBe("cmmabsenceid000000000001");
+    expect(ledgerHasActiveFilters(parsed)).toBe(true);
+    expect(ledgerDetailHref(parsed, parsed.detail)).toBe(
+      "/ledger?q=Jamal&venue=venue_1&detail=cmmabsenceid000000000001",
+    );
+    expect(ledgerCloseDetailHref(parsed)).toBe(
+      "/ledger?q=Jamal&venue=venue_1",
+    );
+
+    const eventOnly = parseLedgerListQuery({
+      detail: "cmmabsenceid000000000001",
+    });
+    expect(eventOnly.detail).toBe("cmmabsenceid000000000001");
+    expect(ledgerHasActiveFilters(eventOnly)).toBe(false);
+
+    expect(parseLedgerListQuery({ detail: "no" }).detail).toBe("");
+    expect(parseLedgerListQuery({ detail: "../secret" }).detail).toBe("");
+    expect(
+      ledgerListHref({
+        ...defaultLedgerListQuery("sickness"),
+        q: "Jamal",
+        venue: "venue_1",
+        detail: "cmmabsenceid000000000001",
+      }),
+    ).toBe("/ledger?view=sickness&q=Jamal&detail=cmmabsenceid000000000001");
+
+    const open = {
+      ...defaultLedgerListQuery("all"),
+      q: "Jamal",
+      venue: "venue_1",
+      includeArchived: true,
+      sort: "staff" as const,
+      direction: "asc" as const,
+      page: 2,
+      detail: "cmmabsenceid000000000001",
+    };
+    expect(ledgerViewHref(open, "sickness")).toBe(
+      "/ledger?view=sickness&q=Jamal&includeArchived=1&sort=staff&direction=asc",
+    );
+    expect(ledgerArchiveReturnHref(open, open.detail)).toBe(
+      "/ledger?q=Jamal&venue=venue_1&includeArchived=1&sort=staff&direction=asc&page=2&detail=cmmabsenceid000000000001&archived=1",
+    );
+  });
+
+  it("only accepts same-origin Ledger return paths after archive", () => {
+    expect(safeLedgerReturnTo("/ledger?view=sickness&detail=abc12345")).toBe(
+      "/ledger?view=sickness&detail=abc12345",
+    );
+    expect(safeLedgerReturnTo("/ledger")).toBe("/ledger");
+    expect(safeLedgerReturnTo("//evil.example/ledger")).toBeNull();
+    expect(safeLedgerReturnTo("/absence/abc")).toBeNull();
+    expect(safeLedgerReturnTo("https://example.com/ledger")).toBeNull();
   });
 });
 

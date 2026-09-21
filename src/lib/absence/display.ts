@@ -7,6 +7,7 @@ import type {
 } from "@prisma/client";
 import {
   NOTES_PREVIEW_MAX_LENGTH,
+  type LedgerView,
 } from "@/lib/absence/catalog";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
@@ -15,6 +16,106 @@ export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
   AWOL: "AWOL",
   SICKNESS: "Sickness",
 };
+
+export function ledgerViewDetailsLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "View AWOL details";
+  }
+  if (type === "SICKNESS") {
+    return "View Sickness details";
+  }
+  return "View Cancellation details";
+}
+
+export function absenceAllowsCorrectAndArchive(
+  recordStatus: AbsenceRecordStatus,
+): boolean {
+  return recordStatus === "ACTIVE";
+}
+
+export function absenceCorrectActionLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "Correct AWOL";
+  }
+  if (type === "SICKNESS") {
+    return "Correct sickness report";
+  }
+  return "Correct cancellation";
+}
+
+export function absenceArchiveActionLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "Archive AWOL";
+  }
+  if (type === "SICKNESS") {
+    return "Archive sickness report";
+  }
+  return "Archive cancellation";
+}
+
+export const ABSENCE_DETAIL_LABEL = {
+  staff: "Staff",
+  event: "Event",
+  eventDetails: "Event details",
+  venue: "Venue",
+  reported: "Reported",
+  noticeGiven: "Notice given",
+  reason: "Reason",
+  internalNotes: "Internal notes",
+  dateRecorded: "Date recorded",
+  recordStatus: "Record status",
+  dateSicknessReported: "Date sickness reported",
+  firstDaySick: "First day sick from work",
+  sicknessStarted: "Sickness started",
+  issueSummary: "Issue summary",
+  created: "Created",
+  lastUpdated: "Last updated",
+  archived: "Archived",
+} as const;
+
+export function absenceDetailShowsEvent(type: AbsenceType): boolean {
+  return type !== "SICKNESS";
+}
+
+export function absenceDetailShowsVenue(type: AbsenceType): boolean {
+  return type !== "SICKNESS";
+}
+
+export function absenceDetailBodyLabels(type: AbsenceType): readonly string[] {
+  if (type === "SICKNESS") {
+    return [
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.recordStatus,
+      ABSENCE_DETAIL_LABEL.dateSicknessReported,
+      ABSENCE_DETAIL_LABEL.firstDaySick,
+      ABSENCE_DETAIL_LABEL.sicknessStarted,
+      ABSENCE_DETAIL_LABEL.issueSummary,
+      ABSENCE_DETAIL_LABEL.created,
+    ];
+  }
+  if (type === "AWOL") {
+    return [
+      ABSENCE_DETAIL_LABEL.staff,
+      ABSENCE_DETAIL_LABEL.event,
+      ABSENCE_DETAIL_LABEL.eventDetails,
+      ABSENCE_DETAIL_LABEL.dateRecorded,
+      ABSENCE_DETAIL_LABEL.internalNotes,
+      ABSENCE_DETAIL_LABEL.created,
+      ABSENCE_DETAIL_LABEL.lastUpdated,
+    ];
+  }
+  return [
+    ABSENCE_DETAIL_LABEL.staff,
+    ABSENCE_DETAIL_LABEL.event,
+    ABSENCE_DETAIL_LABEL.venue,
+    ABSENCE_DETAIL_LABEL.reported,
+    ABSENCE_DETAIL_LABEL.noticeGiven,
+    ABSENCE_DETAIL_LABEL.reason,
+    ABSENCE_DETAIL_LABEL.internalNotes,
+    ABSENCE_DETAIL_LABEL.created,
+    ABSENCE_DETAIL_LABEL.lastUpdated,
+  ];
+}
 
 export const FOLLOW_UP_STATUS_LABELS: Record<AbsenceFollowUpStatus, string> = {
   PENDING: "Pending",
@@ -230,5 +331,109 @@ export function formatIssueSummary(
 
 export const LEDGER_EVENT_FILTER_HELP =
   "Venue and Event type filters apply only to Cancellations and AWOLs. Sickness records are not linked to an Event, so they will not appear when these filters are applied.";
+
+export const LEDGER_EVENT_LINKED_SEARCH_PLACEHOLDER =
+  "Staff name, Staff ID, Event name or reference";
+export const LEDGER_SICKNESS_SEARCH_PLACEHOLDER = "Staff name or Staff ID";
+
+export function ledgerSearchPlaceholder(view: LedgerView): string {
+  if (view === "sickness") {
+    return LEDGER_SICKNESS_SEARCH_PLACEHOLDER;
+  }
+  return LEDGER_EVENT_LINKED_SEARCH_PLACEHOLDER;
+}
+
+export function ledgerItemLabel(view: LedgerView): string {
+  if (view === "awol") return "AWOLs";
+  if (view === "sickness") return "Sickness reports";
+  if (view === "cancellations") return "Cancellations";
+  return "absences";
+}
+
+export function ledgerSingularNoun(view: LedgerView): string {
+  if (view === "awol") return "AWOL";
+  if (view === "sickness") return "Sickness report";
+  if (view === "cancellations") return "Cancellation";
+  return "absence";
+}
+
+export function ledgerActiveCountPhrase(
+  view: LedgerView,
+  count: number,
+): string {
+  if (view === "awol") {
+    return count === 1 ? "active AWOL" : "active AWOLs";
+  }
+  if (view === "sickness") {
+    return count === 1
+      ? "active Sickness report"
+      : "active Sickness reports";
+  }
+  if (view === "cancellations") {
+    return count === 1 ? "active Cancellation" : "active Cancellations";
+  }
+  return count === 1 ? "active absence" : "active absences";
+}
+
+export function formatLedgerTypeCounts(counts: {
+  CANCELLATION: number;
+  AWOL: number;
+  SICKNESS: number;
+}): string {
+  return [
+    `Cancellations ${counts.CANCELLATION}`,
+    `AWOL ${counts.AWOL}`,
+    `Sickness ${counts.SICKNESS}`,
+  ].join(", ");
+}
+
+export function formatLedgerResultsSummary(input: {
+  view: LedgerView;
+  total: number;
+  activeTotal: number;
+  matchingTypeCounts: {
+    CANCELLATION: number;
+    AWOL: number;
+    SICKNESS: number;
+  };
+  activeTypeCounts: {
+    CANCELLATION: number;
+    AWOL: number;
+    SICKNESS: number;
+  };
+  hasFilters: boolean;
+  includeArchived: boolean;
+  page: number;
+  pageCount: number;
+}): string[] {
+  const pageSuffix =
+    input.pageCount > 1 ? ` · Page ${input.page} of ${input.pageCount}` : "";
+
+  if (!input.hasFilters) {
+    const compact = `${input.activeTotal} ${ledgerActiveCountPhrase(input.view, input.activeTotal)}`;
+    if (input.view === "all") {
+      return [
+        `${compact} · ${formatLedgerTypeCounts(input.activeTypeCounts)}${pageSuffix}`,
+      ];
+    }
+    return [`${compact}${pageSuffix}`];
+  }
+
+  const matchingNoun =
+    input.total === 1
+      ? ledgerSingularNoun(input.view)
+      : ledgerItemLabel(input.view);
+  const archived = input.includeArchived ? ", including archived" : "";
+  const lines = [
+    `Showing ${input.total} matching ${matchingNoun}${archived}${pageSuffix}`,
+  ];
+  if (input.view === "all") {
+    lines.push(
+      `Matching types: ${formatLedgerTypeCounts(input.matchingTypeCounts)}`,
+    );
+  }
+  lines.push(`Overall active total: ${input.activeTotal}`);
+  return lines;
+}
 
 export const SICKNESS_INITIAL_REPORT_LABEL = "Initial sickness report";

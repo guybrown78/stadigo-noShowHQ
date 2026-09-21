@@ -135,6 +135,22 @@ export function ledgerAbsenceTypesForView(
   return LEDGER_ABSENCE_TYPES_BY_VIEW[view];
 }
 
+export type LedgerEventFilterField = "venue" | "eventType";
+
+export function ledgerFilterApplies(
+  view: LedgerView,
+  field: LedgerEventFilterField,
+): boolean {
+  switch (field) {
+    case "venue":
+    case "eventType":
+      return view !== "sickness";
+  }
+}
+
 export function ledgerShowsEventFilters(view: LedgerView): boolean {
-  return view !== "sickness";
+  return (
+    ledgerFilterApplies(view, "venue") &&
+    ledgerFilterApplies(view, "eventType")
+  );
 }

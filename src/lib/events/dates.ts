@@ -54,6 +54,23 @@ export function formatLocalDateDisplay(date: Date): string {
   return `${date.getUTCDate()} ${DISPLAY_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
+/** Instants shown in Europe/London with numeric parts so Node and Chrome agree. */
+export function formatLondonDateTime(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("day")}/${value("month")}/${value("year")}, ${value("hour")}:${value("minute")}:${value("second")}`;
+}
+
 export function parseLocalTime(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) {

@@ -17,6 +17,8 @@ import {
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
+  ledgerFilterApplies,
+  ledgerShowsEventFilters,
   type LedgerSortDirection,
   type LedgerSortField,
   type LedgerView,
@@ -636,6 +638,17 @@ function optionalLedgerPage(value: unknown): number {
   return raw;
 }
 
+function optionalLedgerDetail(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!/^[a-zA-Z0-9_-]{8,64}$/.test(trimmed)) {
+    return "";
+  }
+  return trimmed;
+}
+
 export const ledgerListQuerySchema = z.object({
   q: z.string().max(160),
   venue: z.string(),
@@ -653,6 +666,7 @@ export const ledgerListQuerySchema = z.object({
   direction: z.enum(LEDGER_SORT_DIRECTIONS),
   page: z.number().int().min(1),
   view: z.enum(LEDGER_VIEWS),
+  detail: z.string(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -676,6 +690,7 @@ export const defaultLedgerListQuery = (
   direction: DEFAULT_LEDGER_DIRECTION,
   page: 1,
   view,
+  detail: "",
 });
 
 export function parseLedgerListQuery(raw: {
@@ -695,16 +710,22 @@ export function parseLedgerListQuery(raw: {
   direction?: string;
   page?: string;
   view?: string;
+  detail?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
+  const eventFiltersApply = ledgerShowsEventFilters(view);
   const eventFrom = optionalLedgerDate(raw.eventFrom);
   const eventTo = optionalLedgerDate(raw.eventTo);
   const firstDayFrom = optionalLedgerDate(raw.firstDayFrom);
   const firstDayTo = optionalLedgerDate(raw.firstDayTo);
   const parsed = ledgerListQuerySchema.safeParse({
     q: typeof raw.q === "string" ? raw.q.trim().slice(0, 160) : "",
-    venue: typeof raw.venue === "string" ? raw.venue.trim() : "",
-    eventType: typeof raw.eventType === "string" ? raw.eventType.trim() : "",
+    venue:
+      eventFiltersApply && typeof raw.venue === "string" ? raw.venue.trim() : "",
+    eventType:
+      eventFiltersApply && typeof raw.eventType === "string"
+        ? raw.eventType.trim()
+        : "",
     reportedFrom: optionalLedgerDate(raw.reportedFrom),
     reportedTo: optionalLedgerDate(raw.reportedTo),
     affectedFrom:
@@ -719,6 +740,7 @@ export function parseLedgerListQuery(raw: {
     direction: optionalLedgerDirection(raw.direction),
     page: optionalLedgerPage(raw.page),
     view,
+    detail: optionalLedgerDetail(raw.detail),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
@@ -766,12 +788,27 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
   const affectedTo = resolvedLedgerAffectedTo(query);
   return Boolean(
     query.q ||
-      query.venue ||
-      query.eventType ||
+      (ledgerFilterApplies(query.view, "venue") && query.venue) ||
+      (ledgerFilterApplies(query.view, "eventType") && query.eventType) ||
       query.includeArchived ||
       (!isLedgerDateRangeInvalid(query) &&
         (query.reportedFrom || query.reportedTo)) ||
       (!isLedgerAffectedDateRangeInvalid(query) &&
         (affectedFrom || affectedTo)),
   );
+}
+
+export function ledgerRawHasIncompatibleEventFilters(raw: {
+  view?: string;
+  venue?: string;
+  eventType?: string;
+}): boolean {
+  const view = optionalLedgerView(raw.view);
+  if (ledgerShowsEventFilters(view)) {
+    return false;
+  }
+  const venue = typeof raw.venue === "string" ? raw.venue.trim() : "";
+  const eventType =
+    typeof raw.eventType === "string" ? raw.eventType.trim() : "";
+  return Boolean(venue || eventType);
 }

@@ -38,6 +38,7 @@ import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
+import { safeLedgerReturnTo } from "@/lib/absence/url";
 
 export type AbsenceActionState = {
   error?: string;
@@ -77,6 +78,14 @@ function revalidateAbsence(resultId: string, staffId: string) {
   revalidatePath(`/absence/${resultId}`);
   revalidatePath(`/staff/${staffId}`);
   revalidatePath("/ledger");
+}
+
+function redirectAfterArchive(absenceId: string, formData: FormData): never {
+  const returnTo = safeLedgerReturnTo(formData.get("returnTo"));
+  if (returnTo) {
+    redirect(returnTo);
+  }
+  redirect(`/absence/${absenceId}?archived=1`);
 }
 
 export async function createCancellationAction(
@@ -193,7 +202,7 @@ export async function archiveCancellationAction(
     if (existing?.staffId) {
       revalidatePath(`/staff/${existing.staffId}`);
     }
-    redirect(`/absence/${result.id}?archived=1`);
+    redirectAfterArchive(result.id, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();
@@ -316,7 +325,7 @@ export async function archiveAwolAction(
     if (existing?.staffId) {
       revalidatePath(`/staff/${existing.staffId}`);
     }
-    redirect(`/absence/${result.id}?archived=1`);
+    redirectAfterArchive(result.id, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();
@@ -446,7 +455,7 @@ export async function archiveSicknessAction(
     if (existing?.staffId) {
       revalidatePath(`/staff/${existing.staffId}`);
     }
-    redirect(`/absence/${result.id}?archived=1`);
+    redirectAfterArchive(result.id, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();

@@ -17,10 +17,12 @@ export function ArchiveCancellationDialog({
   absenceId,
   staffName,
   eventName,
+  returnTo,
 }: {
   absenceId: string;
   staffName: string;
   eventName: string;
+  returnTo?: string;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -70,6 +72,9 @@ export function ArchiveCancellationDialog({
           </p>
           <form action={formAction} noValidate className="mt-4 space-y-3">
             <input type="hidden" name="absenceId" value={absenceId} />
+            {returnTo ? (
+              <input type="hidden" name="returnTo" value={returnTo} />
+            ) : null}
             <FormAlert>{state.error}</FormAlert>
             <div>
               <FieldLabel htmlFor={`${formId}-reason`} required>

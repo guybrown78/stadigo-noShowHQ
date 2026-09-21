@@ -139,9 +139,15 @@ Shared date projections (display and query only; they do not change source recor
 
 Default All absences order is Recorded descending, then Affected date, `createdAt`, then `id`. Allowed shared sorts are `type`, `staff`, `reported`, `affected`, `created`. Focused views also allow `notice` (Cancellations), `event` (Cancellations/AWOL), `sicknessStarted` (Sickness). `eventDate` and `firstDay` are aliases of `affected`. Sort fields are allow-listed server-side.
 
-Search covers Staff name/ID (live Staff plus Sickness snapshots) and Event name/reference for Cancellation and AWOL. It never searches Cancellation reasons, AWOL notes, or Sickness Issue summary. Filters: Recorded From/To (`reportedFrom`/`reportedTo`), Affected From/To (`affectedFrom`/`affectedTo`; older `eventFrom`/`eventTo` and `firstDayFrom`/`firstDayTo` still parse), Venue and Event type for event-linked rows only. Event filters exclude Sickness because Sickness has no Event. Page size is 25.
+Search covers Staff name/ID (live Staff plus Sickness snapshots) and Event name/reference for Cancellation and AWOL. It never searches Cancellation reasons, AWOL notes, or Sickness Issue summary. The Sickness search placeholder is **Staff name or Staff ID**; event-linked views use **Staff name, Staff ID, Event name or reference**.
+
+Filters: Recorded From/To (`reportedFrom`/`reportedTo`), Affected From/To (`affectedFrom`/`affectedTo`; older `eventFrom`/`eventTo` and `firstDayFrom`/`firstDayTo` still parse), Venue and Event type for All, Cancellations and AWOL only. Event filters exclude Sickness because Sickness has no Event. A Sickness URL that still carries `venue` or `eventType` is normalised: those params are ignored for query, omitted from the active-filter summary, and redirected out of the address bar. Compatible params (`q`, dates, `includeArchived`, sort, direction) are kept. Shared compatible filter state continues when switching views.
+
+The results summary distinguishes filtered matching counts from overall active totals. When filters are off, All absences shows the active total plus type totals. When filters are on, it shows the matching count (and matching types on All), then an explicitly labelled overall active total. Show archived is called out on the matching line. Page size is 25.
 
 The table uses shared columns (Type, Staff, Recorded, Affected date, Context, Status, View) plus a compact type-aware Context cell: Cancellation event/venue/notice, AWOL event/venue/reference, Sickness initial-report label, started date, and **Issue summary recorded** when present. Raw Issue summary, full notes, and full Cancellation reasons are never selected or returned. Staff display uses live Staff for Cancellation/AWOL and Sickness snapshots. Status is Active or Archived only.
+
+**View** opens a type-aware detail drawer on the Ledger (`?detail=[absence-id]`) without leaving the current list, filters, sort or page. Desktop uses a right-hand sheet; narrow screens use a full-screen sheet. The drawer reuses `getAbsenceForTenant` and the same type-specific fields, Correct and Archive actions, and audit history as `/absence/[id]`. Cancellation detail shows the stored Venue name snapshot from `CancellationDetail` (the same snapshot as the Ledger row), not a live Event lookup. Direct `/absence/[id]` remains the canonical full-page fallback. Closing the drawer (Close, Escape, or Back) restores the originating View action and does not reset filters. Sickness Issue summary stays on authorised detail views and is never placed in the URL.
 
 Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
@@ -154,7 +160,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 ## Routes
 
-- `/ledger` — All absences Ledger (default)
+- `/ledger` — All absences Ledger (default). `detail=[absence-id]` opens the type-aware review drawer.
 - `/ledger?view=cancellations` — Cancellations
 - `/ledger?view=awol` — AWOL
 - `/ledger?view=sickness` — Sickness (`q`, `reportedFrom`, `reportedTo`, `affectedFrom`, `affectedTo`, `includeArchived=1`, `sort`, `direction`, `page`)
@@ -167,7 +173,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 Sickness lifecycle work after the initial report and this unified Ledger is **paused** until the Ledger is accepted. Episode end date, duration, self-certification, fit notes, certificates, documents, follow-up, return to work, and reliability scoring are not approved delivery parts. Re-plan each slice against the combined Ledger, Centre Circle workflow, and privacy/retention decisions.
 
-Later Sickness work should extend `SicknessDetail` or add related entities. Do not redesign tenant, staff, event, follow-up, record status, or history. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
+Later Sickness work should extend `SicknessDetail` or add related entities, and appear only as type-specific sections on the shared detail component used by both the Ledger drawer and `/absence/[id]`. Do not redesign tenant, staff, event, follow-up, record status, or history, and do not add empty compliance, document, contact or return-to-work panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, or invent Event IDs — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 
