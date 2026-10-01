@@ -20,6 +20,7 @@ import {
   type UpdateSicknessEpisodeInput,
 } from "@/lib/absence/schema";
 import { AbsenceAccessError } from "@/lib/absence/errors";
+import { SICKNESS_ENDED_REQUIRED_MESSAGE } from "@/lib/absence/sickness";
 import { prisma } from "@/lib/db";
 import { provisionTenantEventCatalog } from "@/lib/events/provision";
 import type { EventInput } from "@/lib/events/schema";
@@ -852,6 +853,42 @@ describe("updateSicknessEpisode", () => {
     );
     expect(afterClear.sickness?.episodeState).toBe("ONGOING");
     expect(afterClear.sickness?.sicknessEndedDate).toBeNull();
+  });
+
+  it("rejects Ended with a null date without writing or auditing", async () => {
+    const created = await createReport("2026-03-18");
+    const before = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    const rejected = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: before.id,
+      now,
+      input: episodeInput(before.updatedAt.toISOString(), {
+        episodeState: "ENDED",
+        sicknessEndedDate: null,
+      }),
+    });
+    expect(rejected.ok).toBe(false);
+    if (rejected.ok) {
+      throw new Error("expected rejection");
+    }
+    expect(rejected.fieldErrors?.sicknessEndedDate).toEqual([
+      SICKNESS_ENDED_REQUIRED_MESSAGE,
+    ]);
+
+    const after = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(after.updatedAt.toISOString()).toBe(before.updatedAt.toISOString());
+    expect(after.history).toHaveLength(before.history.length);
+    expect(after.sickness?.episodeState).toBe(before.sickness?.episodeState);
+    expect(after.sickness?.sicknessEndedDate).toBeNull();
   });
 
   it("rejects no-change, archived, stale, future and invalid dates", async () => {

@@ -93,6 +93,21 @@ export function UpdateSicknessEpisodeDialog({
     firstInvalid?.focus();
   }, [state.fieldErrors]);
 
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    // React 19 calls form.reset() while committing the action result, including
+    // validation failure. A React onReset handler does not run during that
+    // commit, so a native listener has to cancel the restore. Otherwise radios
+    // snap back to their mount-time default (Ongoing for an active record) and
+    // uncontrolled correction fields are cleared.
+    const preventActionReset = (event: Event) => {
+      event.preventDefault();
+    };
+    form.addEventListener("reset", preventActionReset);
+    return () => form.removeEventListener("reset", preventActionReset);
+  }, []);
+
   const nextEndedDateIso =
     episodeState === "ENDED" ? sicknessEndedDate || null : null;
   const needsReason = episodeUpdateRequiresCorrectionReason({
