@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
+import { FollowUpsSection } from "@/components/absence/follow-ups-section";
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { Banner } from "@/components/ui/banner";
@@ -46,6 +47,7 @@ export type AbsenceDetailFlash = {
   updated?: string;
   archived?: string;
   episodeUpdated?: string;
+  followUp?: string;
 };
 
 function Detail({
@@ -109,7 +111,7 @@ function HistoryList({ absence }: { absence: AbsenceDetail }) {
               <p className="mt-1 text-slate-600">{entry.reason}</p>
             ) : null}
             {changes.length > 0 ? (
-              <ul className="mt-2 space-y-1 text-slate-600">
+              <ul className="mt-2 space-y-1 break-words whitespace-pre-wrap text-slate-600">
                 {changes.map((change) => (
                   <li key={`${entry.id}-${change.field}`}>
                     {historyFieldLabel(change.field, absence.type)}:{" "}
@@ -293,6 +295,11 @@ function FlashBanners({
       {flash.episodeUpdated === "1" ? (
         <Banner tone="success" className="mt-4">
           Sickness episode updated.
+        </Banner>
+      ) : null}
+      {flash.followUp === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Follow-up saved.
         </Banner>
       ) : null}
       {flash.archived === "1" ? (
@@ -712,6 +719,7 @@ export function AbsenceDetailContent({
   titleId,
   archiveReturnTo,
   episodeUpdateReturnTo,
+  followUpReturnTo,
   timeZone,
   todayIso,
 }: {
@@ -721,6 +729,7 @@ export function AbsenceDetailContent({
   titleId?: string;
   archiveReturnTo?: string;
   episodeUpdateReturnTo?: string;
+  followUpReturnTo?: string;
   timeZone?: string;
   todayIso?: string;
 }) {
@@ -743,6 +752,12 @@ export function AbsenceDetailContent({
         <div className="mt-4">
           <TypeFields absence={absence} />
         </div>
+        <FollowUpsSection
+          absence={absence}
+          todayIso={todayIso}
+          returnTo={followUpReturnTo}
+          compact
+        />
         <HistorySection absence={absence} compact />
       </div>
     );
@@ -822,6 +837,11 @@ export function AbsenceDetailContent({
       <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <TypeFields absence={absence} />
       </div>
+      <FollowUpsSection
+        absence={absence}
+        todayIso={todayIso}
+        returnTo={followUpReturnTo}
+      />
       <HistorySection absence={absence} compact={compact} />
     </div>
   );

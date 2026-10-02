@@ -67,6 +67,7 @@ import {
   ledgerCloseDetailHref,
   ledgerDetailHref,
   ledgerEpisodeUpdateReturnHref,
+  ledgerFollowUpReturnHref,
   ledgerListHref,
   ledgerLogAbsenceHref,
 } from "@/lib/absence/url";
@@ -403,7 +404,7 @@ export default async function LedgerPage({
 
   let timeZone = "";
   let todayIso = "";
-  if (detailAbsence?.type === "SICKNESS") {
+  if (detailAbsence) {
     try {
       timeZone = await getTenantTimezone(prisma, user.tenantId);
       todayIso = todayIsoInTimeZone(timeZone);
@@ -813,6 +814,7 @@ export default async function LedgerPage({
               updated: first(raw.updated),
               archived: first(raw.archived),
               episodeUpdated: first(raw.episodeUpdated),
+              followUp: first(raw.followUp),
             }}
             layout="drawer"
             titleId="ledger-absence-detail-title"
@@ -821,6 +823,7 @@ export default async function LedgerPage({
               query,
               detailAbsence.id,
             )}
+            followUpReturnTo={ledgerFollowUpReturnHref(query, detailAbsence.id)}
             timeZone={timeZone || undefined}
             todayIso={todayIso || undefined}
           />
