@@ -5,6 +5,7 @@ import {
   Calendar,
   ClipboardPlus,
   LayoutDashboard,
+  ListChecks,
   Settings,
   Users,
 } from "lucide-react";
@@ -19,6 +20,7 @@ export function AppShell({
   tenant,
   isActingAsTenant,
   staffTaskCount = 0,
+  followUpCount = 0,
   children,
 }: {
   user: {
@@ -33,6 +35,7 @@ export function AppShell({
   };
   isActingAsTenant: boolean;
   staffTaskCount?: number;
+  followUpCount?: number;
   children: React.ReactNode;
 }) {
   const navGroups = [
@@ -42,6 +45,13 @@ export function AppShell({
         { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/absence/new", label: "Log Absence", icon: ClipboardPlus },
         { href: "/ledger", label: "Ledger", icon: BookOpen },
+        {
+          href: "/follow-ups",
+          label: "Follow-ups",
+          icon: ListChecks,
+          badge: followUpCount || undefined,
+          badgeLabel: "open follow-ups",
+        },
       ],
     },
     {
@@ -58,6 +68,7 @@ export function AppShell({
           label: "Staff",
           icon: Users,
           badge: staffTaskCount || undefined,
+          badgeLabel: "open probation tasks",
         },
       ],
     },

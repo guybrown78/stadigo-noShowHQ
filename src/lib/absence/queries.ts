@@ -44,6 +44,23 @@ export const absenceDetailInclude = {
   cancellation: true,
   awol: true,
   sickness: true,
+  followUps: {
+    select: {
+      id: true,
+      state: true,
+      dueDate: true,
+      details: true,
+      completionNotes: true,
+      completedAt: true,
+      cancellationReason: true,
+      cancelledAt: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: { select: { firstName: true, lastName: true } },
+      completedBy: { select: { firstName: true, lastName: true } },
+      cancelledBy: { select: { firstName: true, lastName: true } },
+    },
+  },
   history: {
     orderBy: { createdAt: "desc" as const },
     include: {
@@ -115,6 +132,7 @@ export type StaffAbsenceHistoryItem = {
     episodeState: "NOT_CONFIRMED" | "ONGOING" | "ENDED";
     issueSummaryPresent: boolean;
   } | null;
+  followUpRecorded: boolean;
 };
 
 export type AbsenceEventSearchMode = "cancellation" | "awol";
@@ -388,6 +406,22 @@ export async function listActiveAbsencesForStaff(
         });
   const order = new Map(ordered.map((row, index) => [row.id, index]));
   loaded.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  const followUpCounts =
+    loaded.length === 0
+      ? []
+      : await db.absenceFollowUp.groupBy({
+          by: ["absenceId"],
+          where: {
+            tenantId,
+            absenceId: { in: loaded.map((absence) => absence.id) },
+          },
+          _count: { _all: true },
+        });
+  const followUpRecorded = new Set(
+    followUpCounts
+      .filter((row) => row._count._all > 0)
+      .map((row) => row.absenceId),
+  );
   const absences: StaffAbsenceHistoryItem[] = loaded.map((absence) => ({
     id: absence.id,
     type: absence.type,
@@ -423,6 +457,7 @@ export async function listActiveAbsencesForStaff(
           ),
         }
       : null,
+    followUpRecorded: followUpRecorded.has(absence.id),
   }));
   return {
     absences,

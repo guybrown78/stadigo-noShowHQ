@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/app-shell";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { countActionableFollowUps } from "@/lib/absence/follow-up-service";
 import {
   countOpenProbationTasks,
   reconcileTenantProbationWork,
@@ -15,7 +16,10 @@ export default async function AppLayout({
 }) {
   const user = await requireTenant();
   await reconcileTenantProbationWork(prisma, user.tenantId);
-  const staffTaskCount = await countOpenProbationTasks(prisma, user.tenantId);
+  const [staffTaskCount, followUpCount] = await Promise.all([
+    countOpenProbationTasks(prisma, user.tenantId),
+    countActionableFollowUps(prisma, user.tenantId),
+  ]);
 
   return (
     <AppShell
@@ -31,6 +35,7 @@ export default async function AppLayout({
       }}
       isActingAsTenant={user.isActingAsTenant}
       staffTaskCount={staffTaskCount}
+      followUpCount={followUpCount}
     >
       {children}
     </AppShell>

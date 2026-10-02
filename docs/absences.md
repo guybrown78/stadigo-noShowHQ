@@ -13,7 +13,9 @@ Key fields: required same-tenant `staffId` (non-deleted for new writes), optiona
 
 A type-aware check constraint `Absence_event_required_by_type` requires an Event for Cancellation and AWOL and forbids one for Sickness.
 
-Cancellation, AWOL, and Sickness writes set `followUpType = REVIEW` and `followUpStatus = PENDING` on the parent so the shared schema stays valid. Follow-up is **not** shown on AWOL or Sickness screens and is not a workflow in this release.
+Cancellation, AWOL, and Sickness writes still set `followUpType = REVIEW` and `followUpStatus = PENDING` on the parent so the shared schema stays valid. Those columns are a placeholder. They are not the follow-up workflow and they are not shown as Ledger status.
+
+Manual follow-ups are child `AbsenceFollowUp` rows linked to the parent Absence. An authorised administrator can add, edit, complete, and cancel them on an active Cancellation, AWOL, or Sickness record, and work from the tenant queue at `/follow-ups`. Completed and cancelled rows stay as history. Archiving the parent leaves existing follow-ups unchanged and removes open ones from the queue. There is no assignee, priority, automatic creation, certificate rule, notification, or hard delete.
 
 NoShowHQ tracks attendance only. Follow-up never represents money, wages, or contact with staff, so avoid payment, charge, or payroll wording in this area.
 
@@ -135,7 +137,7 @@ Staff history has a **Show archived** control that includes authorised archived 
 
 ## Ledger
 
-`/ledger` is a tenant-scoped read-only All absences list. It does not copy rows into a separate Ledger table, mutate records, or show payment / follow-up / recovery status. Viewing the Ledger does not create operational audit events. Correction and archive stay on type-specific detail pages.
+`/ledger` is a tenant-scoped read-only All absences list. It does not copy rows into a separate Ledger table, mutate records, or show payment / recovery status. Ledger status stays Active or Archived. Follow-up notes are not listed on Ledger rows. Viewing the Ledger does not create operational audit events. Correction and archive stay on type-specific detail pages. The Ledger drawer can show the same follow-up section as the full absence page.
 
 Default view is All absences (`/ledger`, unknown `view` values fall back here). Focused views filter the same query: `view=cancellations`, `view=awol`, `view=sickness`. Active records only unless `includeArchived=1`.
 
@@ -178,7 +180,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 ## Future Sickness work
 
-Certificates, documents, contact attempts, follow-up, return-to-work, first day back, automatic closure, and reliability scoring are not in this release. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, contact or return-to-work panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
+Certificates, documents, contact attempts, return-to-work, first day back, automatic closure, and reliability scoring are not in this release. Manual follow-ups are recorded separately and do not add those rules. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, contact or return-to-work panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 

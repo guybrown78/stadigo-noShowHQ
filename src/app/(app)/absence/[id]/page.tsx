@@ -38,6 +38,7 @@ export default async function AbsenceDetailPage({
     updated?: string;
     archived?: string;
     episodeUpdated?: string;
+    followUp?: string;
   }>;
 }) {
   const user = await requireTenant();
@@ -56,14 +57,12 @@ export default async function AbsenceDetailPage({
 
   let timeZone: string | undefined;
   let todayIso: string | undefined;
-  if (absence.type === "SICKNESS") {
-    try {
-      timeZone = await getTenantTimezone(prisma, user.tenantId);
-      todayIso = todayIsoInTimeZone(timeZone);
-    } catch {
-      timeZone = undefined;
-      todayIso = undefined;
-    }
+  try {
+    timeZone = await getTenantTimezone(prisma, user.tenantId);
+    todayIso = todayIsoInTimeZone(timeZone);
+  } catch {
+    timeZone = undefined;
+    todayIso = undefined;
   }
 
   return (

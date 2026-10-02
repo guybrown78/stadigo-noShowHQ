@@ -158,6 +158,10 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   CORRECTED: "Corrected",
   ARCHIVED: "Archived",
   EPISODE_UPDATED: "Episode updated",
+  FOLLOW_UP_CREATED: "Follow-up added",
+  FOLLOW_UP_UPDATED: "Follow-up updated",
+  FOLLOW_UP_COMPLETED: "Follow-up completed",
+  FOLLOW_UP_CANCELLED: "Follow-up cancelled",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -166,6 +170,10 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     CORRECTED: "Sickness report corrected",
     ARCHIVED: "Sickness report archived",
     EPISODE_UPDATED: "Sickness episode updated",
+    FOLLOW_UP_CREATED: "Follow-up added",
+    FOLLOW_UP_UPDATED: "Follow-up updated",
+    FOLLOW_UP_COMPLETED: "Follow-up completed",
+    FOLLOW_UP_CANCELLED: "Follow-up cancelled",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -195,6 +203,11 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   episodeState: "Episode status",
   issueSummary: "Issue summary",
   futureFirstWorkingDayConfirmed: "Advance report confirmed",
+  followUpDueDate: "Follow-up due date",
+  followUpDetails: "Follow-up details",
+  followUpCompletionNotes: "Follow-up outcome",
+  followUpCancellationReason: "Cancellation reason",
+  followUpState: "Follow-up state",
 };
 
 export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -295,7 +308,8 @@ export function formatHistoryValue(field: string, value: string | null): string 
     field === "firstWorkingDaySick" ||
     field === "sicknessStartedDate" ||
     field === "sicknessEndedDate" ||
-    field === "futureFirstWorkingDayConfirmed"
+    field === "futureFirstWorkingDayConfirmed" ||
+    field === "followUpDueDate"
   ) {
     const date = new Date(`${value}T00:00:00.000Z`);
     if (!Number.isNaN(date.getTime())) {
@@ -310,6 +324,11 @@ export function formatHistoryValue(field: string, value: string | null): string 
   }
   if (field === "episodeState") {
     return SICKNESS_EPISODE_STATE_LABELS[value as SicknessEpisodeState] ?? value;
+  }
+  if (field === "followUpState") {
+    if (value === "OPEN") return "Open";
+    if (value === "COMPLETED") return "Completed";
+    if (value === "CANCELLED") return "Cancelled";
   }
   return value;
 }

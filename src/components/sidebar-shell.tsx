@@ -19,6 +19,7 @@ export type SidebarNavItem = {
   /** Additional path prefixes treated as active, e.g. venues under Settings. */
   alsoMatch?: string[];
   badge?: number;
+  badgeLabel?: string;
 };
 
 export type SidebarNavGroup = {
@@ -199,7 +200,7 @@ export function SidebarShell({
                                 ? "bg-primary text-white"
                                 : "bg-slate-900 text-white",
                             )}
-                            aria-label={`${item.badge} open probation tasks`}
+                            aria-label={`${item.badge} ${item.badgeLabel ?? "open items"}`}
                           >
                             {item.badge}
                           </span>

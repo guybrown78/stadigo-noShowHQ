@@ -14,6 +14,13 @@ import { ISSUE_SUMMARY_PRESENT_LABEL, sicknessEpisodeStateLabel } from "@/lib/ab
 import { prisma } from "@/lib/db";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
+function FollowUpRecorded({ recorded }: { recorded: boolean }) {
+  if (!recorded) {
+    return null;
+  }
+  return <p className="mt-1 text-sm text-slate-600">Follow-up recorded</p>;
+}
+
 function historyHref(page: number, archived: boolean) {
   const params = new URLSearchParams();
   if (page > 1) {
@@ -109,6 +116,7 @@ export async function StaffAbsenceHistory({
                             ? ` · ${ISSUE_SUMMARY_PRESENT_LABEL}`
                             : ""}
                         </p>
+                        <FollowUpRecorded recorded={absence.followUpRecorded} />
                       </div>
                     </div>
                   </li>
@@ -142,6 +150,7 @@ export async function StaffAbsenceHistory({
                         {notes ? (
                           <p className="mt-1 text-sm text-slate-600">{notes}</p>
                         ) : null}
+                        <FollowUpRecorded recorded={absence.followUpRecorded} />
                       </div>
                     </div>
                   </li>
@@ -180,6 +189,7 @@ export async function StaffAbsenceHistory({
                           {truncateReason(absence.reason)}
                         </p>
                       ) : null}
+                      <FollowUpRecorded recorded={absence.followUpRecorded} />
                     </div>
                   </div>
                 </li>
