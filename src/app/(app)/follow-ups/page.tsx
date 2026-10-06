@@ -24,6 +24,7 @@ import {
 } from "@/lib/absence/follow-up-schema";
 import { listFollowUpQueue } from "@/lib/absence/follow-up-service";
 import {
+  evidenceActionReturnHref,
   followUpActionReturnHref,
   followUpCloseDetailHref,
   followUpDetailHref,
@@ -295,10 +296,16 @@ export default async function FollowUpsPage({
         {detailAbsence ? (
           <AbsenceDetailContent
             absence={detailAbsence}
-            flash={{ followUp: first(raw.followUp) }}
+            flash={{
+              followUp: first(raw.followUp),
+              evidence: first(raw.evidence),
+            }}
             layout="drawer"
             titleId="follow-up-absence-detail-title"
             followUpReturnTo={followUpActionReturnHref(
+              followUpDetailHref(query, detailAbsence.id),
+            )}
+            evidenceReturnTo={evidenceActionReturnHref(
               followUpDetailHref(query, detailAbsence.id),
             )}
             timeZone={timeZone || undefined}

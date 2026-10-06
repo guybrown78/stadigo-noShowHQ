@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
+import { EvidenceSection } from "@/components/absence/evidence-section";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
@@ -48,6 +49,7 @@ export type AbsenceDetailFlash = {
   archived?: string;
   episodeUpdated?: string;
   followUp?: string;
+  evidence?: string;
 };
 
 function Detail({
@@ -300,6 +302,11 @@ function FlashBanners({
       {flash.followUp === "1" ? (
         <Banner tone="success" className="mt-4">
           Follow-up saved.
+        </Banner>
+      ) : null}
+      {flash.evidence === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Evidence saved.
         </Banner>
       ) : null}
       {flash.archived === "1" ? (
@@ -720,6 +727,7 @@ export function AbsenceDetailContent({
   archiveReturnTo,
   episodeUpdateReturnTo,
   followUpReturnTo,
+  evidenceReturnTo,
   timeZone,
   todayIso,
 }: {
@@ -730,6 +738,7 @@ export function AbsenceDetailContent({
   archiveReturnTo?: string;
   episodeUpdateReturnTo?: string;
   followUpReturnTo?: string;
+  evidenceReturnTo?: string;
   timeZone?: string;
   todayIso?: string;
 }) {
@@ -752,6 +761,13 @@ export function AbsenceDetailContent({
         <div className="mt-4">
           <TypeFields absence={absence} />
         </div>
+        <EvidenceSection
+          absence={absence}
+          todayIso={todayIso}
+          followUpReturnTo={followUpReturnTo}
+          evidenceReturnTo={evidenceReturnTo}
+          compact
+        />
         <FollowUpsSection
           absence={absence}
           todayIso={todayIso}
@@ -837,6 +853,12 @@ export function AbsenceDetailContent({
       <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <TypeFields absence={absence} />
       </div>
+      <EvidenceSection
+        absence={absence}
+        todayIso={todayIso}
+        followUpReturnTo={followUpReturnTo}
+        evidenceReturnTo={evidenceReturnTo}
+      />
       <FollowUpsSection
         absence={absence}
         todayIso={todayIso}

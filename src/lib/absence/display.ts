@@ -10,6 +10,10 @@ import {
   type LedgerView,
   type SicknessEpisodeState,
 } from "@/lib/absence/catalog";
+import {
+  FIT_NOTE_STATUS_LABELS,
+  SELF_CERTIFICATION_STATUS_LABELS,
+} from "@/lib/absence/evidence";
 import { SICKNESS_EPISODE_STATE_LABELS } from "@/lib/absence/sickness";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
@@ -162,6 +166,8 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   FOLLOW_UP_UPDATED: "Follow-up updated",
   FOLLOW_UP_COMPLETED: "Follow-up completed",
   FOLLOW_UP_CANCELLED: "Follow-up cancelled",
+  EVIDENCE_RECORDED: "Evidence recorded",
+  EVIDENCE_CORRECTED: "Evidence corrected",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -174,6 +180,8 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     FOLLOW_UP_UPDATED: "Follow-up updated",
     FOLLOW_UP_COMPLETED: "Follow-up completed",
     FOLLOW_UP_CANCELLED: "Follow-up cancelled",
+    EVIDENCE_RECORDED: "Evidence recorded",
+    EVIDENCE_CORRECTED: "Evidence corrected",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -208,6 +216,12 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   followUpCompletionNotes: "Follow-up outcome",
   followUpCancellationReason: "Cancellation reason",
   followUpState: "Follow-up state",
+  selfCertificationStatus: "Self-certification",
+  fitNoteId: "Fit note",
+  fitNoteStatus: "Fit note status",
+  fitNoteRequestedDate: "Date requested",
+  fitNoteReceivedDate: "Date received",
+  fitNoteNote: "Fit note note",
 };
 
 export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -309,7 +323,9 @@ export function formatHistoryValue(field: string, value: string | null): string 
     field === "sicknessStartedDate" ||
     field === "sicknessEndedDate" ||
     field === "futureFirstWorkingDayConfirmed" ||
-    field === "followUpDueDate"
+    field === "followUpDueDate" ||
+    field === "fitNoteRequestedDate" ||
+    field === "fitNoteReceivedDate"
   ) {
     const date = new Date(`${value}T00:00:00.000Z`);
     if (!Number.isNaN(date.getTime())) {
@@ -329,6 +345,22 @@ export function formatHistoryValue(field: string, value: string | null): string 
     if (value === "OPEN") return "Open";
     if (value === "COMPLETED") return "Completed";
     if (value === "CANCELLED") return "Cancelled";
+  }
+  if (field === "selfCertificationStatus") {
+    return (
+      SELF_CERTIFICATION_STATUS_LABELS[
+        value as keyof typeof SELF_CERTIFICATION_STATUS_LABELS
+      ] ?? value
+    );
+  }
+  if (field === "fitNoteStatus") {
+    return (
+      FIT_NOTE_STATUS_LABELS[value as keyof typeof FIT_NOTE_STATUS_LABELS] ??
+      value
+    );
+  }
+  if (field === "fitNoteId") {
+    return `Fit note ${value.slice(-6)}`;
   }
   return value;
 }

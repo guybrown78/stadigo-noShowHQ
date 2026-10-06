@@ -29,7 +29,12 @@ function useFollowUpDialog(
   const titleId = useId();
   const descriptionId = useId();
   const formId = useId();
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  function openDialog() {
+    setIdempotencyKey((current) => current || crypto.randomUUID());
+    setOpen(true);
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -43,6 +48,7 @@ function useFollowUpDialog(
 
   return {
     setOpen,
+    openDialog,
     titleId,
     descriptionId,
     formId,
@@ -170,7 +176,7 @@ export function AddFollowUpDialog({
 
   return (
     <>
-      <Button type="button" size="sm" onClick={() => dialog.setOpen(true)}>
+      <Button type="button" size="sm" onClick={dialog.openDialog}>
         Add follow-up
       </Button>
       <DialogShell
@@ -312,7 +318,7 @@ export function EditFollowUpDialog({
         type="button"
         variant="secondary"
         size="sm"
-        onClick={() => dialog.setOpen(true)}
+        onClick={dialog.openDialog}
       >
         Edit follow-up
       </Button>
@@ -480,7 +486,7 @@ export function CompleteFollowUpDialog({
         type="button"
         variant="secondary"
         size="sm"
-        onClick={() => dialog.setOpen(true)}
+        onClick={dialog.openDialog}
       >
         Complete follow-up
       </Button>
@@ -591,7 +597,7 @@ export function CancelFollowUpDialog({
         type="button"
         variant="secondary"
         size="sm"
-        onClick={() => dialog.setOpen(true)}
+        onClick={dialog.openDialog}
       >
         Cancel follow-up
       </Button>

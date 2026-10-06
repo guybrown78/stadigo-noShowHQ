@@ -67,6 +67,7 @@ import {
   ledgerCloseDetailHref,
   ledgerDetailHref,
   ledgerEpisodeUpdateReturnHref,
+  ledgerEvidenceReturnHref,
   ledgerFollowUpReturnHref,
   ledgerListHref,
   ledgerLogAbsenceHref,
@@ -815,6 +816,7 @@ export default async function LedgerPage({
               archived: first(raw.archived),
               episodeUpdated: first(raw.episodeUpdated),
               followUp: first(raw.followUp),
+              evidence: first(raw.evidence),
             }}
             layout="drawer"
             titleId="ledger-absence-detail-title"
@@ -824,6 +826,7 @@ export default async function LedgerPage({
               detailAbsence.id,
             )}
             followUpReturnTo={ledgerFollowUpReturnHref(query, detailAbsence.id)}
+            evidenceReturnTo={ledgerEvidenceReturnHref(query, detailAbsence.id)}
             timeZone={timeZone || undefined}
             todayIso={todayIso || undefined}
           />

@@ -46,6 +46,8 @@ model Tenant {
   cancellationDetails          CancellationDetail[]
   awolDetails                  AwolDetail[]
   sicknessDetails              SicknessDetail[]
+  sicknessSelfCertifications   SicknessSelfCertification[]
+  sicknessFitNotes             SicknessFitNote[]
   absenceHistory               AbsenceHistory[]
   absenceIdempotencyKeys       AbsenceIdempotencyKey[]
   absenceFollowUps             AbsenceFollowUp[]
@@ -92,6 +94,10 @@ model User {
   absenceFollowUpsCreated      AbsenceFollowUp[]         @relation("AbsenceFollowUpCreatedBy")
   absenceFollowUpsCompleted    AbsenceFollowUp[]         @relation("AbsenceFollowUpCompletedBy")
   absenceFollowUpsCancelled    AbsenceFollowUp[]         @relation("AbsenceFollowUpCancelledBy")
+  sicknessSelfCertificationsCreated SicknessSelfCertification[] @relation("SicknessSelfCertificationCreatedBy")
+  sicknessSelfCertificationsUpdated SicknessSelfCertification[] @relation("SicknessSelfCertificationUpdatedBy")
+  sicknessFitNotesCreated      SicknessFitNote[]         @relation("SicknessFitNoteCreatedBy")
+  sicknessFitNotesUpdated      SicknessFitNote[]         @relation("SicknessFitNoteUpdatedBy")
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
 
@@ -590,6 +596,23 @@ enum AbsenceHistoryAction {
   FOLLOW_UP_UPDATED
   FOLLOW_UP_COMPLETED
   FOLLOW_UP_CANCELLED
+  EVIDENCE_RECORDED
+  EVIDENCE_CORRECTED
+}
+
+enum SicknessSelfCertificationStatus {
+  NOT_RECORDED
+  NOT_REQUIRED
+  AWAITING
+  RECEIVED
+}
+
+enum SicknessFitNoteStatus {
+  NOT_RECORDED
+  NOT_REQUIRED
+  REQUIRED
+  REQUESTED
+  RECEIVED
 }
 
 enum AbsenceFollowUpState {
@@ -637,6 +660,8 @@ model Absence {
   history        AbsenceHistory[]
   idempotencyKeys AbsenceIdempotencyKey[]
   followUps      AbsenceFollowUp[]
+  selfCertification SicknessSelfCertification?
+  fitNotes       SicknessFitNote[]
 
   @@unique([id, tenantId])
   // Live uniqueness: Absence_tenantId_staffId_eventId_active_cancellation_awol_key
@@ -720,6 +745,48 @@ model SicknessDetail {
   @@index([tenantId, firstWorkingDaySick])
 }
 
+// Manual sickness evidence. One self-certification row per episode, created
+// on the first real save. Fit notes are repeatable and are not hard-deleted.
+// Date combinations are enforced by SicknessFitNote_status_dates.
+model SicknessSelfCertification {
+  absenceId   String                           @id
+  tenantId    String
+  tenant      Tenant                           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence     Absence                          @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  status      SicknessSelfCertificationStatus
+  createdAt   DateTime                         @default(now())
+  createdById String
+  createdBy   User                             @relation("SicknessSelfCertificationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedAt   DateTime                         @updatedAt
+  updatedById String
+  updatedBy   User                             @relation("SicknessSelfCertificationUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([absenceId, tenantId])
+  @@index([tenantId])
+}
+
+model SicknessFitNote {
+  id            String               @id @default(cuid())
+  tenantId      String
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absenceId     String
+  absence       Absence              @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  status        SicknessFitNoteStatus
+  requestedDate DateTime?            @db.Date
+  receivedDate  DateTime?            @db.Date
+  note          String?              @db.VarChar(2000)
+  createdAt     DateTime             @default(now())
+  createdById   String
+  createdBy     User                 @relation("SicknessFitNoteCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedAt     DateTime             @updatedAt
+  updatedById   String
+  updatedBy     User                 @relation("SicknessFitNoteUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  idempotencyKeys AbsenceIdempotencyKey[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, absenceId, createdAt])
+}
+
 // Manual operational follow-ups. State field combinations are enforced by
 // AbsenceFollowUp_state_fields. Parent followUpType / followUpStatus stay
 // the placeholder REVIEW / PENDING columns and are not this workflow.
@@ -764,6 +831,8 @@ model AbsenceIdempotencyKey {
   absence     Absence? @relation(fields: [absenceId], references: [id], onDelete: Restrict)
   followUpId  String?
   followUp    AbsenceFollowUp? @relation(fields: [followUpId], references: [id], onDelete: Restrict)
+  fitNoteId   String?
+  fitNote     SicknessFitNote? @relation(fields: [fitNoteId], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
   expiresAt   DateTime
 
@@ -771,6 +840,7 @@ model AbsenceIdempotencyKey {
   @@index([expiresAt])
   @@index([absenceId])
   @@index([followUpId])
+  @@index([fitNoteId])
 }
 
 model AbsenceHistory {
