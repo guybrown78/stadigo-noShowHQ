@@ -44,6 +44,17 @@ export const absenceDetailInclude = {
   cancellation: true,
   awol: true,
   sickness: true,
+  selfCertification: {
+    include: {
+      updatedBy: { select: { firstName: true, lastName: true } },
+    },
+  },
+  fitNotes: {
+    orderBy: { createdAt: "asc" as const },
+    include: {
+      updatedBy: { select: { firstName: true, lastName: true } },
+    },
+  },
   followUps: {
     select: {
       id: true,

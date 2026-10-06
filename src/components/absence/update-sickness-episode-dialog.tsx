@@ -71,7 +71,12 @@ export function UpdateSicknessEpisodeDialog({
   const [sicknessEndedDate, setSicknessEndedDate] = useState(
     currentSicknessEndedDate,
   );
-  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+
+  function openDialog() {
+    setIdempotencyKey((current) => current || crypto.randomUUID());
+    setOpen(true);
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -123,7 +128,7 @@ export function UpdateSicknessEpisodeDialog({
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      <Button type="button" variant="secondary" size="sm" onClick={openDialog}>
         {SICKNESS_EPISODE_UPDATE_LABEL}
       </Button>
       <dialog

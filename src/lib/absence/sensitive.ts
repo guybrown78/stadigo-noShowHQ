@@ -5,6 +5,7 @@ export const SENSITIVE_ABSENCE_FIELDS = [
   "followUpDetails",
   "followUpCompletionNotes",
   "followUpCancellationReason",
+  "fitNoteNote",
 ] as const;
 
 export const ISSUE_SUMMARY_CHANGED_MARKER = "Issue summary changed";
@@ -12,12 +13,14 @@ export const FOLLOW_UP_DETAILS_CHANGED_MARKER = "Follow-up details changed";
 export const FOLLOW_UP_OUTCOME_CHANGED_MARKER = "Follow-up outcome changed";
 export const FOLLOW_UP_CANCELLATION_CHANGED_MARKER =
   "Follow-up cancellation changed";
+export const FIT_NOTE_NOTE_CHANGED_MARKER = "Fit note note changed";
 
 const SENSITIVE_FIELD_MARKERS: Record<string, string> = {
   issueSummary: ISSUE_SUMMARY_CHANGED_MARKER,
   followUpDetails: FOLLOW_UP_DETAILS_CHANGED_MARKER,
   followUpCompletionNotes: FOLLOW_UP_OUTCOME_CHANGED_MARKER,
   followUpCancellationReason: FOLLOW_UP_CANCELLATION_CHANGED_MARKER,
+  fitNoteNote: FIT_NOTE_NOTE_CHANGED_MARKER,
 };
 
 const FOLLOW_UP_REASON_ACTIONS = new Set([
