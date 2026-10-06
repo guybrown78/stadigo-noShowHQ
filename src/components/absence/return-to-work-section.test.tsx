@@ -39,8 +39,16 @@ afterEach(() => {
   cleanup();
 });
 
+function setDateWithoutChangeEvent(input: HTMLInputElement, value: string) {
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+    input,
+    value,
+  );
+}
+
 function sicknessAbsence(
   overrides: {
+    id?: string;
     recordStatus?: "ACTIVE" | "ARCHIVED";
     status?: (typeof RETURN_TO_WORK_STATUSES)[number] | null;
     completedOn?: string | null;
@@ -50,7 +58,7 @@ function sicknessAbsence(
 ): AbsenceDetail {
   const status = overrides.status;
   return {
-    id: "absence-sickness",
+    id: overrides.id ?? "absence-sickness",
     type: overrides.type ?? "SICKNESS",
     recordStatus: overrides.recordStatus ?? "ACTIVE",
     reportedDate: new Date("2026-09-14T00:00:00.000Z"),
@@ -161,29 +169,139 @@ describe("return to work section", () => {
     fireEvent.change(screen.getByLabelText(/Administrative note/), {
       target: { value: "Keep this note" },
     });
+    date.form?.addEventListener("reset", () => {
+      setDateWithoutChangeEvent(date, "");
+    });
     fireEvent.click(submitNamed("Save return to work")!);
-    expect((screen.getByLabelText(/Completion date/) as HTMLInputElement).value).toBe(
-      "2026-09-15",
-    );
-    expect(
-      (screen.getByLabelText(/Administrative note/) as HTMLTextAreaElement).value,
-    ).toBe("Keep this note");
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toContain(
         "Check the form and try again.",
       );
     });
+    await Promise.resolve();
+    expect((screen.getByLabelText(/Completion date/) as HTMLInputElement).value).toBe(
+      "2026-09-15",
+    );
+    expect(
+      (screen.getByLabelText(/Return to work/) as HTMLSelectElement).value,
+    ).toBe("COMPLETED");
+    expect(
+      (screen.getByLabelText(/Administrative note/) as HTMLTextAreaElement).value,
+    ).toBe("Keep this note");
 
     fireEvent.change(screen.getByLabelText(/Completion date/), {
       target: { value: "" },
     });
     fireEvent.click(submitNamed("Save return to work")!);
+    await waitFor(() => {
+      expect(screen.getByText("Completion date is required")).toBeTruthy();
+    });
+    await Promise.resolve();
     expect((screen.getByLabelText(/Completion date/) as HTMLInputElement).value).toBe(
       "",
     );
     expect(
       (screen.getByLabelText(/Administrative note/) as HTMLTextAreaElement).value,
     ).toBe("Keep this note");
+  });
+
+  it("keeps a picker date that never dispatched a change event", async () => {
+    render(
+      <ReturnToWorkSection absence={sicknessAbsence()} todayIso="2026-09-14" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Record return to work" }));
+    fireEvent.change(screen.getByLabelText(/Return to work/), {
+      target: { value: "COMPLETED" },
+    });
+    fireEvent.change(screen.getByLabelText(/Administrative note/), {
+      target: { value: "Picker note" },
+    });
+    const date = screen.getByLabelText(/Completion date/) as HTMLInputElement;
+    setDateWithoutChangeEvent(date, "2026-09-15");
+    fireEvent.change(screen.getByLabelText(/Administrative note/), {
+      target: { value: "Picker note kept" },
+    });
+    expect(date.value).toBe("2026-09-15");
+    date.form?.addEventListener("reset", () => {
+      setDateWithoutChangeEvent(date, "");
+    });
+    fireEvent.click(submitNamed("Save return to work")!);
+    await waitFor(() => {
+      expect(screen.getByText("Enter a date that is not in the future.")).toBeTruthy();
+    });
+    await Promise.resolve();
+    expect(date.value).toBe("2026-09-15");
+    expect(
+      (screen.getByLabelText(/Return to work/) as HTMLSelectElement).value,
+    ).toBe("COMPLETED");
+    expect(
+      (screen.getByLabelText(/Administrative note/) as HTMLTextAreaElement).value,
+    ).toBe("Picker note kept");
+  });
+
+  it("keeps the correction reason when a future date is rejected", async () => {
+    render(
+      <ReturnToWorkSection
+        absence={sicknessAbsence({ status: "OUTSTANDING", note: "Saved note" })}
+        todayIso="2026-09-14"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Correct return to work" }));
+    const dialog = screen.getByRole("dialog", { name: "Correct return to work" });
+    fireEvent.change(within(dialog).getByLabelText(/Return to work/), {
+      target: { value: "COMPLETED" },
+    });
+    const date = within(dialog).getByLabelText(/Completion date/) as HTMLInputElement;
+    setDateWithoutChangeEvent(date, "2026-09-15");
+    fireEvent.change(within(dialog).getByLabelText(/Correction reason/), {
+      target: { value: "Correct the date" },
+    });
+    date.form?.addEventListener("reset", () => {
+      setDateWithoutChangeEvent(date, "");
+    });
+    fireEvent.click(submitNamed("Save return to work")!);
+    await waitFor(() => {
+      expect(screen.getByText("Enter a date that is not in the future.")).toBeTruthy();
+    });
+    await Promise.resolve();
+    expect(date.value).toBe("2026-09-15");
+    expect(
+      (within(dialog).getByLabelText(/Correction reason/) as HTMLTextAreaElement)
+        .value,
+    ).toBe("Correct the date");
+    expect(
+      (within(dialog).getByLabelText(/Administrative note/) as HTMLTextAreaElement)
+        .value,
+    ).toBe("Saved note");
+  });
+
+  it("does not keep another record's draft date or note", () => {
+    const { rerender } = render(
+      <ReturnToWorkSection absence={sicknessAbsence()} todayIso="2026-09-14" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Record return to work" }));
+    fireEvent.change(screen.getByLabelText(/Return to work/), {
+      target: { value: "COMPLETED" },
+    });
+    fireEvent.change(screen.getByLabelText(/Completion date/), {
+      target: { value: "2026-09-15" },
+    });
+    fireEvent.change(screen.getByLabelText(/Administrative note/), {
+      target: { value: "First record note" },
+    });
+    rerender(
+      <ReturnToWorkSection
+        absence={sicknessAbsence({ id: "absence-other" })}
+        todayIso="2026-09-14"
+      />,
+    );
+    expect(
+      (screen.getByLabelText(/Return to work/) as HTMLSelectElement).value,
+    ).toBe("NOT_RECORDED");
+    expect(screen.queryByLabelText(/Completion date/)).toBeNull();
+    expect(
+      (screen.getByLabelText(/Administrative note/) as HTMLTextAreaElement).value,
+    ).toBe("");
   });
 
   it("warns before clearing a completion date and keeps the correction reason", async () => {

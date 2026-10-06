@@ -107,10 +107,77 @@ export function ReturnToWorkDialog({
   );
   const [state, formAction, pending] = useActionState(action, initialState);
   const [nextStatus, setNextStatus] = useState(status);
-  const [nextCompletedOn, setNextCompletedOn] = useState(completedOn);
   const [nextNote, setNextNote] = useState(note);
   const [reason, setReason] = useState("");
+  const savedKey = `${absenceId}|${expectedUpdatedAt ?? ""}|${status}|${completedOn}|${note}`;
+  const [seenSavedKey, setSeenSavedKey] = useState(savedKey);
+  const dateValueRef = useRef(completedOn);
+  const submittedDateRef = useRef<string | null>(null);
+  const ignoreDateClear = useRef(false);
+  if (seenSavedKey !== savedKey) {
+    setSeenSavedKey(savedKey);
+    setNextStatus(status);
+    setNextNote(note);
+    setReason("");
+  }
+  useEffect(() => {
+    dateValueRef.current = completedOn;
+    submittedDateRef.current = null;
+  }, [savedKey, completedOn]);
   usePreserveInvalidInput(formRef, state.fieldErrors);
+
+  function dateInput(form: HTMLFormElement): HTMLInputElement | null {
+    const field = form.elements.namedItem("completedOn");
+    return field instanceof HTMLInputElement ? field : null;
+  }
+
+  function rememberDate(value: string) {
+    if (value === "" || parseLocalDate(value)) {
+      dateValueRef.current = value;
+    }
+  }
+
+  function preserveEnteredValues(event: {
+    preventDefault(): void;
+    currentTarget: EventTarget | null;
+  }) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!(form instanceof HTMLFormElement)) return;
+    const date = dateInput(form);
+    if (!date) return;
+    ignoreDateClear.current = true;
+    if (parseLocalDate(date.value)) {
+      rememberDate(date.value);
+      if (submittedDateRef.current !== null) {
+        submittedDateRef.current = date.value;
+      }
+    }
+    const keep =
+      submittedDateRef.current !== null
+        ? submittedDateRef.current
+        : dateValueRef.current;
+    queueMicrotask(() => {
+      ignoreDateClear.current = false;
+      submittedDateRef.current = null;
+      if (!date.isConnected) return;
+      if ((keep === "" || parseLocalDate(keep)) && date.value !== keep) {
+        date.value = keep;
+      }
+    });
+  }
+  const preserveEnteredValuesRef = useRef(preserveEnteredValues);
+  useEffect(() => {
+    preserveEnteredValuesRef.current = preserveEnteredValues;
+  });
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    const onReset = (event: Event) => preserveEnteredValuesRef.current(event);
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [formRef]);
   const clearingDate = status === "COMPLETED" && nextStatus !== "COMPLETED";
   const statusDescribedBy = [
     state.fieldErrors?.status ? `${dialog.formId}-status-error` : "",
@@ -143,7 +210,13 @@ export function ReturnToWorkDialog({
             action={formAction}
             noValidate
             className="mt-4 space-y-3"
-            onReset={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              const date = dateInput(event.currentTarget);
+              if (!date) return;
+              rememberDate(date.value);
+              submittedDateRef.current = dateValueRef.current;
+            }}
+            onReset={preserveEnteredValues}
           >
             <input type="hidden" name="absenceId" value={absenceId} />
             <input type="hidden" name="idempotencyKey" value={dialog.idempotencyKey} />
@@ -163,9 +236,14 @@ export function ReturnToWorkDialog({
                 aria-invalid={Boolean(state.fieldErrors?.status)}
                 aria-describedby={statusDescribedBy || undefined}
                 className={controlClassName("w-full")}
-                onChange={(event) =>
-                  setNextStatus(event.target.value as ReturnToWorkStatus)
-                }
+                onChange={(event) => {
+                  const next = event.target.value as ReturnToWorkStatus;
+                  if (!returnToWorkDateApplies(next)) {
+                    dateValueRef.current = completedOn;
+                    submittedDateRef.current = null;
+                  }
+                  setNextStatus(next);
+                }}
               >
                 {RETURN_TO_WORK_STATUSES.map((option) => (
                   <option key={option} value={option}>
@@ -192,11 +270,12 @@ export function ReturnToWorkDialog({
                   Completion date
                 </FieldLabel>
                 <input
+                  key={savedKey}
                   id={`${dialog.formId}-completed`}
                   name="completedOn"
                   type="date"
                   required
-                  value={nextCompletedOn}
+                  defaultValue={completedOn}
                   aria-invalid={Boolean(state.fieldErrors?.completedOn)}
                   aria-describedby={
                     state.fieldErrors?.completedOn
@@ -205,10 +284,9 @@ export function ReturnToWorkDialog({
                   }
                   className={controlClassName("w-full")}
                   onChange={(event) => {
-                    const next = event.target.value;
-                    if (next === "" || parseLocalDate(next)) {
-                      setNextCompletedOn(next);
-                    }
+                    const next = event.currentTarget.value;
+                    if (ignoreDateClear.current && next === "") return;
+                    rememberDate(next);
                   }}
                 />
                 <p
