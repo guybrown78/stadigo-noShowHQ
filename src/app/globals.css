@@ -41,6 +41,11 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Preflight sets margin: 0 on every element, which beats the browser rule that centers dialogs. */
+dialog {
+  margin: auto;
+}
+
 [data-sheet-backdrop] {
   opacity: 0;
 }

@@ -23,6 +23,8 @@ export const SICKNESS_FIT_NOTE_CREATE_IDEMPOTENCY_OPERATION =
   "SICKNESS_FIT_NOTE_CREATE";
 export const SICKNESS_FIT_NOTE_UPDATE_IDEMPOTENCY_OPERATION =
   "SICKNESS_FIT_NOTE_UPDATE";
+export const SICKNESS_RETURN_TO_WORK_UPDATE_IDEMPOTENCY_OPERATION =
+  "SICKNESS_RETURN_TO_WORK_UPDATE";
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 export const NOTES_PREVIEW_MAX_LENGTH = 80;
 export const ISSUE_SUMMARY_MAX_CODE_POINTS = 1000;
@@ -48,6 +50,8 @@ export const ABSENCE_HISTORY_ACTIONS = [
   "FOLLOW_UP_CANCELLED",
   "EVIDENCE_RECORDED",
   "EVIDENCE_CORRECTED",
+  "RETURN_TO_WORK_RECORDED",
+  "RETURN_TO_WORK_CORRECTED",
 ] as const;
 export const ABSENCE_FOLLOW_UP_STATES = [
   "OPEN",
@@ -77,6 +81,12 @@ export const FIT_NOTE_STATUSES = [
   "REQUESTED",
   "RECEIVED",
 ] as const;
+export const RETURN_TO_WORK_STATUSES = [
+  "NOT_RECORDED",
+  "NOT_REQUIRED",
+  "OUTSTANDING",
+  "COMPLETED",
+] as const;
 
 export type SicknessEpisodeState = (typeof SICKNESS_EPISODE_STATES)[number];
 export type SicknessEpisodeUpdateState =
@@ -84,6 +94,7 @@ export type SicknessEpisodeUpdateState =
 export type SelfCertificationStatus =
   (typeof SELF_CERTIFICATION_STATUSES)[number];
 export type FitNoteStatus = (typeof FIT_NOTE_STATUSES)[number];
+export type ReturnToWorkStatus = (typeof RETURN_TO_WORK_STATUSES)[number];
 
 export const SHORT_NOTICE_MINUTES = 24 * 60;
 export const REASON_MIN_LENGTH = 2;

@@ -3,6 +3,7 @@ import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
 import { EvidenceSection } from "@/components/absence/evidence-section";
+import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
@@ -50,6 +51,7 @@ export type AbsenceDetailFlash = {
   episodeUpdated?: string;
   followUp?: string;
   evidence?: string;
+  returnToWork?: string;
 };
 
 function Detail({
@@ -307,6 +309,11 @@ function FlashBanners({
       {flash.evidence === "1" ? (
         <Banner tone="success" className="mt-4">
           Evidence saved.
+        </Banner>
+      ) : null}
+      {flash.returnToWork === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Return to work saved.
         </Banner>
       ) : null}
       {flash.archived === "1" ? (
@@ -728,6 +735,7 @@ export function AbsenceDetailContent({
   episodeUpdateReturnTo,
   followUpReturnTo,
   evidenceReturnTo,
+  returnToWorkReturnTo,
   timeZone,
   todayIso,
 }: {
@@ -739,6 +747,7 @@ export function AbsenceDetailContent({
   episodeUpdateReturnTo?: string;
   followUpReturnTo?: string;
   evidenceReturnTo?: string;
+  returnToWorkReturnTo?: string;
   timeZone?: string;
   todayIso?: string;
 }) {
@@ -766,6 +775,13 @@ export function AbsenceDetailContent({
           todayIso={todayIso}
           followUpReturnTo={followUpReturnTo}
           evidenceReturnTo={evidenceReturnTo}
+          compact
+        />
+        <ReturnToWorkSection
+          absence={absence}
+          todayIso={todayIso}
+          followUpReturnTo={followUpReturnTo}
+          returnToWorkReturnTo={returnToWorkReturnTo}
           compact
         />
         <FollowUpsSection
@@ -858,6 +874,12 @@ export function AbsenceDetailContent({
         todayIso={todayIso}
         followUpReturnTo={followUpReturnTo}
         evidenceReturnTo={evidenceReturnTo}
+      />
+      <ReturnToWorkSection
+        absence={absence}
+        todayIso={todayIso}
+        followUpReturnTo={followUpReturnTo}
+        returnToWorkReturnTo={returnToWorkReturnTo}
       />
       <FollowUpsSection
         absence={absence}

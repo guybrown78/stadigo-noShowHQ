@@ -94,6 +94,14 @@ export function ledgerEvidenceReturnHref(
   return href.includes("?") ? `${href}&evidence=1` : `${href}?evidence=1`;
 }
 
+export function ledgerReturnToWorkReturnHref(
+  query: LedgerListQuery,
+  absenceId: string,
+): string {
+  const href = ledgerDetailHref(query, absenceId);
+  return href.includes("?") ? `${href}&returnToWork=1` : `${href}?returnToWork=1`;
+}
+
 export function ledgerEpisodeUpdateReturnHref(
   query: LedgerListQuery,
   absenceId: string,

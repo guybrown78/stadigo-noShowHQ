@@ -41,6 +41,10 @@ export function evidenceActionReturnHref(href: string): string {
   return href.includes("?") ? `${href}&evidence=1` : `${href}?evidence=1`;
 }
 
+export function returnToWorkActionReturnHref(href: string): string {
+  return href.includes("?") ? `${href}&returnToWork=1` : `${href}?returnToWork=1`;
+}
+
 const ALLOWED_PATH = /^\/(?:follow-ups|ledger|absence\/[A-Za-z0-9]+)$/;
 
 export function safeFollowUpReturnTo(value: unknown): string | null {
