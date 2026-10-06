@@ -48,6 +48,7 @@ model Tenant {
   sicknessDetails              SicknessDetail[]
   sicknessSelfCertifications   SicknessSelfCertification[]
   sicknessFitNotes             SicknessFitNote[]
+  sicknessReturnToWork         SicknessReturnToWork[]
   absenceHistory               AbsenceHistory[]
   absenceIdempotencyKeys       AbsenceIdempotencyKey[]
   absenceFollowUps             AbsenceFollowUp[]
@@ -98,6 +99,8 @@ model User {
   sicknessSelfCertificationsUpdated SicknessSelfCertification[] @relation("SicknessSelfCertificationUpdatedBy")
   sicknessFitNotesCreated      SicknessFitNote[]         @relation("SicknessFitNoteCreatedBy")
   sicknessFitNotesUpdated      SicknessFitNote[]         @relation("SicknessFitNoteUpdatedBy")
+  sicknessReturnToWorkCreated  SicknessReturnToWork[]    @relation("SicknessReturnToWorkCreatedBy")
+  sicknessReturnToWorkUpdated  SicknessReturnToWork[]    @relation("SicknessReturnToWorkUpdatedBy")
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
 
@@ -598,6 +601,8 @@ enum AbsenceHistoryAction {
   FOLLOW_UP_CANCELLED
   EVIDENCE_RECORDED
   EVIDENCE_CORRECTED
+  RETURN_TO_WORK_RECORDED
+  RETURN_TO_WORK_CORRECTED
 }
 
 enum SicknessSelfCertificationStatus {
@@ -613,6 +618,13 @@ enum SicknessFitNoteStatus {
   REQUIRED
   REQUESTED
   RECEIVED
+}
+
+enum SicknessReturnToWorkStatus {
+  NOT_RECORDED
+  NOT_REQUIRED
+  OUTSTANDING
+  COMPLETED
 }
 
 enum AbsenceFollowUpState {
@@ -662,6 +674,7 @@ model Absence {
   followUps      AbsenceFollowUp[]
   selfCertification SicknessSelfCertification?
   fitNotes       SicknessFitNote[]
+  returnToWork   SicknessReturnToWork?
 
   @@unique([id, tenantId])
   // Live uniqueness: Absence_tenantId_staffId_eventId_active_cancellation_awol_key
@@ -785,6 +798,28 @@ model SicknessFitNote {
 
   @@unique([id, tenantId])
   @@index([tenantId, absenceId, createdAt])
+}
+
+// Manual return-to-work position. One optional row per Sickness episode,
+// created on the first real save. A missing row means Not recorded.
+// Completion date is enforced by SicknessReturnToWork_status_date.
+model SicknessReturnToWork {
+  absenceId   String                      @id
+  tenantId    String
+  tenant      Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absence     Absence                     @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  status      SicknessReturnToWorkStatus
+  completedOn DateTime?                   @db.Date
+  note        String?                     @db.VarChar(2000)
+  createdAt   DateTime                    @default(now())
+  createdById String
+  createdBy   User                        @relation("SicknessReturnToWorkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedAt   DateTime                    @updatedAt
+  updatedById String
+  updatedBy   User                        @relation("SicknessReturnToWorkUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([absenceId, tenantId])
+  @@index([tenantId])
 }
 
 // Manual operational follow-ups. State field combinations are enforced by

@@ -55,6 +55,11 @@ export const absenceDetailInclude = {
       updatedBy: { select: { firstName: true, lastName: true } },
     },
   },
+  returnToWork: {
+    include: {
+      updatedBy: { select: { firstName: true, lastName: true } },
+    },
+  },
   followUps: {
     select: {
       id: true,

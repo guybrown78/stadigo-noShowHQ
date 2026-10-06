@@ -39,6 +39,8 @@ export default async function AbsenceDetailPage({
     archived?: string;
     episodeUpdated?: string;
     followUp?: string;
+    evidence?: string;
+    returnToWork?: string;
   }>;
 }) {
   const user = await requireTenant();

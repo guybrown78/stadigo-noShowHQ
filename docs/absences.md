@@ -79,15 +79,36 @@ Access is the same as other Sickness writes: tenant ADMIN, or SUPER_ADMIN acting
 
 The Evidence section is on the Sickness full page and in the Ledger drawer, from the same detail query. Fit note notes stay off Ledger rows, Staff Absence History, search, analytics, URLs, and generic logs. Authorised detail History shows the note; the public-feed redaction replaces it with **Fit note note changed**.
 
-This version does not calculate a seven-day self-certification window, a five-day deadline, working days, or bank holidays. It does not create follow-ups, reminders, queues, document uploads, coverage gaps, return-to-work, or payment behaviour.
+This version does not calculate a seven-day self-certification window, a five-day deadline, working days, or bank holidays. It does not create follow-ups, reminders, queues, document uploads, coverage gaps, or payment behaviour. Recording evidence does not complete return-to-work.
+
+### Return to work
+
+Manual return-to-work tracking belongs only to a Sickness Absence. It is separate from episode state (`NOT_CONFIRMED`, `ONGOING`, `ENDED`), evidence, Absence status (`ACTIVE`, `ARCHIVED`), and shared follow-up state. Recording it does not change those. Changing the episode, evidence, archive status, or a follow-up does not create, complete, or reset it.
+
+Process, fields, and access for this release:
+
+- An administrator chooses the position. There is no automatic requirement and no automatic state transition.
+- One optional row per Sickness episode. A missing row displays **Not recorded**. Existing episodes are not backfilled. Rows are not hard-deleted.
+- Statuses: Not recorded, Not required, Outstanding, Completed.
+- An active Sickness episode can be recorded in any episode state, including Not confirmed and Ongoing. `ENDED` remains the last sickness-affected date. It does not mean returned to work or that return-to-work is completed.
+- **Completion date** is required only when the status is Completed. Other statuses store no date. It is an actual completion date, not a planned follow-up date, and it is not derived from the sickness end date. Retrospective dates are allowed. Future dates are rejected using the tenant timezone.
+- Changing a Completed record to another status clears the current completion date in the same save. The previous date stays in History. The form states that before saving.
+- Optional administrative note, trimmed, blank becomes null, max 2,000 characters, plain text. There is no meeting-conductor field. The recording actor is the signed-in administrator (`createdBy` / `updatedBy`). Not required does not need its own reason.
+- The first real save does not need a correction reason. Later changes require a 2–500 character reason. A no-change edit writes nothing and adds no History event. One successful save writes one `RETURN_TO_WORK_RECORDED` or `RETURN_TO_WORK_CORRECTED` event in the same transaction. Stale writes use the row `updatedAt`. Saves do not bump `Absence.updatedAt`.
+- Idempotency operation: `SICKNESS_RETURN_TO_WORK_UPDATE`.
+- Access is the same as other Sickness writes: tenant ADMIN, or SUPER_ADMIN acting in that tenant, via `requireTenant()`. The note is shown on the authorised Sickness detail, the Ledger drawer, and that History. It stays off Ledger rows, Staff Absence History, search, analytics, URLs, and generic logs. The public-feed redaction replaces it with **Return to work note changed**.
+- Archived Sickness shows the saved position and History, with Correct and Add follow-up hidden.
+- Add follow-up uses the existing manual follow-up flow. Completing either workflow does not update the other.
+
+This does not create deadlines, reminders, queues, reports, document uploads, or a clinical assessment.
 
 ### AbsenceHistory
-Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness episode updated**, and **Evidence recorded/corrected**.
+Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`, `RETURN_TO_WORK_RECORDED`, `RETURN_TO_WORK_CORRECTED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness episode updated**, **Evidence recorded/corrected**, and **Return to work recorded/corrected**.
 
 Raw Issue summary old/new values belong only on the authorised Sickness detail. A public-feed helper redacts them to **Issue summary changed**.
 
 ### AbsenceIdempotencyKey
-Used by AWOL create (`AWOL_CREATE`), Sickness create (`SICKNESS_CREATE`), Sickness episode update (`SICKNESS_EPISODE_UPDATE`), follow-up writes, and Sickness evidence writes (`SICKNESS_SELF_CERT_UPDATE`, `SICKNESS_FIT_NOTE_CREATE`, `SICKNESS_FIT_NOTE_UPDATE`). Unique on `(tenantId, actorId, operation, key)`. Stores a payload fingerprint and the resulting Absence id, and where needed the follow-up or fit note id. Identical retries return the original record. The same key with a different payload is rejected and creates nothing. Rows expire after 24 hours; expired keys for that actor are deleted lazily on the next matching write.
+Used by AWOL create (`AWOL_CREATE`), Sickness create (`SICKNESS_CREATE`), Sickness episode update (`SICKNESS_EPISODE_UPDATE`), follow-up writes, Sickness evidence writes (`SICKNESS_SELF_CERT_UPDATE`, `SICKNESS_FIT_NOTE_CREATE`, `SICKNESS_FIT_NOTE_UPDATE`), and return-to-work writes (`SICKNESS_RETURN_TO_WORK_UPDATE`). Unique on `(tenantId, actorId, operation, key)`. Stores a payload fingerprint and the resulting Absence id, and where needed the follow-up or fit note id. Identical retries return the original record. The same key with a different payload is rejected and creates nothing. Rows expire after 24 hours; expired keys for that actor are deleted lazily on the next matching write.
 
 ## Tenant timezone
 
@@ -162,7 +183,7 @@ Staff history has a **Show archived** control that includes authorised archived 
 
 ## Ledger
 
-`/ledger` is a tenant-scoped read-only All absences list. It does not copy rows into a separate Ledger table, mutate records, or show payment / recovery status. Ledger status stays Active or Archived. Follow-up notes are not listed on Ledger rows. Viewing the Ledger does not create operational audit events. Correction and archive stay on type-specific detail pages. The Ledger drawer can show the same follow-up section and, for Sickness, the same Evidence section as the full absence page. Fit note notes are not listed on Ledger rows.
+`/ledger` is a tenant-scoped read-only All absences list. It does not copy rows into a separate Ledger table, mutate records, or show payment / recovery status. Ledger status stays Active or Archived. Follow-up notes are not listed on Ledger rows. Viewing the Ledger does not create operational audit events. Correction and archive stay on type-specific detail pages. The Ledger drawer can show the same follow-up section and, for Sickness, the same Evidence and Return to work sections as the full absence page. Fit note notes and return-to-work notes are not listed on Ledger rows.
 
 Default view is All absences (`/ledger`, unknown `view` values fall back here). Focused views filter the same query: `view=cancellations`, `view=awol`, `view=sickness`. Active records only unless `includeArchived=1`.
 
@@ -205,7 +226,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 ## Future Sickness work
 
-Documents, contact attempts, return-to-work, first day back, automatic closure, and reliability scoring are not in this release. Manual fit-note evidence records the administrative position only. It does not upload documents, calculate certificate coverage, or apply seven-day or five-day rules. Manual follow-ups are recorded separately and do not add those rules. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, contact or return-to-work panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
+Documents, contact attempts, first day back, automatic closure, and reliability scoring are not in this release. Manual fit-note evidence records the administrative position only. It does not upload documents, calculate certificate coverage, or apply seven-day or five-day rules. Manual follow-ups are recorded separately and do not add those rules. Manual return-to-work records the administrative position only. Digital sick-note storage remains deferred until storage, privacy, access, and retention decisions are approved. Automation and richer Sickness management views remain later slices. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, or contact panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 

@@ -14,6 +14,7 @@ import {
   FIT_NOTE_STATUS_LABELS,
   SELF_CERTIFICATION_STATUS_LABELS,
 } from "@/lib/absence/evidence";
+import { RETURN_TO_WORK_STATUS_LABELS } from "@/lib/absence/return-to-work";
 import { SICKNESS_EPISODE_STATE_LABELS } from "@/lib/absence/sickness";
 import { formatLocalDateDisplay } from "@/lib/events/dates";
 
@@ -168,6 +169,8 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   FOLLOW_UP_CANCELLED: "Follow-up cancelled",
   EVIDENCE_RECORDED: "Evidence recorded",
   EVIDENCE_CORRECTED: "Evidence corrected",
+  RETURN_TO_WORK_RECORDED: "Return to work recorded",
+  RETURN_TO_WORK_CORRECTED: "Return to work corrected",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -182,6 +185,8 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     FOLLOW_UP_CANCELLED: "Follow-up cancelled",
     EVIDENCE_RECORDED: "Evidence recorded",
     EVIDENCE_CORRECTED: "Evidence corrected",
+    RETURN_TO_WORK_RECORDED: "Return to work recorded",
+    RETURN_TO_WORK_CORRECTED: "Return to work corrected",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -222,6 +227,9 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   fitNoteRequestedDate: "Date requested",
   fitNoteReceivedDate: "Date received",
   fitNoteNote: "Fit note note",
+  returnToWorkStatus: "Return to work",
+  returnToWorkCompletedOn: "Completion date",
+  returnToWorkNote: "Return to work note",
 };
 
 export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -325,7 +333,8 @@ export function formatHistoryValue(field: string, value: string | null): string 
     field === "futureFirstWorkingDayConfirmed" ||
     field === "followUpDueDate" ||
     field === "fitNoteRequestedDate" ||
-    field === "fitNoteReceivedDate"
+    field === "fitNoteReceivedDate" ||
+    field === "returnToWorkCompletedOn"
   ) {
     const date = new Date(`${value}T00:00:00.000Z`);
     if (!Number.isNaN(date.getTime())) {
@@ -357,6 +366,13 @@ export function formatHistoryValue(field: string, value: string | null): string 
     return (
       FIT_NOTE_STATUS_LABELS[value as keyof typeof FIT_NOTE_STATUS_LABELS] ??
       value
+    );
+  }
+  if (field === "returnToWorkStatus") {
+    return (
+      RETURN_TO_WORK_STATUS_LABELS[
+        value as keyof typeof RETURN_TO_WORK_STATUS_LABELS
+      ] ?? value
     );
   }
   if (field === "fitNoteId") {
