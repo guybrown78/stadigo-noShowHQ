@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useMemo, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { EventStatus } from "@prisma/client";
 import {
@@ -174,6 +174,32 @@ export function EventForm({
     initialState,
   );
   const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) return;
+    // React 19 calls form.reset() while committing the action result, including
+    // validation failure. A React onReset handler does not run during that
+    // commit, so a native listener has to cancel the restore. Otherwise
+    // uncontrolled fields snap back to their mount-time defaults.
+    const preventActionReset = (event: Event) => {
+      event.preventDefault();
+    };
+    form.addEventListener("reset", preventActionReset);
+    return () => form.removeEventListener("reset", preventActionReset);
+  }, []);
+
+  useEffect(() => {
+    if (!state.fieldErrors) {
+      return;
+    }
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>(
+      "[aria-invalid='true']",
+    );
+    firstInvalid?.focus();
+    firstInvalid?.scrollIntoView({ block: "nearest" });
+  }, [state.fieldErrors]);
 
   const [eventTypeId, setEventTypeId] = useState(
     initialValues?.eventTypeId ?? "",
@@ -226,7 +252,7 @@ export function EventForm({
   }
 
   return (
-    <form action={formAction} className="space-y-8" noValidate>
+    <form ref={formRef} action={formAction} className="space-y-8" noValidate>
       {eventId ? <input type="hidden" name="eventId" value={eventId} /> : null}
 
       {state.error ? <FormAlert>{state.error}</FormAlert> : null}
@@ -349,6 +375,9 @@ export function EventForm({
             defaultValue={initialValues?.status ?? "PLANNED"}
             aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.status)}
+            aria-describedby={
+              state.fieldErrors?.status ? errorId("status") : undefined
+            }
             className={controlClassName("w-full bg-white sm:max-w-xs")}
           >
             {EVENT_STATUSES.map((status) => (
@@ -416,6 +445,11 @@ export function EventForm({
                 name="newVenueAddressLine1"
                 maxLength={160}
                 aria-invalid={Boolean(state.fieldErrors?.newVenueAddressLine1)}
+                aria-describedby={
+                  state.fieldErrors?.newVenueAddressLine1
+                    ? errorId("newAddress")
+                    : undefined
+                }
                 className={controlClassName("w-full bg-white")}
               />
               <FieldError
@@ -432,6 +466,12 @@ export function EventForm({
                   id={`${formId}-new-town`}
                   name="newVenueTownCity"
                   maxLength={120}
+                  aria-invalid={Boolean(state.fieldErrors?.newVenueTownCity)}
+                  aria-describedby={
+                    state.fieldErrors?.newVenueTownCity
+                      ? errorId("newTown")
+                      : undefined
+                  }
                   className={controlClassName("w-full bg-white")}
                 />
                 <FieldError
@@ -689,6 +729,11 @@ export function EventForm({
               defaultValue={initialValues?.warningFillRate ?? DEFAULT_WARNING_FILL_RATE}
               aria-required="true"
               aria-invalid={Boolean(state.fieldErrors?.warningFillRate)}
+              aria-describedby={
+                state.fieldErrors?.warningFillRate
+                  ? errorId("warning")
+                  : undefined
+              }
               className={controlClassName("w-full")}
             />
             <FieldError id={errorId("warning")} messages={state.fieldErrors?.warningFillRate} />
@@ -730,6 +775,9 @@ export function EventForm({
             maxLength={2000}
             defaultValue={initialValues?.notes ?? ""}
             aria-invalid={Boolean(state.fieldErrors?.notes)}
+            aria-describedby={
+              state.fieldErrors?.notes ? errorId("notes") : undefined
+            }
             className={controlClassName("w-full")}
           />
           <FieldError id={errorId("notes")} messages={state.fieldErrors?.notes} />
