@@ -631,6 +631,8 @@ describe("sicknessInputSchema", () => {
       firstWorkingDaySick: "2026-09-14",
       sicknessStartedDate: "",
       issueSummary: "",
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: "",
       idempotencyKey: "idem-key-1234",
       todayIso: "2026-09-14",
       ...overrides,
@@ -647,7 +649,42 @@ describe("sicknessInputSchema", () => {
     if (!parsed.success) return;
     expect(parsed.data.issueSummary).toBeNull();
     expect(parsed.data.sicknessStartedDate).toBeNull();
+    expect(parsed.data.episodeState).toBe("NOT_CONFIRMED");
+    expect(parsed.data.sicknessEndedDate).toBeNull();
     expect(parsed.data.type).toBe("SICKNESS");
+  });
+
+  it("requires an explicit sickness status and an end date when ended", () => {
+    const missing = parseSicknessFormData(sicknessData({ episodeState: "" }));
+    expect(missing.success).toBe(false);
+    if (!missing.success) {
+      expect(
+        missing.error.issues.some(
+          (issue) =>
+            issue.path[0] === "episodeState" &&
+            issue.message === "Choose sickness status",
+        ),
+      ).toBe(true);
+    }
+
+    const ended = parseSicknessFormData(
+      sicknessData({ episodeState: "ENDED", sicknessEndedDate: "" }),
+    );
+    expect(ended.success).toBe(false);
+    if (!ended.success) {
+      expect(
+        ended.error.issues.some((issue) => issue.path[0] === "sicknessEndedDate"),
+      ).toBe(true);
+    }
+
+    const saved = parseSicknessFormData(
+      sicknessData({ episodeState: "ENDED", sicknessEndedDate: "2026-09-14" }),
+    );
+    expect(saved.success).toBe(true);
+    if (saved.success) {
+      expect(saved.data.episodeState).toBe("ENDED");
+      expect(saved.data.sicknessEndedDate).toBe("2026-09-14");
+    }
   });
 
   it("rejects an Event ID rather than stripping it", () => {

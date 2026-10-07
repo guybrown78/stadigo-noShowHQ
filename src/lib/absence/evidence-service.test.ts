@@ -199,6 +199,8 @@ async function sickness(firstDay = "2026-09-14") {
       sicknessStartedDate: null,
       issueSummary: null,
       futureFirstWorkingDayConfirmed: false,
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: null,
       idempotencyKey: key(),
     },
   });

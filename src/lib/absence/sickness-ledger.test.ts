@@ -172,6 +172,8 @@ function sicknessInput(
     sicknessStartedDate: null,
     issueSummary: null,
     futureFirstWorkingDayConfirmed: false,
+    episodeState: "NOT_CONFIRMED",
+    sicknessEndedDate: null,
     idempotencyKey: `sickness-ledger-${Math.random().toString(36).slice(2)}`,
     ...overrides,
   };

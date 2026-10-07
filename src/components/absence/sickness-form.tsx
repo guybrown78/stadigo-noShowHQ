@@ -9,12 +9,20 @@ import {
 } from "@/app/(app)/absence/actions";
 import { AbsenceTypeSelector } from "@/components/absence/absence-type-selector";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
-import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import {
+  FieldError,
+  FormAlert,
+  controlClassName,
+  selectControlClassName,
+} from "@/components/form";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
-import { ISSUE_SUMMARY_MAX_CODE_POINTS } from "@/lib/absence/catalog";
+import {
+  ISSUE_SUMMARY_MAX_CODE_POINTS,
+  type SicknessEpisodeState,
+} from "@/lib/absence/catalog";
 import type { AbsenceStaffOption } from "@/lib/absence/queries";
 import {
   parseCorrectSicknessFormData,
@@ -22,6 +30,7 @@ import {
 } from "@/lib/absence/schema";
 import {
   ISSUE_SUMMARY_HELPER_TEXT,
+  SICKNESS_ENDED_DATE_HINT,
   requiresAdvanceConfirmation,
   requiresCorrectionAdvanceConfirmation,
 } from "@/lib/absence/sickness";
@@ -92,6 +101,10 @@ export function SicknessForm({
   const [issueSummary, setIssueSummary] = useState(
     initialValues?.issueSummary ?? "",
   );
+  const [episodeState, setEpisodeState] = useState<"" | SicknessEpisodeState>(
+    "",
+  );
+  const [sicknessEndedDate, setSicknessEndedDate] = useState("");
   const [correctionReason, setCorrectionReason] = useState("");
   const [advanceConfirmed, setAdvanceConfirmed] = useState(false);
 
@@ -125,6 +138,8 @@ export function SicknessForm({
     setFirstWorkingDaySick("");
     setSicknessStartedDate("");
     setIssueSummary("");
+    setEpisodeState("");
+    setSicknessEndedDate("");
     setAdvanceConfirmed(false);
   }
 
@@ -248,6 +263,79 @@ export function SicknessForm({
             id={`${formId}-advance-error`}
             messages={state.fieldErrors?.futureFirstWorkingDayConfirmed}
           />
+        </div>
+      ) : null}
+
+      {mode === "create" ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <FieldLabel htmlFor={`${formId}-status`} required>
+              Sickness status
+            </FieldLabel>
+            <select
+              id={`${formId}-status`}
+              name="episodeState"
+              value={episodeState}
+              aria-invalid={Boolean(state.fieldErrors?.episodeState)}
+              aria-describedby={
+                state.fieldErrors?.episodeState
+                  ? `${formId}-status-error`
+                  : undefined
+              }
+              className={selectControlClassName("w-full")}
+              onChange={(event) => {
+                const next = event.target.value as "" | SicknessEpisodeState;
+                setEpisodeState(next);
+                if (next !== "ENDED") {
+                  setSicknessEndedDate("");
+                }
+              }}
+            >
+              <option value="">Choose sickness status</option>
+              <option value="ONGOING">Ongoing</option>
+              <option value="ENDED">Ended</option>
+              <option value="NOT_CONFIRMED">Not yet confirmed</option>
+            </select>
+            <FieldError
+              id={`${formId}-status-error`}
+              messages={state.fieldErrors?.episodeState}
+            />
+          </div>
+          {episodeState === "ENDED" ? (
+            <div>
+              <FieldLabel htmlFor={`${formId}-ended`} required>
+                Last day sick from work
+              </FieldLabel>
+              <input
+                id={`${formId}-ended`}
+                name="sicknessEndedDate"
+                type="date"
+                value={sicknessEndedDate}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (next === "" || parseLocalDate(next)) {
+                    setSicknessEndedDate(next);
+                  }
+                }}
+                aria-invalid={Boolean(state.fieldErrors?.sicknessEndedDate)}
+                aria-describedby={`${formId}-ended-hint${
+                  state.fieldErrors?.sicknessEndedDate
+                    ? ` ${formId}-ended-error`
+                    : ""
+                }`}
+                className={controlClassName("w-full")}
+              />
+              <p id={`${formId}-ended-hint`} className="mt-1 text-sm text-slate-500">
+                {SICKNESS_ENDED_DATE_HINT}
+              </p>
+              <FieldError
+                id={`${formId}-ended-error`}
+                messages={state.fieldErrors?.sicknessEndedDate}
+              />
+            </div>
+          ) : (
+            <input type="hidden" name="sicknessEndedDate" value="" />
+          )}
         </div>
       ) : null}
 

@@ -44,10 +44,11 @@ import type {
 import {
   DUPLICATE_SICKNESS_MESSAGE,
   SICKNESS_ARCHIVED_CANNOT_UPDATE,
+  SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE,
   SICKNESS_NO_CHANGE_MESSAGE,
   correctionConflictsWithEndedEpisode,
-  defaultSicknessEpisodeState,
   evaluateSicknessDates,
+  evaluateSicknessEndedDate,
   evaluateSicknessEpisodeUpdate,
   requiresCorrectionAdvanceConfirmation,
   sicknessEpisodeHistoryChanges,
@@ -1326,6 +1327,8 @@ function sicknessPayloadHash(input: {
   sicknessStartedDate: string | null;
   issueSummary: string | null;
   futureFirstWorkingDayConfirmed: boolean;
+  episodeState: string;
+  sicknessEndedDate: string | null;
 }): string {
   return createHash("sha256")
     .update(
@@ -1336,6 +1339,8 @@ function sicknessPayloadHash(input: {
         sicknessStartedDate: input.sicknessStartedDate,
         issueSummary: input.issueSummary,
         futureFirstWorkingDayConfirmed: input.futureFirstWorkingDayConfirmed,
+        episodeState: input.episodeState,
+        sicknessEndedDate: input.sicknessEndedDate,
       }),
     )
     .digest("hex");
@@ -1469,6 +1474,8 @@ function sicknessCreatedChanges(params: {
   sicknessStartedDate: Date | null;
   issueSummary: string | null;
   acknowledgedFirstWorkingDay: string | null;
+  episodeState: string;
+  sicknessEndedDate: string | null;
 }) {
   const changes = [
     { field: "staffId", previous: null, next: params.staffLabel },
@@ -1493,6 +1500,16 @@ function sicknessCreatedChanges(params: {
       field: "issueSummary",
       previous: null,
       next: params.issueSummary,
+    },
+    {
+      field: "episodeState",
+      previous: null,
+      next: params.episodeState,
+    },
+    {
+      field: "sicknessEndedDate",
+      previous: null,
+      next: params.sicknessEndedDate,
     },
   ];
   if (params.acknowledgedFirstWorkingDay) {
@@ -1638,14 +1655,44 @@ export async function createSickness(
             now,
           });
 
+          let sicknessEndedDate: Date | null = null;
+          if (params.input.episodeState === "ENDED") {
+            const timeZone = await getTenantTimezone(tx, params.tenantId);
+            const ended = evaluateSicknessEndedDate({
+              sicknessEndedDate: params.input.sicknessEndedDate,
+              firstWorkingDaySick: dateString(resolved.firstWorkingDaySick),
+              sicknessStartedDate: resolved.sicknessStartedDate
+                ? dateString(resolved.sicknessStartedDate)
+                : null,
+              timeZone,
+              now,
+            });
+            if (!ended.ok) {
+              return {
+                ok: false,
+                error: FORM_CHECK_MESSAGE,
+                fieldErrors: { [ended.field]: [ended.message] },
+              };
+            }
+            sicknessEndedDate = ended.sicknessEndedDate;
+          } else if (params.input.sicknessEndedDate) {
+            return {
+              ok: false,
+              error: FORM_CHECK_MESSAGE,
+              fieldErrors: {
+                sicknessEndedDate: [SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE],
+              },
+            };
+          }
+
           await tx.sicknessDetail.create({
             data: {
               absenceId: absence.id,
               tenantId: params.tenantId,
               firstWorkingDaySick: resolved.firstWorkingDaySick,
               sicknessStartedDate: resolved.sicknessStartedDate,
-              sicknessEndedDate: null,
-              episodeState: defaultSicknessEpisodeState(),
+              sicknessEndedDate,
+              episodeState: params.input.episodeState,
               issueSummary: resolved.issueSummary,
               ...evidencePolicy,
               ...staffDisplaySnapshot(resolved.staff),
@@ -1665,6 +1712,10 @@ export async function createSickness(
                 sicknessStartedDate: resolved.sicknessStartedDate,
                 issueSummary: resolved.issueSummary,
                 acknowledgedFirstWorkingDay: resolved.acknowledgedFirstWorkingDay,
+                episodeState: params.input.episodeState,
+                sicknessEndedDate: sicknessEndedDate
+                  ? dateString(sicknessEndedDate)
+                  : null,
               }),
               {
                 field: "evidenceRequiredFromDay",

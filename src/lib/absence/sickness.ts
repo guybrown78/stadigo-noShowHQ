@@ -46,6 +46,7 @@ export const SICKNESS_CORRECT_STARTED_AFTER_END_DATE_MESSAGE =
   "This change would put Sickness started after the recorded sickness end date. Update the sickness first.";
 export const SICKNESS_ARCHIVED_CANNOT_UPDATE =
   "Archived records cannot be updated.";
+export const SICKNESS_STATUS_REQUIRED_MESSAGE = "Choose sickness status";
 export const SICKNESS_EPISODE_UPDATE_LABEL = "Update sickness";
 export const SICKNESS_ENDED_DATE_HINT =
   "Enter a calendar date in the tenant timezone. This is the last date the sickness affected the staff member, not the first day back.";
@@ -96,6 +97,9 @@ export const SICKNESS_FORBIDDEN_FIELDS = [
 
 export const SICKNESS_EPISODE_FORBIDDEN_FIELDS =
   SICKNESS_FORBIDDEN_FIELDS.filter((field) => field !== "sicknessEndedDate");
+
+/** Initial reports may record an end date when the status is Ended. */
+export const SICKNESS_CREATE_FORBIDDEN_FIELDS = SICKNESS_EPISODE_FORBIDDEN_FIELDS;
 
 export type SicknessDateEligibility =
   | {
@@ -172,6 +176,10 @@ function formDataHasPopulatedFields(
 }
 
 export function sicknessHasForbiddenFields(formData: FormData): boolean {
+  return formDataHasPopulatedFields(formData, SICKNESS_CREATE_FORBIDDEN_FIELDS);
+}
+
+export function sicknessCorrectionHasForbiddenFields(formData: FormData): boolean {
   return formDataHasPopulatedFields(formData, SICKNESS_FORBIDDEN_FIELDS);
 }
 

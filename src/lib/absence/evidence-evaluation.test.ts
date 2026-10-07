@@ -52,6 +52,8 @@ function sicknessInput(
     sicknessStartedDate: null,
     issueSummary: "Do not copy this summary",
     futureFirstWorkingDayConfirmed: false,
+    episodeState: "NOT_CONFIRMED",
+    sicknessEndedDate: null,
     idempotencyKey: key(),
     ...overrides,
   };

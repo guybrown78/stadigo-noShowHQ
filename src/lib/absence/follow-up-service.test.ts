@@ -291,6 +291,8 @@ async function sickness(staffId = tenantA.staffId, firstDay = "2026-09-14") {
       sicknessStartedDate: null,
       issueSummary: "Private issue summary must stay off the queue",
       futureFirstWorkingDayConfirmed: false,
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: null,
       idempotencyKey: key(),
     },
   });

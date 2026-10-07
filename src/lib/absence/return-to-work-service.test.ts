@@ -218,6 +218,8 @@ async function sickness() {
       sicknessStartedDate: null,
       issueSummary: null,
       futureFirstWorkingDayConfirmed: false,
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: null,
       idempotencyKey: key(),
     },
   });
