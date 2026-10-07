@@ -63,7 +63,7 @@ async function openDialog() {
 
 async function submitUpdate() {
   const form = screen
-    .getByRole("button", { name: "Save episode update" })
+    .getByRole("button", { name: "Save sickness status" })
     .closest("form");
   if (!form) {
     throw new Error("episode form missing");

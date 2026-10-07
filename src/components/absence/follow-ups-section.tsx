@@ -8,6 +8,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ABSENCE_TYPE_LABELS } from "@/lib/absence/display";
 import {
   FOLLOW_UP_DUE_LABELS,
+  FOLLOW_UP_PROVENANCE_LABELS,
+  FOLLOW_UP_PURPOSE_LABELS,
   FOLLOW_UP_STATE_LABELS,
   followUpContextLines,
   followUpDueState,
@@ -86,12 +88,21 @@ export function FollowUpsSection({
               const dueState = todayIso
                 ? followUpDueState(followUp.dueDateIso, todayIso, followUp.state)
                 : null;
+              const provenance = followUp.provenance ?? "MANUAL";
               return (
                 <li key={followUp.id} className="py-4">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-medium text-slate-900">
                       {FOLLOW_UP_STATE_LABELS[followUp.state]}
                     </span>
+                    <span className="text-slate-700">
+                      {FOLLOW_UP_PROVENANCE_LABELS[provenance]}
+                    </span>
+                    {followUp.purpose ? (
+                      <span className="text-slate-700">
+                        {FOLLOW_UP_PURPOSE_LABELS[followUp.purpose]}
+                      </span>
+                    ) : null}
                     <span className="text-slate-700">
                       Due {formatLocalDateDisplay(followUp.dueDate)}
                     </span>
@@ -106,7 +117,9 @@ export function FollowUpsSection({
                   </p>
                   <p className="mt-2 text-sm text-slate-600">
                     Added {formatLondonDateTime(followUp.createdAt)} ·{" "}
-                    {formatStaffName(followUp.createdBy)}
+                    {followUp.createdBy
+                      ? formatStaffName(followUp.createdBy)
+                      : "NoShowHQ"}
                   </p>
                   {followUp.state === "COMPLETED" && followUp.completionNotes ? (
                     <div className="mt-2">
@@ -144,13 +157,15 @@ export function FollowUpsSection({
                   ) : null}
                   {canMutate && followUp.state === "OPEN" ? (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <EditFollowUpDialog
-                        followUpId={followUp.id}
-                        dueDate={followUp.dueDateIso}
-                        details={followUp.details}
-                        expectedUpdatedAt={followUp.updatedAt.toISOString()}
-                        {...dialogContext}
-                      />
+                      {provenance === "MANUAL" ? (
+                        <EditFollowUpDialog
+                          followUpId={followUp.id}
+                          dueDate={followUp.dueDateIso}
+                          details={followUp.details}
+                          expectedUpdatedAt={followUp.updatedAt.toISOString()}
+                          {...dialogContext}
+                        />
+                      ) : null}
                       <CompleteFollowUpDialog
                         followUpId={followUp.id}
                         details={followUp.details}

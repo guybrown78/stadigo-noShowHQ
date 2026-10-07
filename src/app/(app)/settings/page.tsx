@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, ShieldCheck } from "lucide-react";
+import { Calendar, ClipboardList, ShieldCheck } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -32,6 +32,25 @@ export default function SettingsPage() {
                   <p className="mt-1 text-sm text-slate-600">
                     Set the default probation length used when new staff records
                     are created. Changing it does not rewrite existing dates.
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </Link>
+        <Link href="/settings/sickness-evidence" className="group">
+          <Card className="h-full transition-colors group-hover:border-primary/40">
+            <CardBody>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <ClipboardList className="size-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Sickness evidence
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Fit note day and chase timing.
                   </p>
                 </div>
               </div>

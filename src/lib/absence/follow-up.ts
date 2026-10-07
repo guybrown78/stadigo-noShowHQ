@@ -19,6 +19,16 @@ export const FOLLOW_UP_STATE_LABELS: Record<AbsenceFollowUpState, string> = {
   CANCELLED: "Cancelled",
 };
 
+export const FOLLOW_UP_PROVENANCE_LABELS = {
+  MANUAL: "Manual",
+  SYSTEM: "Generated",
+} as const;
+
+export const FOLLOW_UP_PURPOSE_LABELS = {
+  REQUEST_FIT_NOTE: "Request fit note",
+  CHASE_FIT_NOTE: "Chase fit note",
+} as const;
+
 export const FOLLOW_UP_ARCHIVED_MESSAGE =
   "Archived absences cannot have follow-ups added or changed.";
 export const FOLLOW_UP_TERMINAL_MESSAGE =

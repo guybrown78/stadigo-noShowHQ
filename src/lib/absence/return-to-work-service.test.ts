@@ -169,13 +169,13 @@ afterAll(async () => {
   await prisma.sicknessReturnToWork.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
+  await prisma.absenceFollowUp.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.sicknessFitNote.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.sicknessSelfCertification.deleteMany({
-    where: { tenantId: { in: tenantIds } },
-  });
-  await prisma.absenceFollowUp.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.sicknessDetail.deleteMany({

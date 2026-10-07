@@ -28,6 +28,11 @@ model Tenant {
   defaultProbationUpdatedAt    DateTime?
   defaultProbationUpdatedById  String?
   defaultProbationUpdatedBy    User?                   @relation("TenantProbationUpdatedBy", fields: [defaultProbationUpdatedById], references: [id], onDelete: Restrict)
+  fitNoteRequiredFromDay       Int                     @default(8)
+  fitNoteChaseAfterDays        Int                     @default(5)
+  sicknessEvidenceUpdatedAt    DateTime?
+  sicknessEvidenceUpdatedById  String?
+  sicknessEvidenceUpdatedBy    User?                   @relation("TenantSicknessEvidenceUpdatedBy", fields: [sicknessEvidenceUpdatedById], references: [id], onDelete: Restrict)
   timezone                     String                  @default("Europe/London")
   createdAt                    DateTime                @default(now())
   updatedAt                    DateTime                @updatedAt
@@ -52,6 +57,8 @@ model Tenant {
   absenceHistory               AbsenceHistory[]
   absenceIdempotencyKeys       AbsenceIdempotencyKey[]
   absenceFollowUps             AbsenceFollowUp[]
+  settingsAudits               TenantSettingsAudit[]
+  sicknessEvidenceEvaluationRuns SicknessEvidenceEvaluationRun[]
 }
 
 model User {
@@ -80,6 +87,8 @@ model User {
   staffUpdated                 Staff[]                   @relation("StaffUpdatedBy")
   staffDeleted                 Staff[]                   @relation("StaffDeletedBy")
   tenantsProbationUpdated      Tenant[]                  @relation("TenantProbationUpdatedBy")
+  tenantsSicknessEvidenceUpdated Tenant[]                @relation("TenantSicknessEvidenceUpdatedBy")
+  tenantSettingsAudits         TenantSettingsAudit[]     @relation("TenantSettingsAuditActor")
   staffProbationsCreated       StaffProbation[]          @relation("StaffProbationCreatedBy")
   staffProbationsUpdated       StaffProbation[]          @relation("StaffProbationUpdatedBy")
   staffProbationActions        StaffProbationHistory[]   @relation("StaffProbationActedBy")
@@ -639,6 +648,21 @@ enum SicknessEpisodeState {
   ENDED
 }
 
+enum AbsenceFollowUpProvenance {
+  MANUAL
+  SYSTEM
+}
+
+enum AbsenceFollowUpPurpose {
+  REQUEST_FIT_NOTE
+  CHASE_FIT_NOTE
+}
+
+enum SicknessEvidenceEvaluationStatus {
+  SUCCESS
+  FAILED
+}
+
 model Absence {
   id             String                @id @default(cuid())
   tenantId       String
@@ -750,6 +774,9 @@ model SicknessDetail {
   staffFirstNameSnapshot  String
   staffLastNameSnapshot   String
   staffIdNumberSnapshot   String
+  evidenceRequiredFromDay  Int?
+  evidenceRequirementDate  DateTime?            @db.Date
+  evidencePolicyCapturedAt DateTime?
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
 
@@ -788,6 +815,8 @@ model SicknessFitNote {
   requestedDate DateTime?            @db.Date
   receivedDate  DateTime?            @db.Date
   note          String?              @db.VarChar(2000)
+  chaseAfterDays Int?
+  chaseDueDate   DateTime?           @db.Date
   createdAt     DateTime             @default(now())
   createdById   String
   createdBy     User                 @relation("SicknessFitNoteCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -795,6 +824,7 @@ model SicknessFitNote {
   updatedById   String
   updatedBy     User                 @relation("SicknessFitNoteUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
   idempotencyKeys AbsenceIdempotencyKey[]
+  followUps     AbsenceFollowUp[]
 
   @@unique([id, tenantId])
   @@index([tenantId, absenceId, createdAt])
@@ -822,35 +852,44 @@ model SicknessReturnToWork {
   @@index([tenantId])
 }
 
-// Manual operational follow-ups. State field combinations are enforced by
-// AbsenceFollowUp_state_fields. Parent followUpType / followUpStatus stay
-// the placeholder REVIEW / PENDING columns and are not this workflow.
+// Operational follow-ups. State field combinations are enforced by
+// AbsenceFollowUp_state_fields. Provenance combinations are enforced by
+// AbsenceFollowUp_provenance_fields. Open system tasks are unique via
+// AbsenceFollowUp_system_request_open_key and
+// AbsenceFollowUp_system_chase_open_key. Parent followUpType /
+// followUpStatus stay the placeholder REVIEW / PENDING columns.
 model AbsenceFollowUp {
-  id                 String               @id @default(cuid())
+  id                 String                     @id @default(cuid())
   tenantId           String
-  tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   absenceId          String
-  absence            Absence              @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
-  state              AbsenceFollowUpState @default(OPEN)
-  dueDate            DateTime             @db.Date
-  details            String               @db.VarChar(2000)
-  completionNotes    String?              @db.VarChar(2000)
+  absence            Absence                    @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  state              AbsenceFollowUpState       @default(OPEN)
+  dueDate            DateTime                   @db.Date
+  details            String                     @db.VarChar(2000)
+  completionNotes    String?                    @db.VarChar(2000)
   completedAt        DateTime?
   completedById      String?
-  completedBy        User?                @relation("AbsenceFollowUpCompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
-  cancellationReason String?              @db.VarChar(500)
+  completedBy        User?                      @relation("AbsenceFollowUpCompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
+  cancellationReason String?                    @db.VarChar(500)
   cancelledAt        DateTime?
   cancelledById      String?
-  cancelledBy        User?                @relation("AbsenceFollowUpCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
-  createdAt          DateTime             @default(now())
-  createdById        String
-  createdBy          User                 @relation("AbsenceFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedAt          DateTime             @updatedAt
+  cancelledBy        User?                      @relation("AbsenceFollowUpCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  provenance         AbsenceFollowUpProvenance  @default(MANUAL)
+  purpose            AbsenceFollowUpPurpose?
+  fitNoteId          String?
+  fitNote            SicknessFitNote?           @relation(fields: [fitNoteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  systemActor        Boolean                    @default(false)
+  createdAt          DateTime                   @default(now())
+  createdById        String?
+  createdBy          User?                      @relation("AbsenceFollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedAt          DateTime                   @updatedAt
   idempotencyKeys    AbsenceIdempotencyKey[]
 
   @@unique([id, tenantId])
   @@index([tenantId, state, dueDate, createdAt, id])
   @@index([tenantId, absenceId, createdAt])
+  @@index([fitNoteId])
 }
 
 model AbsenceIdempotencyKey {
@@ -887,12 +926,47 @@ model AbsenceHistory {
   action    AbsenceHistoryAction
   reason    String?              @db.VarChar(500)
   changes   Json?
-  createdAt DateTime             @default(now())
-  actedById String
-  actedBy   User                 @relation("AbsenceHistoryActedBy", fields: [actedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime             @default(now())
+  actedById   String?
+  actedBy     User?                @relation("AbsenceHistoryActedBy", fields: [actedById], references: [id], onDelete: Restrict)
+  systemActor Boolean              @default(false)
 
   @@index([tenantId, absenceId, createdAt])
   @@index([absenceId])
+}
+
+// Old and new values for tenant setting changes. Sickness evidence day counts
+// are the first writer. This is not medical or legal advice.
+model TenantSettingsAudit {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  actorId   String
+  actor     User     @relation("TenantSettingsAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  field     String
+  previous  String?
+  next      String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// Count-only evaluation observability. Do not store staff names, issue
+// summaries, or fit-note notes.
+model SicknessEvidenceEvaluationRun {
+  id              String                            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant                            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  startedAt       DateTime
+  finishedAt      DateTime?
+  status          SicknessEvidenceEvaluationStatus
+  episodesScanned Int                               @default(0)
+  tasksCreated    Int                               @default(0)
+  tasksCompleted  Int                               @default(0)
+  tasksCancelled  Int                               @default(0)
+  errorMessage    String?                           @db.VarChar(500)
+
+  @@index([tenantId, startedAt])
 }
 
 enum StaffImportStatus {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { AbsenceAccessError } from "@/lib/absence/errors";
+import { createReplacementEvidenceTask } from "@/lib/absence/evidence-evaluation";
 import {
   createFitNote,
   saveSelfCertification,
@@ -127,6 +128,41 @@ export async function updateFitNoteAction(
     }
     revalidateEvidence(result.absenceId, result.staffId);
     redirectAfterEvidence(result.absenceId, formData);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function createReplacementEvidenceTaskAction(
+  _prev: EvidenceActionState,
+  formData: FormData,
+): Promise<EvidenceActionState> {
+  const user = await requireTenant();
+  const absenceId = String(formData.get("absenceId") ?? "");
+  const purpose = String(formData.get("purpose") ?? "");
+  const fitNoteId = String(formData.get("fitNoteId") ?? "");
+  if (purpose !== "REQUEST_FIT_NOTE" && purpose !== "CHASE_FIT_NOTE") {
+    return { error: FORM_CHECK_MESSAGE };
+  }
+  if (purpose === "CHASE_FIT_NOTE" && !fitNoteId) {
+    return { error: FORM_CHECK_MESSAGE };
+  }
+  try {
+    const result = await createReplacementEvidenceTask(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId,
+      purpose,
+      fitNoteId: purpose === "CHASE_FIT_NOTE" ? fitNoteId : null,
+    });
+    if (!result.ok) {
+      return { error: result.error };
+    }
+    revalidateEvidence(absenceId, result.staffId);
+    redirectAfterEvidence(absenceId, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();

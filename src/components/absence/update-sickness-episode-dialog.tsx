@@ -143,8 +143,8 @@ export function UpdateSicknessEpisodeDialog({
             {SICKNESS_EPISODE_UPDATE_LABEL}
           </h2>
           <p id={descriptionId} className="mt-2 text-sm text-slate-600">
-            Record whether this sickness episode is ongoing or has ended. This
-            does not archive the record or record a return to work.
+            Record whether this sickness is ongoing or has ended. This does not
+            archive the record or record a return to work.
           </p>
           <dl className="mt-4 grid gap-2 text-sm">
             <div>
@@ -160,7 +160,7 @@ export function UpdateSicknessEpisodeDialog({
               <dd className="text-slate-900">{firstWorkingDayDisplay}</dd>
             </div>
             <div>
-              <dt className="font-medium text-slate-500">Current episode status</dt>
+              <dt className="font-medium text-slate-500">Current sickness status</dt>
               <dd className="text-slate-900">
                 {sicknessEpisodeStateLabel(currentEpisodeState)}
               </dd>
@@ -198,7 +198,7 @@ export function UpdateSicknessEpisodeDialog({
               }
             >
               <legend className="mb-2 text-sm font-medium text-slate-700">
-                Episode status <span className="text-red-700">*</span>
+                Sickness status <span className="text-red-700">*</span>
               </legend>
               <div className="space-y-2">
                 <label className="flex items-start gap-2 text-sm text-slate-800">
@@ -331,7 +331,7 @@ export function UpdateSicknessEpisodeDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={pending} size="sm">
-                {pending ? "Saving…" : "Save episode update"}
+                {pending ? "Saving…" : "Save sickness status"}
               </Button>
             </div>
           </form>

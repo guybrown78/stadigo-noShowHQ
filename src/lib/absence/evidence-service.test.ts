@@ -147,6 +147,9 @@ afterAll(async () => {
   await prisma.absenceHistory.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
+  await prisma.absenceFollowUp.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.sicknessFitNote.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });

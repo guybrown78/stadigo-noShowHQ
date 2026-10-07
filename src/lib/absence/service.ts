@@ -11,6 +11,11 @@ import {
   SICKNESS_CREATE_IDEMPOTENCY_OPERATION,
   SICKNESS_EPISODE_UPDATE_IDEMPOTENCY_OPERATION,
 } from "@/lib/absence/catalog";
+import {
+  episodePolicyFields,
+  evaluateSicknessEvidenceForAbsence,
+  loadSicknessEvidenceCounts,
+} from "@/lib/absence/evidence-evaluation";
 import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
 import { calculateNotice } from "@/lib/absence/notice";
 import {
@@ -1620,6 +1625,19 @@ export async function createSickness(
             },
           });
 
+          const evidenceCounts = await loadSicknessEvidenceCounts(
+            tx,
+            params.tenantId,
+          );
+          const evidencePolicy = episodePolicyFields({
+            requiredFromDay: evidenceCounts.requiredFromDay,
+            sicknessStartedDateIso: resolved.sicknessStartedDate
+              ? dateString(resolved.sicknessStartedDate)
+              : null,
+            firstWorkingDaySickIso: dateString(resolved.firstWorkingDaySick),
+            now,
+          });
+
           await tx.sicknessDetail.create({
             data: {
               absenceId: absence.id,
@@ -1629,6 +1647,7 @@ export async function createSickness(
               sicknessEndedDate: null,
               episodeState: defaultSicknessEpisodeState(),
               issueSummary: resolved.issueSummary,
+              ...evidencePolicy,
               ...staffDisplaySnapshot(resolved.staff),
             },
           });
@@ -1638,14 +1657,33 @@ export async function createSickness(
             absenceId: absence.id,
             action: "CREATED",
             actedById: params.userId,
-            changes: sicknessCreatedChanges({
-              staffLabel: staffLabel(resolved.staff),
-              reportedDate: resolved.reportedDate,
-              firstWorkingDaySick: resolved.firstWorkingDaySick,
-              sicknessStartedDate: resolved.sicknessStartedDate,
-              issueSummary: resolved.issueSummary,
-              acknowledgedFirstWorkingDay: resolved.acknowledgedFirstWorkingDay,
-            }),
+            changes: [
+              ...sicknessCreatedChanges({
+                staffLabel: staffLabel(resolved.staff),
+                reportedDate: resolved.reportedDate,
+                firstWorkingDaySick: resolved.firstWorkingDaySick,
+                sicknessStartedDate: resolved.sicknessStartedDate,
+                issueSummary: resolved.issueSummary,
+                acknowledgedFirstWorkingDay: resolved.acknowledgedFirstWorkingDay,
+              }),
+              {
+                field: "evidenceRequiredFromDay",
+                previous: null,
+                next: String(evidencePolicy.evidenceRequiredFromDay),
+              },
+              {
+                field: "evidenceRequirementDate",
+                previous: null,
+                next: dateString(evidencePolicy.evidenceRequirementDate),
+              },
+            ],
+          });
+
+          await evaluateSicknessEvidenceForAbsence(tx, {
+            tenantId: params.tenantId,
+            absenceId: absence.id,
+            actedById: params.userId,
+            now,
           });
 
           await tx.absenceIdempotencyKey.updateMany({
@@ -1838,6 +1876,31 @@ export async function correctSickness(
           });
         }
 
+        const nextRequirementDate =
+          existing.sickness.evidenceRequiredFromDay == null
+            ? null
+            : episodePolicyFields({
+                requiredFromDay: existing.sickness.evidenceRequiredFromDay,
+                sicknessStartedDateIso: resolved.sicknessStartedDate
+                  ? dateString(resolved.sicknessStartedDate)
+                  : null,
+                firstWorkingDaySickIso: dateString(resolved.firstWorkingDaySick),
+                now,
+              }).evidenceRequirementDate;
+        if (nextRequirementDate) {
+          const previousRequirementIso = existing.sickness.evidenceRequirementDate
+            ? dateString(existing.sickness.evidenceRequirementDate)
+            : null;
+          const nextRequirementIso = dateString(nextRequirementDate);
+          if (previousRequirementIso !== nextRequirementIso) {
+            changes.push({
+              field: "evidenceRequirementDate",
+              previous: previousRequirementIso,
+              next: nextRequirementIso,
+            });
+          }
+        }
+
         if (changes.length === 0) {
           return { ok: false, error: SICKNESS_NO_CHANGE_MESSAGE };
         }
@@ -1859,6 +1922,9 @@ export async function correctSickness(
                   firstWorkingDaySick: resolved.firstWorkingDaySick,
                   sicknessStartedDate: resolved.sicknessStartedDate,
                   issueSummary: resolved.issueSummary,
+                  ...(nextRequirementDate
+                    ? { evidenceRequirementDate: nextRequirementDate }
+                    : {}),
                   ...staffDisplaySnapshot(resolved.staff),
                 },
               },
@@ -1872,6 +1938,13 @@ export async function correctSickness(
             reason: params.input.correctionReason,
             actedById: params.userId,
             changes,
+          });
+
+          await evaluateSicknessEvidenceForAbsence(tx, {
+            tenantId: params.tenantId,
+            absenceId: existing.id,
+            actedById: params.userId,
+            now,
           });
 
           return { ok: true, id: existing.id };
@@ -2149,6 +2222,13 @@ export async function updateSicknessEpisode(
         key: params.input.idempotencyKey,
       },
       data: { absenceId: existing.id, payloadHash },
+    });
+
+    await evaluateSicknessEvidenceForAbsence(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
+      actedById: params.userId,
+      now,
     });
 
     return { ok: true, id: existing.id };

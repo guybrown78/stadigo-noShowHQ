@@ -14,6 +14,11 @@ import {
   parseTenantProbationSettingsFormData,
 } from "@/lib/staff/review-schema";
 import { updateTenantProbationDefault } from "@/lib/staff/settings";
+import {
+  applySicknessEvidenceBackfill,
+  updateSicknessEvidenceSettings,
+} from "@/lib/absence/evidence-settings";
+import { parseSicknessEvidenceSettingsFormData } from "@/lib/absence/evidence-settings-schema";
 
 export type VenueActionState = {
   error?: string;
@@ -127,4 +132,77 @@ export async function updateProbationSettingsAction(
     }
     throw error;
   }
+}
+
+export type SicknessEvidenceSettingsActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Record<string, string[]>;
+  values?: {
+    fitNoteRequiredFromDay: string;
+    fitNoteChaseAfterDays: string;
+  };
+};
+
+export async function updateSicknessEvidenceSettingsAction(
+  _prev: SicknessEvidenceSettingsActionState,
+  formData: FormData,
+): Promise<SicknessEvidenceSettingsActionState> {
+  const user = await requireTenant();
+  const values = {
+    fitNoteRequiredFromDay: String(formData.get("fitNoteRequiredFromDay") ?? ""),
+    fitNoteChaseAfterDays: String(formData.get("fitNoteChaseAfterDays") ?? ""),
+  };
+  const parsed = parseSicknessEvidenceSettingsFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+      values,
+    };
+  }
+
+  const result = await updateSicknessEvidenceSettings(prisma, {
+    tenantId: user.tenantId,
+    userId: user.id,
+    requiredFromDay: parsed.data.fitNoteRequiredFromDay,
+    chaseAfterDays: parsed.data.fitNoteChaseAfterDays,
+  });
+  if (!result.ok) {
+    return {
+      error: result.error,
+      fieldErrors: result.fieldErrors,
+      values,
+    };
+  }
+  revalidatePath("/settings/sickness-evidence");
+  redirect("/settings/sickness-evidence?updated=1");
+}
+
+export async function applySicknessEvidenceBackfillAction(
+  _prev: SicknessEvidenceSettingsActionState,
+  formData: FormData,
+): Promise<SicknessEvidenceSettingsActionState> {
+  const user = await requireTenant();
+  if (formData.get("confirmBackfill") !== "yes") {
+    return {
+      error: "Tick the box before applying.",
+    };
+  }
+  const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim();
+  if (idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+    return { error: "Refresh the page and try again." };
+  }
+  const result = await applySicknessEvidenceBackfill(prisma, {
+    tenantId: user.tenantId,
+    userId: user.id,
+    idempotencyKey,
+  });
+  if (!result.ok) {
+    return { error: result.error };
+  }
+  revalidatePath("/settings/sickness-evidence");
+  revalidatePath("/follow-ups");
+  revalidatePath("/ledger");
+  redirect("/settings/sickness-evidence?backfill=1");
 }

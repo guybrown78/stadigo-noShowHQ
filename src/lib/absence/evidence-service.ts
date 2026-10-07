@@ -29,8 +29,13 @@ import {
   type SaveSelfCertificationInput,
   type UpdateFitNoteInput,
 } from "@/lib/absence/evidence-schema";
+import {
+  chaseFieldsForRequested,
+  evaluateSicknessEvidenceForAbsence,
+  loadSicknessEvidenceCounts,
+} from "@/lib/absence/evidence-evaluation";
 import { AbsenceAccessError } from "@/lib/absence/errors";
-import { writeAbsenceHistory } from "@/lib/absence/history";
+import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { flattenFieldErrors, FORM_CHECK_MESSAGE } from "@/lib/form";
 import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
@@ -80,6 +85,51 @@ function invalid(error: Parameters<typeof flattenFieldErrors>[0]): EvidenceMutat
     error: FORM_CHECK_MESSAGE,
     fieldErrors: flattenFieldErrors(error),
   };
+}
+
+async function nextChaseColumns(
+  db: DbClient,
+  tenantId: string,
+  params: {
+    status: FitNoteStatus;
+    requestedDateIso: string | null;
+    existingChaseAfterDays: number | null;
+  },
+): Promise<{
+  chaseAfterDays: number | null;
+  chaseDueDate: Date | null;
+  chaseDueIso: string | null;
+}> {
+  const keepExisting =
+    params.existingChaseAfterDays != null &&
+    params.requestedDateIso &&
+    (params.status === "REQUESTED" || params.status === "RECEIVED");
+  if (params.status === "REQUESTED" && params.requestedDateIso) {
+    const chaseAfterDays =
+      params.existingChaseAfterDays ??
+      (await loadSicknessEvidenceCounts(db, tenantId)).chaseAfterDays;
+    const fields = chaseFieldsForRequested({
+      requestedDateIso: params.requestedDateIso,
+      chaseAfterDays,
+    });
+    return {
+      chaseAfterDays,
+      chaseDueDate: fields.chaseDueDate,
+      chaseDueIso: formatLocalDateIso(fields.chaseDueDate),
+    };
+  }
+  if (keepExisting && params.requestedDateIso && params.existingChaseAfterDays != null) {
+    const fields = chaseFieldsForRequested({
+      requestedDateIso: params.requestedDateIso,
+      chaseAfterDays: params.existingChaseAfterDays,
+    });
+    return {
+      chaseAfterDays: params.existingChaseAfterDays,
+      chaseDueDate: fields.chaseDueDate,
+      chaseDueIso: formatLocalDateIso(fields.chaseDueDate),
+    };
+  }
+  return { chaseAfterDays: null, chaseDueDate: null, chaseDueIso: null };
 }
 
 function formError(message: string): EvidenceMutationResult {
@@ -608,6 +658,11 @@ export async function createFitNote(
       }
     }
 
+    const chase = await nextChaseColumns(tx, params.tenantId, {
+      status: next.status,
+      requestedDateIso: next.requestedDate,
+      existingChaseAfterDays: null,
+    });
     const fitNote = await tx.sicknessFitNote.create({
       data: {
         tenantId: params.tenantId,
@@ -620,20 +675,36 @@ export async function createFitNote(
           ? parseLocalDate(next.receivedDate)
           : null,
         note: next.note,
+        chaseAfterDays: chase.chaseAfterDays,
+        chaseDueDate: chase.chaseDueDate,
         createdById: params.userId,
         updatedById: params.userId,
       },
     });
+    const recordedChanges = fitNoteChanges({
+      fitNoteId: fitNote.id,
+      previous: null,
+      next,
+    });
+    if (chase.chaseDueIso) {
+      recordedChanges.push({
+        field: "fitNoteChaseDueDate",
+        previous: null,
+        next: chase.chaseDueIso,
+      });
+    }
     await writeAbsenceHistory(tx, {
       tenantId: params.tenantId,
       absenceId: absence.id,
       action: "EVIDENCE_RECORDED",
       actedById: params.userId,
-      changes: fitNoteChanges({
-        fitNoteId: fitNote.id,
-        previous: null,
-        next,
-      }),
+      changes: recordedChanges,
+    });
+    await evaluateSicknessEvidenceForAbsence(tx, {
+      tenantId: params.tenantId,
+      absenceId: absence.id,
+      actedById: params.userId,
+      now,
     });
     await attachKey(tx, {
       tenantId: params.tenantId,
@@ -756,6 +827,14 @@ export async function updateFitNote(
       }
     }
 
+    const chase = await nextChaseColumns(tx, params.tenantId, {
+      status: next.status,
+      requestedDateIso: next.requestedDate,
+      existingChaseAfterDays: row.chaseAfterDays,
+    });
+    const previousChaseDueIso = row.chaseDueDate
+      ? formatLocalDateIso(row.chaseDueDate)
+      : null;
     await tx.sicknessFitNote.update({
       where: { id: row.id },
       data: {
@@ -767,20 +846,33 @@ export async function updateFitNote(
           ? parseLocalDate(next.receivedDate)
           : null,
         note: next.note,
+        chaseAfterDays: chase.chaseAfterDays,
+        chaseDueDate: chase.chaseDueDate,
         updatedById: params.userId,
       },
     });
+    const correctedChanges = fitNoteChanges({
+      fitNoteId: row.id,
+      previous,
+      next,
+    });
+    const chaseDueChange = diffValues(previousChaseDueIso, chase.chaseDueIso);
+    if (chaseDueChange) {
+      correctedChanges.push({ field: "fitNoteChaseDueDate", ...chaseDueChange });
+    }
     await writeAbsenceHistory(tx, {
       tenantId: params.tenantId,
       absenceId: row.absence.id,
       action: "EVIDENCE_CORRECTED",
       reason: input.correctionReason,
       actedById: params.userId,
-      changes: fitNoteChanges({
-        fitNoteId: row.id,
-        previous,
-        next,
-      }),
+      changes: correctedChanges,
+    });
+    await evaluateSicknessEvidenceForAbsence(tx, {
+      tenantId: params.tenantId,
+      absenceId: row.absence.id,
+      actedById: params.userId,
+      now,
     });
     await attachKey(tx, {
       tenantId: params.tenantId,

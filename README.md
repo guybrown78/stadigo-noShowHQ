@@ -99,6 +99,8 @@ Absences are tenant-isolated records attached to Staff and, for Cancellation and
 
 Run `npm run reconcile-probation` (or the daily `/api/cron/probation-reconcile` cron with `CRON_SECRET`) to backfill legacy dates and create missing in-app tasks.
 
+Sickness fit-note day and chase timing are under **Settings → Sickness evidence** (defaults: day 8 and 5). The daily `/api/cron/sickness-evidence-evaluate` route uses `CRON_SECRET` and each tenant's timezone. It creates internal follow-ups. Existing episodes are updated only when an administrator applies the current counts.
+
 Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe not-found response.
 
 ## Password reset
@@ -126,7 +128,7 @@ In the Vercel project → **Settings → Environment Variables**, set:
 | `SUPER_ADMIN_PASSWORD` | At least 8 characters |
 | `SUPER_ADMIN_FIRST_NAME` | Optional, default `Super` |
 | `SUPER_ADMIN_LAST_NAME` | Optional, default `Admin` |
-| `CRON_SECRET` | Bearer token for `/api/cron/probation-reconcile` (optional locally; set in production) |
+| `CRON_SECRET` | Bearer token for `/api/cron/probation-reconcile` and `/api/cron/sickness-evidence-evaluate` (optional locally; set in production) |
 
 Then **redeploy**. Local accounts (including `super@noshowhq.local`) do not exist on Neon until seeded.
 

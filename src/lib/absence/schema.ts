@@ -16,6 +16,7 @@ import {
   REASON_MIN_LENGTH,
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
   SICKNESS_EPISODE_STATES,
+  SICKNESS_EVIDENCE_FILTERS,
   SICKNESS_EPISODE_UPDATE_STATES,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
@@ -824,6 +825,15 @@ function optionalLedgerPage(value: unknown): number {
   return raw;
 }
 
+function optionalEvidenceStatus(view: LedgerView, value: unknown): string {
+  if (view !== "sickness" || typeof value !== "string") {
+    return "";
+  }
+  return (SICKNESS_EVIDENCE_FILTERS as readonly string[]).includes(value)
+    ? value
+    : "";
+}
+
 function optionalLedgerDetail(value: unknown): string {
   if (typeof value !== "string") {
     return "";
@@ -853,6 +863,7 @@ export const ledgerListQuerySchema = z.object({
   page: z.number().int().min(1),
   view: z.enum(LEDGER_VIEWS),
   detail: z.string(),
+  evidenceStatus: z.string(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -877,6 +888,7 @@ export const defaultLedgerListQuery = (
   page: 1,
   view,
   detail: "",
+  evidenceStatus: "",
 });
 
 export function parseLedgerListQuery(raw: {
@@ -897,6 +909,7 @@ export function parseLedgerListQuery(raw: {
   page?: string;
   view?: string;
   detail?: string;
+  evidenceStatus?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
   const eventFiltersApply = ledgerShowsEventFilters(view);
@@ -927,6 +940,7 @@ export function parseLedgerListQuery(raw: {
     page: optionalLedgerPage(raw.page),
     view,
     detail: optionalLedgerDetail(raw.detail),
+    evidenceStatus: optionalEvidenceStatus(view, raw.evidenceStatus),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
@@ -980,7 +994,8 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
       (!isLedgerDateRangeInvalid(query) &&
         (query.reportedFrom || query.reportedTo)) ||
       (!isLedgerAffectedDateRangeInvalid(query) &&
-        (affectedFrom || affectedTo)),
+        (affectedFrom || affectedTo)) ||
+      (query.view === "sickness" && Boolean(query.evidenceStatus)),
   );
 }
 

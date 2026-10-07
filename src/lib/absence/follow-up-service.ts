@@ -1043,7 +1043,9 @@ export async function listFollowUpQueue(
       details: row.details,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
-      createdByName: formatStaffName(row.createdBy),
+      createdByName: row.createdBy
+        ? formatStaffName(row.createdBy)
+        : "NoShowHQ",
       staff: sicknessStaff,
       absenceType: row.absence.type,
       context: followUpContextLines(

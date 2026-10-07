@@ -179,6 +179,9 @@ afterAll(async () => {
   await prisma.absenceIdempotencyKey.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
+  await prisma.absenceFollowUp.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.absenceHistory.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });

@@ -35,20 +35,20 @@ export const SICKNESS_ENDED_BEFORE_FIRST_DAY_MESSAGE =
 export const SICKNESS_ENDED_BEFORE_STARTED_MESSAGE =
   "Sickness ended cannot be before Sickness started.";
 export const SICKNESS_ENDED_REQUIRED_MESSAGE =
-  "Enter the last calendar date this sickness episode affected the staff member.";
+  "Enter the last calendar date this sickness affected the staff member.";
 export const SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE =
-  "Ongoing episodes cannot have an end date.";
+  "Ongoing sickness cannot have an end date.";
 export const SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE =
   "Confirm that the previously recorded end date was incorrect.";
 export const SICKNESS_CORRECT_AFTER_END_DATE_MESSAGE =
-  "This change would put the first day sick from work after the recorded sickness end date. Update the sickness episode first.";
+  "This change would put the first day sick from work after the recorded sickness end date. Update the sickness first.";
 export const SICKNESS_CORRECT_STARTED_AFTER_END_DATE_MESSAGE =
-  "This change would put Sickness started after the recorded sickness end date. Update the sickness episode first.";
+  "This change would put Sickness started after the recorded sickness end date. Update the sickness first.";
 export const SICKNESS_ARCHIVED_CANNOT_UPDATE =
   "Archived records cannot be updated.";
-export const SICKNESS_EPISODE_UPDATE_LABEL = "Update sickness episode";
+export const SICKNESS_EPISODE_UPDATE_LABEL = "Update sickness";
 export const SICKNESS_ENDED_DATE_HINT =
-  "Enter a calendar date in the tenant timezone. This is the last date the episode affected the staff member, not the first day back.";
+  "Enter a calendar date in the tenant timezone. This is the last date the sickness affected the staff member, not the first day back.";
 export const SICKNESS_CALENDAR_DAY_SPAN_HINT =
   "Inclusive calendar days from the first day sick from work to the sickness end date. This is not working days absent, payroll days or certification days.";
 export const DUPLICATE_SICKNESS_MESSAGE =
@@ -60,7 +60,7 @@ export const NO_ISSUE_SUMMARY_RECORDED = "No issue summary recorded";
 export const ISSUE_SUMMARY_PRESENT_LABEL = "Issue summary recorded";
 export const SICKNESS_INITIAL_STATUS_LABEL = "Initial report recorded";
 export const SICKNESS_LEDGER_SUPPORTING_COPY =
-  "Review recorded Sickness reports. Episode status is shown in Context. The Status column remains Active or Archived only.";
+  "Review recorded Sickness reports. Sickness status is shown in Context. The Status column remains Active or Archived only.";
 export const SICKNESS_LEDGER_EMPTY_TITLE = "No Sickness reports recorded yet.";
 export const SICKNESS_LEDGER_EMPTY_DESCRIPTION =
   "Sickness reports will appear here after they are recorded.";
@@ -303,7 +303,7 @@ export function evaluateSicknessDates(params: {
 
 export const SICKNESS_EPISODE_STATE_LABELS: Record<SicknessEpisodeState, string> =
   {
-    NOT_CONFIRMED: "Episode status not confirmed",
+    NOT_CONFIRMED: "Sickness status not yet confirmed",
     ONGOING: "Ongoing",
     ENDED: "Ended",
   };

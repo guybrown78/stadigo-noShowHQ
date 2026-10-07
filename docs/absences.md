@@ -58,7 +58,7 @@ An `ACTIVE` Sickness record is operationally discoverable; it does not mean the 
 
 ### Sickness evidence
 
-Manual evidence belongs only to a Sickness Absence. It is separate from episode state (`NOT_CONFIRMED`, `ONGOING`, `ENDED`), Absence status (`ACTIVE`, `ARCHIVED`), and shared follow-up state. Recording evidence does not change those, and does not create or complete a follow-up.
+Manual evidence belongs only to a Sickness Absence. It is separate from episode state (`NOT_CONFIRMED`, `ONGOING`, `ENDED`), Absence status (`ACTIVE`, `ARCHIVED`), and return-to-work state. Saving evidence does not change those. It can complete or create only the system follow-up linked to that evidence row. Manual follow-ups are never completed or cancelled by evidence saves.
 
 Centre Circle term: **Fit note**.
 
@@ -67,7 +67,13 @@ Confirmed statuses:
 - Self-certification, one row per episode: Not recorded, Not required, Awaiting, Received. No dates.
 - Fit note, repeatable rows: Not recorded, Not required, Required, Requested, Received. No coverage period.
 
-A missing self-certification row, and an episode with no fit notes, display **Not recorded**. Existing Sickness records are not backfilled. Rows are not hard-deleted. A later correction may set a saved row back to Not recorded.
+A missing self-certification row, and an episode with no fit notes, display **Not recorded**. Rows are not hard-deleted. A later correction may set a saved row back to Not recorded.
+
+New episodes store the tenant's fit note day count and the calculated requirement date. Day 1 is `sicknessStartedDate` when recorded, otherwise `firstWorkingDaySick`. The requirement date is day 1 plus the count minus one. Calendar days include weekends. `NOT_CONFIRMED` does not infer a fit note requirement. `ONGOING` is measured through the tenant-local today. `ENDED` is measured through the recorded end date. Defaults are day 8 and a chase of 5 calendar days after the request date. Counts must be a whole number from 1 to 730.
+
+Settings live on the tenant (`fitNoteRequiredFromDay`, `fitNoteChaseAfterDays`) under **Settings → Sickness evidence**. Changes are audited in `TenantSettingsAudit` with the actor and old/new values, and apply only to episodes created afterwards and to fit notes first saved as Requested afterwards. Episodes from before the feature keep a null policy until an administrator previews the counts and confirms backfill. Backfill is idempotent and does not rewrite rows that already have a policy.
+
+When a confirmed episode reaches its requirement date and has no Received fit note and no current Requested fit note, evaluation creates one system `REQUEST_FIT_NOTE` follow-up, due on the requirement date. Recording Requested completes that task and creates one `CHASE_FIT_NOTE` follow-up for that row, due on the snapshotted chase date. Recording Received completes that chase. Completing a chase in the follow-up queue does not mark the fit note Received and does not create another chase. A Received fit note blocks the automatic request task for the episode; it does not calculate coverage or expiry. One Received row does not cancel chases for other still-requested rows. Generated follow-up text is fixed operational copy and never includes the issue summary or fit note note. Open system tasks are unique per episode (request) or fit note (chase). Terminal tasks are not reopened; an administrator can create a replacement. Archive hides open follow-ups from queues and does not cancel them.
 
 Date requested is required only when the fit note status is Requested, and date received must be empty. Date received is required only when the status is Received; date requested may be kept. Other statuses store neither date. Retrospective dates are allowed. Future dates are rejected using the tenant timezone. The optional administrative note is trimmed, blank becomes null, and uses the existing 2,000-character note limit. It is plain text.
 
@@ -79,7 +85,9 @@ Access is the same as other Sickness writes: tenant ADMIN, or SUPER_ADMIN acting
 
 The Evidence section is on the Sickness full page and in the Ledger drawer, from the same detail query. Fit note notes stay off Ledger rows, Staff Absence History, search, analytics, URLs, and generic logs. Authorised detail History shows the note; the public-feed redaction replaces it with **Fit note note changed**.
 
-This version does not calculate a seven-day self-certification window, a five-day deadline, working days, or bank holidays. It does not create follow-ups, reminders, queues, document uploads, coverage gaps, or payment behaviour. Recording evidence does not complete return-to-work.
+Evaluation runs inside the evidence and episode transactions, on a reviewed backfill, and once a day from `POST /api/cron/sickness-evidence-evaluate` (`Authorization: Bearer $CRON_SECRET`, same daily Vercel slot as probation). Each run uses the tenant IANA timezone. A missed run catches up on the next one because open system tasks are unique. The app shell does not scan every episode on page view. Last-run counts are stored on `SicknessEvidenceEvaluationRun` and shown on the settings page. They do not include staff names or fit note notes.
+
+This version does not calculate working days, bank holidays, certificate coverage, or expiry. It does not upload documents or complete return-to-work.
 
 ### Return to work
 
@@ -103,7 +111,7 @@ Process, fields, and access for this release:
 This does not create deadlines, reminders, queues, reports, document uploads, or a clinical assessment.
 
 ### AbsenceHistory
-Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`, `RETURN_TO_WORK_RECORDED`, `RETURN_TO_WORK_CORRECTED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness episode updated**, **Evidence recorded/corrected**, and **Return to work recorded/corrected**.
+Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`, `RETURN_TO_WORK_RECORDED`, `RETURN_TO_WORK_CORRECTED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness status updated**, **Evidence recorded/corrected**, and **Return to work recorded/corrected**.
 
 Raw Issue summary old/new values belong only on the authorised Sickness detail. A public-feed helper redacts them to **Issue summary changed**.
 
@@ -202,7 +210,7 @@ The results summary distinguishes filtered matching counts from overall active t
 
 The table uses shared columns (Type, Staff, Recorded, Affected date, Context, Status, View) plus a compact type-aware Context cell: Cancellation event/venue/notice, AWOL event/venue/reference, Sickness episode status (and end date when Ended), started date, and **Issue summary recorded** when present. Raw Issue summary, full notes, and full Cancellation reasons are never selected or returned. Staff display uses live Staff for Cancellation/AWOL and Sickness snapshots. Status is Active or Archived only. Ended active Sickness records remain in default active results and counts.
 
-**View** opens a type-aware detail drawer on the Ledger (`?detail=[absence-id]`) without leaving the current list, filters, sort or page. Desktop uses a right-hand sheet; narrow screens use a full-screen sheet. The drawer reuses `getAbsenceForTenant` and the same type-specific fields, Evidence, Correct, Archive, Update sickness episode, and audit history as `/absence/[id]`. Cancellation detail shows the stored Venue name snapshot from `CancellationDetail` (the same snapshot as the Ledger row), not a live Event lookup. Direct `/absence/[id]` remains the canonical full-page fallback. Closing the drawer (Close, Escape, or Back) restores the originating View action and does not reset filters. Sickness Issue summary and fit note notes stay on authorised detail views and are never placed in the URL.
+**View** opens a type-aware detail drawer on the Ledger (`?detail=[absence-id]`) without leaving the current list, filters, sort or page. Desktop uses a right-hand sheet; narrow screens use a full-screen sheet. The drawer reuses `getAbsenceForTenant` and the same type-specific fields, Evidence, Correct, Archive, Update sickness, and audit history as `/absence/[id]`. Cancellation detail shows the stored Venue name snapshot from `CancellationDetail` (the same snapshot as the Ledger row), not a live Event lookup. Direct `/absence/[id]` remains the canonical full-page fallback. Closing the drawer (Close, Escape, or Back) restores the originating View action and does not reset filters. Sickness Issue summary and fit note notes stay on authorised detail views and are never placed in the URL.
 
 Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
@@ -218,7 +226,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 - `/ledger` — All absences Ledger (default). `detail=[absence-id]` opens the type-aware review drawer.
 - `/ledger?view=cancellations` — Cancellations
 - `/ledger?view=awol` — AWOL
-- `/ledger?view=sickness` — Sickness (`q`, `reportedFrom`, `reportedTo`, `affectedFrom`, `affectedTo`, `includeArchived=1`, `sort`, `direction`, `page`)
+- `/ledger?view=sickness` — Sickness (`q`, `reportedFrom`, `reportedTo`, `affectedFrom`, `affectedTo`, `includeArchived=1`, `evidenceStatus=required_unrequested|requested_pending|overdue|received`, `sort`, `direction`, `page`)
 - `/absence/new` — log Cancellation, AWOL, or Sickness (`?staffId=` preselects Staff, `?type=awol` or `?type=sickness` opens that form)
 - `/absence/[id]` — type-aware detail
 - `/absence/[id]/edit` — type-aware correction
@@ -226,7 +234,7 @@ Indexes (reviewed against the mixed query; no extra Ledger migration added):
 
 ## Future Sickness work
 
-Documents, contact attempts, first day back, automatic closure, and reliability scoring are not in this release. Manual fit-note evidence records the administrative position only. It does not upload documents, calculate certificate coverage, or apply seven-day or five-day rules. Manual follow-ups are recorded separately and do not add those rules. Manual return-to-work records the administrative position only. Digital sick-note storage remains deferred until storage, privacy, access, and retention decisions are approved. Automation and richer Sickness management views remain later slices. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, or contact panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
+Documents, contact attempts, first day back, automatic closure, and reliability scoring are not in this release. Fit-note evidence records administrative receipt only. It does not upload documents or calculate certificate coverage. The fit note day and chase interval are tenant settings with internal follow-ups. Manual return-to-work records the administrative position only. Digital sick-note storage remains deferred until storage, privacy, access, and retention decisions are approved. Working-day calendars and richer Sickness management views remain later slices. Re-plan each later slice against Centre Circle workflow and privacy/retention decisions. Do not expose empty compliance, document, or contact panels before those rules exist. After any Sickness row exists, rollback must not restore `eventId NOT NULL`, delete Sickness data, invent Event IDs, or discard a recorded end date — disable new writes and use a reviewed forward fix.
 
 ### Migration verification
 

@@ -201,10 +201,75 @@ function ledgerEventTypeSql(tenantId: string, query: LedgerListQuery) {
   `;
 }
 
+function ledgerEvidenceSql(query: LedgerListQuery, today: Date | null) {
+  if (query.view !== "sickness" || !query.evidenceStatus || !today) {
+    return Prisma.empty;
+  }
+  const active = Prisma.sql`AND a."recordStatus" = 'ACTIVE' AND a.type = 'SICKNESS'`;
+  if (query.evidenceStatus === "received") {
+    return Prisma.sql`
+      ${active}
+      AND EXISTS (
+        SELECT 1 FROM "SicknessFitNote" fn
+        WHERE fn."absenceId" = a.id
+          AND fn."tenantId" = a."tenantId"
+          AND fn.status = 'RECEIVED'
+      )
+    `;
+  }
+  if (query.evidenceStatus === "requested_pending") {
+    return Prisma.sql`
+      ${active}
+      AND EXISTS (
+        SELECT 1 FROM "SicknessFitNote" fn
+        WHERE fn."absenceId" = a.id
+          AND fn."tenantId" = a."tenantId"
+          AND fn.status = 'REQUESTED'
+          AND (fn."chaseDueDate" IS NULL OR fn."chaseDueDate" >= ${today})
+      )
+    `;
+  }
+  if (query.evidenceStatus === "overdue") {
+    return Prisma.sql`
+      ${active}
+      AND EXISTS (
+        SELECT 1 FROM "SicknessFitNote" fn
+        WHERE fn."absenceId" = a.id
+          AND fn."tenantId" = a."tenantId"
+          AND fn.status = 'REQUESTED'
+          AND fn."chaseDueDate" IS NOT NULL
+          AND fn."chaseDueDate" < ${today}
+      )
+    `;
+  }
+  return Prisma.sql`
+    ${active}
+    AND s."evidenceRequiredFromDay" IS NOT NULL
+    AND s."evidenceRequirementDate" IS NOT NULL
+    AND (
+      (
+        s."episodeState" = 'ONGOING'
+        AND s."evidenceRequirementDate" <= ${today}
+      )
+      OR (
+        s."episodeState" = 'ENDED'
+        AND s."sicknessEndedDate" IS NOT NULL
+        AND s."sicknessEndedDate" >= s."evidenceRequirementDate"
+      )
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM "SicknessFitNote" fn
+      WHERE fn."absenceId" = a.id
+        AND fn."tenantId" = a."tenantId"
+        AND fn.status IN ('RECEIVED', 'REQUESTED')
+    )
+  `;
+}
+
 function ledgerWhereSql(
   tenantId: string,
   query: LedgerListQuery,
-  options: { filters?: boolean; includeArchived?: boolean } = {},
+  options: { filters?: boolean; includeArchived?: boolean; today?: Date | null } = {},
 ) {
   const applyFilters = options.filters !== false;
   const includeArchived = Boolean(
@@ -278,6 +343,11 @@ function ledgerWhereSql(
           : Prisma.empty
       }
       ${applyFilters ? ledgerSearchSql(query.q) : Prisma.empty}
+      ${
+        applyFilters
+          ? ledgerEvidenceSql(query, options.today ?? null)
+          : Prisma.empty
+      }
   `;
 }
 
@@ -488,8 +558,10 @@ export async function listAbsencesForLedger(
   db: PrismaClient,
   tenantId: string,
   query: LedgerListQuery,
+  todayIso?: string,
 ): Promise<LedgerListResult> {
-  const filteredWhere = ledgerWhereSql(tenantId, query);
+  const today = todayIso ? parseLocalDate(todayIso) : null;
+  const filteredWhere = ledgerWhereSql(tenantId, query, { today });
   const activeWhere = ledgerWhereSql(tenantId, query, {
     filters: false,
     includeArchived: false,
