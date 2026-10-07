@@ -547,7 +547,7 @@ describe("probation workflow", () => {
       outcome: "EXTENDED",
       reviewDate: "2026-03-18",
       notes: "Need more observation",
-      newEndDate: "2026-11-01",
+      newEndDate: "2027-12-01",
     });
     expect(extended.ok).toBe(true);
     const afterExtend = await prisma.staffProbationTask.findMany({

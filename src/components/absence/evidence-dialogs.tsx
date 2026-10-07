@@ -239,7 +239,7 @@ export function SelfCertificationDialog({
         titleId={dialog.titleId}
         descriptionId={dialog.descriptionId}
         title={correcting ? "Edit self-certification" : "Record self-certification"}
-        description="Self-certification is the current position for this sickness episode. It does not change the episode or the absence status."
+        description="Self-certification is the current position for this sickness. It does not change the sickness status or the record status."
         onClose={() => dialog.setOpen(false)}
       >
         <form

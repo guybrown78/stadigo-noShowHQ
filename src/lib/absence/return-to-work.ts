@@ -15,7 +15,7 @@ export const RETURN_TO_WORK_STATUS_LABELS: Record<ReturnToWorkStatus, string> =
   };
 
 export const RETURN_TO_WORK_SECTION_DESCRIPTION =
-  "Record the administrative return-to-work position for this sickness episode. It is separate from the sickness episode, evidence, and Active or Archived.";
+  "Record the return-to-work position for this sickness. It is separate from the sickness status, evidence, and Active or Archived.";
 
 export const RETURN_TO_WORK_ARCHIVED_MESSAGE =
   "Archived sickness records cannot have return to work added or changed.";

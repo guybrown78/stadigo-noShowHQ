@@ -54,6 +54,9 @@ export function ledgerListHref(
 
   if (merged.page && merged.page > 1) params.set("page", String(merged.page));
   if (merged.detail) params.set("detail", merged.detail);
+  if (view === "sickness" && merged.evidenceStatus) {
+    params.set("evidenceStatus", merged.evidenceStatus);
+  }
 
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";

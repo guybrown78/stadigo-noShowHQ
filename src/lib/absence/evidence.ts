@@ -27,7 +27,7 @@ export const FIT_NOTE_STATUS_LABELS: Record<FitNoteStatus, string> = {
 };
 
 export const EVIDENCE_SECTION_DESCRIPTION =
-  "Recorded separately from the sickness episode and from Active or Archived. Received means an administrator recorded receipt. It does not mean the document was validated. An ended episode does not mean evidence was received.";
+  "Separate from the sickness record. Received means it was recorded as received.";
 
 export const EVIDENCE_ARCHIVED_MESSAGE =
   "Archived sickness records cannot have evidence added or changed.";

@@ -25,6 +25,10 @@ export const SICKNESS_FIT_NOTE_UPDATE_IDEMPOTENCY_OPERATION =
   "SICKNESS_FIT_NOTE_UPDATE";
 export const SICKNESS_RETURN_TO_WORK_UPDATE_IDEMPOTENCY_OPERATION =
   "SICKNESS_RETURN_TO_WORK_UPDATE";
+export const SICKNESS_EVIDENCE_BACKFILL_IDEMPOTENCY_OPERATION =
+  "SICKNESS_EVIDENCE_BACKFILL";
+export const SICKNESS_EVIDENCE_REPLACEMENT_IDEMPOTENCY_OPERATION =
+  "SICKNESS_EVIDENCE_REPLACEMENT";
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 export const NOTES_PREVIEW_MAX_LENGTH = 80;
 export const ISSUE_SUMMARY_MAX_CODE_POINTS = 1000;
@@ -59,6 +63,13 @@ export const ABSENCE_FOLLOW_UP_STATES = [
   "CANCELLED",
 ] as const;
 export const FOLLOW_UP_DUE_GROUPS = ["overdue", "dueToday", "upcoming"] as const;
+export const SICKNESS_EVIDENCE_FILTERS = [
+  "required_unrequested",
+  "requested_pending",
+  "overdue",
+  "received",
+] as const;
+export type SicknessEvidenceFilter = (typeof SICKNESS_EVIDENCE_FILTERS)[number];
 export const FOLLOW_UP_DETAILS_MIN_LENGTH = 2;
 export const FOLLOW_UP_DETAILS_MAX_LENGTH = 2000;
 export const FOLLOW_UP_QUEUE_PAGE_SIZE = 25;

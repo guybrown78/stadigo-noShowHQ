@@ -16,6 +16,7 @@ import {
   REASON_MIN_LENGTH,
   SICKNESS_ADVANCE_REPORT_MAX_DAYS,
   SICKNESS_EPISODE_STATES,
+  SICKNESS_EVIDENCE_FILTERS,
   SICKNESS_EPISODE_UPDATE_STATES,
   defaultLedgerSortForView,
   isLedgerSortAllowed,
@@ -34,6 +35,7 @@ import {
   SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE,
   SICKNESS_ENDED_FUTURE_MESSAGE,
   SICKNESS_ENDED_REQUIRED_MESSAGE,
+  SICKNESS_STATUS_REQUIRED_MESSAGE,
   SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE,
   SICKNESS_EVENT_FORBIDDEN_MESSAGE,
   SICKNESS_OUT_OF_SCOPE_FIELDS_MESSAGE,
@@ -46,6 +48,7 @@ import {
   forbiddenSicknessFieldMessage,
   requiresAdvanceConfirmation,
   requiresCorrectionAdvanceConfirmation,
+  sicknessCorrectionHasForbiddenFields,
   sicknessEpisodeHasForbiddenFields,
   sicknessHasForbiddenFields,
   unicodeCodePointLength,
@@ -403,12 +406,90 @@ function refineSicknessDates(
   }
 }
 
+const optionalSicknessEndedSchema = z
+  .string()
+  .trim()
+  .transform((value) => value || null)
+  .refine(
+    (value) => value === null || parseLocalDate(value) !== null,
+    "Enter a valid date",
+  );
+
+function refineCreateSicknessStatus(
+  value: {
+    episodeState: (typeof SICKNESS_EPISODE_STATES)[number];
+    sicknessEndedDate: string | null;
+    firstWorkingDaySick: string;
+    sicknessStartedDate: string | null;
+    todayIso?: string;
+  },
+  ctx: z.RefinementCtx,
+) {
+  if (value.episodeState === "ENDED" && !value.sicknessEndedDate) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessEndedDate"],
+      message: SICKNESS_ENDED_REQUIRED_MESSAGE,
+    });
+  }
+  if (value.episodeState !== "ENDED" && value.sicknessEndedDate) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessEndedDate"],
+      message: SICKNESS_ENDED_FORBIDDEN_WHEN_ONGOING_MESSAGE,
+    });
+  }
+  const todayIso = value.todayIso?.trim();
+  if (
+    value.sicknessEndedDate &&
+    todayIso &&
+    parseLocalDate(todayIso) &&
+    value.sicknessEndedDate > todayIso
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessEndedDate"],
+      message: SICKNESS_ENDED_FUTURE_MESSAGE,
+    });
+  }
+  if (
+    value.sicknessEndedDate &&
+    parseLocalDate(value.firstWorkingDaySick) &&
+    value.sicknessEndedDate < value.firstWorkingDaySick
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessEndedDate"],
+      message: SICKNESS_ENDED_BEFORE_FIRST_DAY_MESSAGE,
+    });
+  }
+  if (
+    value.sicknessEndedDate &&
+    value.sicknessStartedDate &&
+    parseLocalDate(value.sicknessStartedDate) &&
+    value.sicknessEndedDate < value.sicknessStartedDate
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["sicknessEndedDate"],
+      message: SICKNESS_ENDED_BEFORE_STARTED_MESSAGE,
+    });
+  }
+}
+
 export const sicknessInputSchema = z
   .object({
     ...sicknessFields,
+    episodeState: z.enum(SICKNESS_EPISODE_STATES, {
+      error: SICKNESS_STATUS_REQUIRED_MESSAGE,
+    }),
+    sicknessEndedDate: optionalSicknessEndedSchema,
     idempotencyKey: idempotencyKeySchema,
   })
-  .superRefine((value, ctx) => refineSicknessDates(value, ctx, "create"));
+  .superRefine((value, ctx) => {
+    refineSicknessDates(value, ctx, "create");
+    refineCreateSicknessStatus(value, ctx);
+  });
 
 export const correctSicknessInputSchema = z
   .object({
@@ -445,15 +526,6 @@ export type CorrectSicknessInput = Omit<
 >;
 
 export type ArchiveSicknessInput = z.infer<typeof archiveSicknessInputSchema>;
-
-const optionalSicknessEndedSchema = z
-  .string()
-  .trim()
-  .transform((value) => value || null)
-  .refine(
-    (value) => value === null || parseLocalDate(value) !== null,
-    "Enter a valid date",
-  );
 
 const optionalEpisodeCorrectionReasonSchema = z
   .string()
@@ -592,8 +664,13 @@ function sicknessFormObject(formData: FormData) {
 
 function rejectForbiddenSicknessFields(
   formData: FormData,
+  mode: "create" | "correct" = "create",
 ): { success: false; error: z.ZodError } | null {
-  if (!sicknessHasForbiddenFields(formData)) {
+  const forbidden =
+    mode === "correct"
+      ? sicknessCorrectionHasForbiddenFields(formData)
+      : sicknessHasForbiddenFields(formData);
+  if (!forbidden) {
     return null;
   }
   const message = forbiddenSicknessFieldMessage(formData);
@@ -624,12 +701,14 @@ export function parseSicknessFormData(formData: FormData) {
   }
   return sicknessInputSchema.safeParse({
     ...sicknessFormObject(formData),
+    episodeState: formData.get("episodeState") ?? "",
+    sicknessEndedDate: formData.get("sicknessEndedDate") ?? "",
     idempotencyKey: formData.get("idempotencyKey") ?? "",
   });
 }
 
 export function parseCorrectSicknessFormData(formData: FormData) {
-  const forbidden = rejectForbiddenSicknessFields(formData);
+  const forbidden = rejectForbiddenSicknessFields(formData, "correct");
   if (forbidden) {
     return forbidden;
   }
@@ -824,6 +903,15 @@ function optionalLedgerPage(value: unknown): number {
   return raw;
 }
 
+function optionalEvidenceStatus(view: LedgerView, value: unknown): string {
+  if (view !== "sickness" || typeof value !== "string") {
+    return "";
+  }
+  return (SICKNESS_EVIDENCE_FILTERS as readonly string[]).includes(value)
+    ? value
+    : "";
+}
+
 function optionalLedgerDetail(value: unknown): string {
   if (typeof value !== "string") {
     return "";
@@ -853,6 +941,7 @@ export const ledgerListQuerySchema = z.object({
   page: z.number().int().min(1),
   view: z.enum(LEDGER_VIEWS),
   detail: z.string(),
+  evidenceStatus: z.string(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -877,6 +966,7 @@ export const defaultLedgerListQuery = (
   page: 1,
   view,
   detail: "",
+  evidenceStatus: "",
 });
 
 export function parseLedgerListQuery(raw: {
@@ -897,6 +987,7 @@ export function parseLedgerListQuery(raw: {
   page?: string;
   view?: string;
   detail?: string;
+  evidenceStatus?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
   const eventFiltersApply = ledgerShowsEventFilters(view);
@@ -927,6 +1018,7 @@ export function parseLedgerListQuery(raw: {
     page: optionalLedgerPage(raw.page),
     view,
     detail: optionalLedgerDetail(raw.detail),
+    evidenceStatus: optionalEvidenceStatus(view, raw.evidenceStatus),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
@@ -980,7 +1072,8 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
       (!isLedgerDateRangeInvalid(query) &&
         (query.reportedFrom || query.reportedTo)) ||
       (!isLedgerAffectedDateRangeInvalid(query) &&
-        (affectedFrom || affectedTo)),
+        (affectedFrom || affectedTo)) ||
+      (query.view === "sickness" && Boolean(query.evidenceStatus)),
   );
 }
 

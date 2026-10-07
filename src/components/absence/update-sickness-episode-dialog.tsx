@@ -5,7 +5,12 @@ import {
   updateSicknessEpisodeAction,
   type AbsenceActionState,
 } from "@/app/(app)/absence/actions";
-import { FieldError, FormAlert, controlClassName } from "@/components/form";
+import {
+  FieldError,
+  FormAlert,
+  controlClassName,
+  selectControlClassName,
+} from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { withClientValidation } from "@/lib/form";
@@ -65,8 +70,8 @@ export function UpdateSicknessEpisodeDialog({
     [],
   );
   const [state, formAction, pending] = useActionState(action, initialState);
-  const [episodeState, setEpisodeState] = useState<"ONGOING" | "ENDED">(
-    currentEpisodeState === "ENDED" ? "ENDED" : "ONGOING",
+  const [episodeState, setEpisodeState] = useState<SicknessEpisodeState>(
+    currentEpisodeState,
   );
   const [sicknessEndedDate, setSicknessEndedDate] = useState(
     currentSicknessEndedDate,
@@ -74,6 +79,8 @@ export function UpdateSicknessEpisodeDialog({
   const [idempotencyKey, setIdempotencyKey] = useState("");
 
   function openDialog() {
+    setEpisodeState(currentEpisodeState);
+    setSicknessEndedDate(currentSicknessEndedDate);
     setIdempotencyKey((current) => current || crypto.randomUUID());
     setOpen(true);
   }
@@ -113,18 +120,23 @@ export function UpdateSicknessEpisodeDialog({
     return () => form.removeEventListener("reset", preventActionReset);
   }, []);
 
+  const nextUpdateState = episodeState === "NOT_CONFIRMED" ? null : episodeState;
   const nextEndedDateIso =
-    episodeState === "ENDED" ? sicknessEndedDate || null : null;
-  const needsReason = episodeUpdateRequiresCorrectionReason({
-    currentState: currentEpisodeState,
-    currentEndedDateIso: currentSicknessEndedDate || null,
-    nextState: episodeState,
-    nextEndedDateIso,
-  });
-  const needsClearConfirmation = episodeUpdateRequiresClearConfirmation({
-    currentState: currentEpisodeState,
-    nextState: episodeState,
-  });
+    nextUpdateState === "ENDED" ? sicknessEndedDate || null : null;
+  const needsReason = nextUpdateState
+    ? episodeUpdateRequiresCorrectionReason({
+        currentState: currentEpisodeState,
+        currentEndedDateIso: currentSicknessEndedDate || null,
+        nextState: nextUpdateState,
+        nextEndedDateIso,
+      })
+    : false;
+  const needsClearConfirmation = nextUpdateState
+    ? episodeUpdateRequiresClearConfirmation({
+        currentState: currentEpisodeState,
+        nextState: nextUpdateState,
+      })
+    : false;
 
   return (
     <>
@@ -143,8 +155,8 @@ export function UpdateSicknessEpisodeDialog({
             {SICKNESS_EPISODE_UPDATE_LABEL}
           </h2>
           <p id={descriptionId} className="mt-2 text-sm text-slate-600">
-            Record whether this sickness episode is ongoing or has ended. This
-            does not archive the record or record a return to work.
+            Record whether this sickness is ongoing or has ended. This does not
+            archive the record or record a return to work.
           </p>
           <dl className="mt-4 grid gap-2 text-sm">
             <div>
@@ -160,7 +172,7 @@ export function UpdateSicknessEpisodeDialog({
               <dd className="text-slate-900">{firstWorkingDayDisplay}</dd>
             </div>
             <div>
-              <dt className="font-medium text-slate-500">Current episode status</dt>
+              <dt className="font-medium text-slate-500">Current sickness status</dt>
               <dd className="text-slate-900">
                 {sicknessEpisodeStateLabel(currentEpisodeState)}
               </dd>
@@ -188,48 +200,43 @@ export function UpdateSicknessEpisodeDialog({
               <input type="hidden" name="returnTo" value={returnTo} />
             ) : null}
             <FormAlert>{state.error}</FormAlert>
-            <fieldset
-              tabIndex={-1}
-              aria-invalid={Boolean(state.fieldErrors?.episodeState)}
-              aria-describedby={
-                state.fieldErrors?.episodeState
-                  ? `${formId}-state-error`
-                  : undefined
-              }
-            >
-              <legend className="mb-2 text-sm font-medium text-slate-700">
-                Episode status <span className="text-red-700">*</span>
-              </legend>
-              <div className="space-y-2">
-                <label className="flex items-start gap-2 text-sm text-slate-800">
-                  <input
-                    type="radio"
-                    name="episodeState"
-                    value="ONGOING"
-                    checked={episodeState === "ONGOING"}
-                    onChange={() => {
-                      setEpisodeState("ONGOING");
-                      setSicknessEndedDate("");
-                    }}
-                  />
-                  <span>Ongoing</span>
-                </label>
-                <label className="flex items-start gap-2 text-sm text-slate-800">
-                  <input
-                    type="radio"
-                    name="episodeState"
-                    value="ENDED"
-                    checked={episodeState === "ENDED"}
-                    onChange={() => setEpisodeState("ENDED")}
-                  />
-                  <span>Ended</span>
-                </label>
-              </div>
+            <div>
+              <FieldLabel htmlFor={`${formId}-status`} required>
+                Sickness status
+              </FieldLabel>
+              <select
+                id={`${formId}-status`}
+                name="episodeState"
+                value={episodeState}
+                aria-invalid={Boolean(state.fieldErrors?.episodeState)}
+                aria-describedby={
+                  state.fieldErrors?.episodeState
+                    ? `${formId}-state-error`
+                    : undefined
+                }
+                className={selectControlClassName("w-full")}
+                onChange={(event) => {
+                  const next = event.target.value as SicknessEpisodeState;
+                  setEpisodeState(next);
+                  if (next !== "ENDED") {
+                    setSicknessEndedDate("");
+                  }
+                }}
+              >
+                {(currentEpisodeState === "NOT_CONFIRMED"
+                  ? (["NOT_CONFIRMED", "ONGOING", "ENDED"] as const)
+                  : (["ONGOING", "ENDED"] as const)
+                ).map((option) => (
+                  <option key={option} value={option}>
+                    {sicknessEpisodeStateLabel(option)}
+                  </option>
+                ))}
+              </select>
               <FieldError
                 id={`${formId}-state-error`}
                 messages={state.fieldErrors?.episodeState}
               />
-            </fieldset>
+            </div>
             {episodeState === "ENDED" ? (
               <div>
                 <FieldLabel htmlFor={`${formId}-ended`} required>
@@ -330,8 +337,12 @@ export function UpdateSicknessEpisodeDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={pending} size="sm">
-                {pending ? "Saving…" : "Save episode update"}
+              <Button
+                type="submit"
+                disabled={pending || episodeState === "NOT_CONFIRMED"}
+                size="sm"
+              >
+                {pending ? "Saving…" : "Save sickness status"}
               </Button>
             </div>
           </form>

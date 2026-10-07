@@ -18,6 +18,7 @@ import {
   SICKNESS_ENDED_REQUIRED_MESSAGE,
   SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE,
   SICKNESS_EPISODE_UPDATE_LABEL,
+  sicknessEpisodeStateLabel,
 } from "@/lib/absence/sickness";
 import type { SicknessEpisodeState } from "@/lib/absence/catalog";
 
@@ -51,8 +52,14 @@ function renderDialog(
   );
 }
 
-function radio(name: "Ongoing" | "Ended") {
-  return screen.getByRole("radio", { name }) as HTMLInputElement;
+function statusSelect() {
+  return screen.getByRole("combobox", {
+    name: /Sickness status/,
+  }) as HTMLSelectElement;
+}
+
+function chooseStatus(value: SicknessEpisodeState) {
+  fireEvent.change(statusSelect(), { target: { value } });
 }
 
 async function openDialog() {
@@ -63,7 +70,7 @@ async function openDialog() {
 
 async function submitUpdate() {
   const form = screen
-    .getByRole("button", { name: "Save episode update" })
+    .getByRole("button", { name: "Save sickness status" })
     .closest("form");
   if (!form) {
     throw new Error("episode form missing");
@@ -110,17 +117,14 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
   it("keeps Ended and the empty date after a required-date failure", async () => {
     renderDialog();
     await openDialog();
-    await act(async () => {
-      radio("Ended").click();
-    });
+    chooseStatus("ENDED");
 
     await submitUpdate();
 
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toContain(FORM_CHECK_MESSAGE);
     });
-    expect(radio("Ended").checked).toBe(true);
-    expect(radio("Ongoing").checked).toBe(false);
+    expect(statusSelect().value).toBe("ENDED");
     const date = screen.getByLabelText(/Sickness ended/) as HTMLInputElement;
     expect(date.value).toBe("");
     expect(date.getAttribute("aria-invalid")).toBe("true");
@@ -134,9 +138,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
   it("keeps a future Ended date so it can be corrected", async () => {
     renderDialog();
     await openDialog();
-    await act(async () => {
-      radio("Ended").click();
-    });
+    chooseStatus("ENDED");
     const date = screen.getByLabelText(/Sickness ended/) as HTMLInputElement;
     fireEvent.change(date, { target: { value: "2026-09-15" } });
 
@@ -145,8 +147,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
     await waitFor(() => {
       expect(describedText(date)).toContain(SICKNESS_ENDED_FUTURE_MESSAGE);
     });
-    expect(radio("Ended").checked).toBe(true);
-    expect(radio("Ongoing").checked).toBe(false);
+    expect(statusSelect().value).toBe("ENDED");
     expect(date.value).toBe("2026-09-15");
     expect(date.getAttribute("aria-invalid")).toBe("true");
   });
@@ -154,9 +155,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
   it("keeps a pre-start Ended date so it can be corrected", async () => {
     renderDialog();
     await openDialog();
-    await act(async () => {
-      radio("Ended").click();
-    });
+    chooseStatus("ENDED");
     const date = screen.getByLabelText(/Sickness ended/) as HTMLInputElement;
     fireEvent.change(date, { target: { value: "2026-09-01" } });
 
@@ -167,7 +166,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
         SICKNESS_ENDED_BEFORE_FIRST_DAY_MESSAGE,
       );
     });
-    expect(radio("Ended").checked).toBe(true);
+    expect(statusSelect().value).toBe("ENDED");
     expect(date.value).toBe("2026-09-01");
     expect(date.getAttribute("aria-invalid")).toBe("true");
   });
@@ -179,7 +178,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
       todayIso: "2026-09-20",
     });
     await openDialog();
-    expect(radio("Ended").checked).toBe(true);
+    expect(statusSelect().value).toBe("ENDED");
     const date = screen.getByLabelText(/Sickness ended/) as HTMLInputElement;
     fireEvent.change(date, { target: { value: "2026-09-16" } });
     const reason = screen.getByLabelText(/Correction reason/) as HTMLTextAreaElement;
@@ -190,8 +189,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
     await waitFor(() => {
       expect(reason.getAttribute("aria-invalid")).toBe("true");
     });
-    expect(radio("Ended").checked).toBe(true);
-    expect(radio("Ongoing").checked).toBe(false);
+    expect(statusSelect().value).toBe("ENDED");
     expect(date.value).toBe("2026-09-16");
     expect(reason.value).toBe("x");
     expect(describedText(reason)).toMatch(/Correction reason must be at least/);
@@ -205,9 +203,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
       todayIso: "2026-09-20",
     });
     await openDialog();
-    await act(async () => {
-      radio("Ongoing").click();
-    });
+    chooseStatus("ONGOING");
     const confirmation = screen.getByRole("checkbox") as HTMLInputElement;
     expect(confirmation.checked).toBe(false);
 
@@ -216,8 +212,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
     await waitFor(() => {
       expect(confirmation.getAttribute("aria-invalid")).toBe("true");
     });
-    expect(radio("Ongoing").checked).toBe(true);
-    expect(radio("Ended").checked).toBe(false);
+    expect(statusSelect().value).toBe("ONGOING");
     expect(confirmation.checked).toBe(false);
     expect(describedText(confirmation)).toContain(
       SICKNESS_EPISODE_CONFIRM_CLEAR_MESSAGE,
@@ -228,12 +223,40 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
     expect(screen.queryByLabelText(/Sickness ended/)).toBeNull();
   });
 
+  it("shows Not confirmed until a different status is saved", async () => {
+    renderDialog({ currentEpisodeState: "NOT_CONFIRMED" });
+    await openDialog();
+
+    expect(statusSelect().value).toBe("NOT_CONFIRMED");
+    expect(statusSelect().options[0]?.textContent).toBe(
+      sicknessEpisodeStateLabel("NOT_CONFIRMED"),
+    );
+    expect(
+      (screen.getByRole("button", { name: "Save sickness status" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+
+    chooseStatus("ONGOING");
+    expect(statusSelect().value).toBe("ONGOING");
+    expect(
+      (screen.getByRole("button", { name: "Save sickness status" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+
+    await act(async () => {
+      screen.getByRole("button", { name: "Cancel" }).click();
+    });
+    expect(updateSicknessEpisodeAction).not.toHaveBeenCalled();
+
+    await openDialog();
+    expect(statusSelect().value).toBe("NOT_CONFIRMED");
+    expect(updateSicknessEpisodeAction).not.toHaveBeenCalled();
+  });
+
   it("closes on Cancel without calling the server action", async () => {
     renderDialog();
     await openDialog();
-    await act(async () => {
-      radio("Ended").click();
-    });
+    chooseStatus("ENDED");
     const dialog = document.querySelector("dialog");
     expect(dialog?.open).toBe(true);
 
@@ -248,9 +271,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
   it("resubmits the corrected Ended date without returning to Ongoing", async () => {
     renderDialog();
     await openDialog();
-    await act(async () => {
-      radio("Ended").click();
-    });
+    chooseStatus("ENDED");
     await submitUpdate();
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toContain(FORM_CHECK_MESSAGE);
@@ -258,7 +279,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
 
     const date = screen.getByLabelText(/Sickness ended/) as HTMLInputElement;
     fireEvent.change(date, { target: { value: "2026-09-14" } });
-    expect(radio("Ended").checked).toBe(true);
+    expect(statusSelect().value).toBe("ENDED");
 
     await submitUpdate();
 
@@ -268,8 +289,7 @@ describe("UpdateSicknessEpisodeDialog validation recovery", () => {
     const formData = updateSicknessEpisodeAction.mock.calls[0][1] as FormData;
     expect(formData.get("episodeState")).toBe("ENDED");
     expect(formData.get("sicknessEndedDate")).toBe("2026-09-14");
-    expect(radio("Ended").checked).toBe(true);
-    expect(radio("Ongoing").checked).toBe(false);
+    expect(statusSelect().value).toBe("ENDED");
     expect(date.value).toBe("2026-09-14");
   });
 });

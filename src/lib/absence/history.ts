@@ -16,9 +16,11 @@ export async function writeAbsenceHistory(
     action: AbsenceHistoryAction;
     reason?: string | null;
     changes?: AbsenceHistoryChange[];
-    actedById: string;
+    actedById?: string | null;
+    systemActor?: boolean;
   },
 ) {
+  const systemActor = params.systemActor ?? false;
   await db.absenceHistory.create({
     data: {
       tenantId: params.tenantId,
@@ -26,7 +28,8 @@ export async function writeAbsenceHistory(
       action: params.action,
       reason: params.reason ?? null,
       changes: params.changes ?? [],
-      actedById: params.actedById,
+      actedById: systemActor ? null : (params.actedById ?? null),
+      systemActor,
     },
   });
 }

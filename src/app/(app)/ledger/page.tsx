@@ -352,6 +352,7 @@ export default async function LedgerPage({
     page: first(raw.page),
     view: first(raw.view),
     detail: first(raw.detail),
+    evidenceStatus: first(raw.evidenceStatus),
   });
 
   if (
@@ -372,6 +373,18 @@ export default async function LedgerPage({
   const preserveSort =
     query.sort !== defaultSort || query.direction !== DEFAULT_LEDGER_DIRECTION;
 
+  let timeZone = "";
+  let todayIso = "";
+  if (query.view === "sickness" || query.detail) {
+    try {
+      timeZone = await getTenantTimezone(prisma, user.tenantId);
+      todayIso = todayIsoInTimeZone(timeZone);
+    } catch {
+      timeZone = "";
+      todayIso = "";
+    }
+  }
+
   const [options, list]: [
     LedgerFilterOptions,
     Awaited<ReturnType<typeof listAbsencesForLedger>>,
@@ -385,7 +398,12 @@ export default async function LedgerPage({
           )
         : listLedgerFilterOptions(prisma, user.tenantId)
       : Promise.resolve({ venues: [], eventTypes: [] }),
-    listAbsencesForLedger(prisma, user.tenantId, query),
+    listAbsencesForLedger(
+      prisma,
+      user.tenantId,
+      query,
+      todayIso || undefined,
+    ),
   ]);
 
   let detailAbsence = null;
@@ -404,9 +422,7 @@ export default async function LedgerPage({
     }
   }
 
-  let timeZone = "";
-  let todayIso = "";
-  if (detailAbsence) {
+  if (detailAbsence && !todayIso) {
     try {
       timeZone = await getTenantTimezone(prisma, user.tenantId);
       todayIso = todayIsoInTimeZone(timeZone);
@@ -499,6 +515,30 @@ export default async function LedgerPage({
               <input type="hidden" name="sort" value={query.sort} />
               <input type="hidden" name="direction" value={query.direction} />
             </>
+          ) : null}
+          {query.view === "sickness" ? (
+            <FilterField
+              label="Fit note evidence"
+              htmlFor="ledger-evidence-status"
+              className="min-w-[16rem]"
+            >
+              <select
+                id="ledger-evidence-status"
+                name="evidenceStatus"
+                defaultValue={query.evidenceStatus}
+                className={filterControlClassName()}
+              >
+                <option value="">All sickness reports</option>
+                <option value="required_unrequested">
+                  Required, not requested
+                </option>
+                <option value="requested_pending">
+                  Requested, awaiting receipt
+                </option>
+                <option value="overdue">Chase overdue</option>
+                <option value="received">Received</option>
+              </select>
+            </FilterField>
           ) : null}
           <FilterField
             label="Search"

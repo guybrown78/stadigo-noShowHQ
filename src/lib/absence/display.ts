@@ -61,7 +61,7 @@ export function absenceArchiveActionLabel(type: AbsenceType): string {
 }
 
 export function absenceEpisodeUpdateActionLabel(): string {
-  return "Update sickness episode";
+  return "Update sickness";
 }
 
 export const ABSENCE_DETAIL_LABEL = {
@@ -78,7 +78,7 @@ export const ABSENCE_DETAIL_LABEL = {
   dateSicknessReported: "Date sickness reported",
   firstDaySick: "First day sick from work",
   sicknessStarted: "Sickness started",
-  episodeStatus: "Episode status",
+  episodeStatus: "Sickness status",
   sicknessEnded: "Sickness ended",
   calendarDaySpan: "Calendar-day span",
   issueSummary: "Issue summary",
@@ -178,7 +178,7 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     CREATED: "Sickness report created",
     CORRECTED: "Sickness report corrected",
     ARCHIVED: "Sickness report archived",
-    EPISODE_UPDATED: "Sickness episode updated",
+    EPISODE_UPDATED: "Sickness status updated",
     FOLLOW_UP_CREATED: "Follow-up added",
     FOLLOW_UP_UPDATED: "Follow-up updated",
     FOLLOW_UP_COMPLETED: "Follow-up completed",
@@ -213,7 +213,7 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   firstWorkingDaySick: "First day sick from work",
   sicknessStartedDate: "Sickness started",
   sicknessEndedDate: "Sickness ended",
-  episodeState: "Episode status",
+  episodeState: "Sickness status",
   issueSummary: "Issue summary",
   futureFirstWorkingDayConfirmed: "Advance report confirmed",
   followUpDueDate: "Follow-up due date",
@@ -227,6 +227,14 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   fitNoteRequestedDate: "Date requested",
   fitNoteReceivedDate: "Date received",
   fitNoteNote: "Fit note note",
+  fitNoteChaseDueDate: "Chase deadline",
+  evidenceRequiredFromDay: "Fit note required from day",
+  evidenceRequirementDate: "Fit note requirement date",
+  followUpProvenance: "Follow-up source",
+  followUpPurpose: "Follow-up purpose",
+  followUpOutcome: "Follow-up outcome",
+  followUpCancellation: "Follow-up cancellation",
+  replacement: "Replacement follow-up",
   returnToWorkStatus: "Return to work",
   returnToWorkCompletedOn: "Completion date",
   returnToWorkNote: "Return to work note",
@@ -238,7 +246,7 @@ export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
 
 export const SICKNESS_HISTORY_FIELD_LABELS: Record<string, string> = {
   reportedDate: "Date sickness reported",
-  episodeState: "Episode status",
+  episodeState: "Sickness status",
   sicknessEndedDate: "Sickness ended",
 };
 

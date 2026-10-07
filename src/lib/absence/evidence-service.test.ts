@@ -147,6 +147,9 @@ afterAll(async () => {
   await prisma.absenceHistory.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
+  await prisma.absenceFollowUp.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
   await prisma.sicknessFitNote.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
@@ -196,6 +199,8 @@ async function sickness(firstDay = "2026-09-14") {
       sicknessStartedDate: null,
       issueSummary: null,
       futureFirstWorkingDayConfirmed: false,
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: null,
       idempotencyKey: key(),
     },
   });

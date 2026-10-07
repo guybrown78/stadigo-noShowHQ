@@ -178,6 +178,8 @@ function sicknessInput(
     sicknessStartedDate: "2026-09-09",
     issueSummary: "Secret migraine codeword",
     futureFirstWorkingDayConfirmed: false,
+    episodeState: "NOT_CONFIRMED",
+    sicknessEndedDate: null,
     idempotencyKey: `unified-sickness-${Math.random().toString(36).slice(2, 12)}`,
     ...overrides,
   };

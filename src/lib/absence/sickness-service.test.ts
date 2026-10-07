@@ -164,6 +164,8 @@ function sicknessInput(
     sicknessStartedDate: null,
     issueSummary: null,
     futureFirstWorkingDayConfirmed: false,
+    episodeState: "NOT_CONFIRMED",
+    sicknessEndedDate: null,
     idempotencyKey: `sickness-${Math.random().toString(36).slice(2)}`,
     ...overrides,
   };
@@ -177,6 +179,9 @@ beforeAll(async () => {
 afterAll(async () => {
   const tenantIds = [tenantA?.tenant.id, tenantB?.tenant.id].filter(Boolean);
   await prisma.absenceIdempotencyKey.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
+  await prisma.absenceFollowUp.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.absenceHistory.deleteMany({
@@ -237,6 +242,10 @@ describe("createSickness", () => {
     expect(absence.sickness?.issueSummary).toBeNull();
     expect(absence.sickness?.episodeState).toBe("NOT_CONFIRMED");
     expect(absence.sickness?.sicknessEndedDate).toBeNull();
+    const tasks = await prisma.absenceFollowUp.findMany({
+      where: { absenceId: result.id, purpose: "REQUEST_FIT_NOTE" },
+    });
+    expect(tasks).toHaveLength(0);
     expect(absence.sickness?.staffFirstNameSnapshot).toBe("Jamie");
     expect(absence.sickness?.staffLastNameSnapshot).toBe("Cole a");
     expect(absence.sickness?.staffIdNumberSnapshot).toBe("SK-A");
@@ -245,6 +254,58 @@ describe("createSickness", () => {
       where: { id: tenantA.staffId },
     });
     expect(staff.employmentStatus).toBe("ACTIVE");
+  });
+
+  it("saves Ongoing on the initial report and requests a fit note when the threshold is already met", async () => {
+    const result = await createSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: sicknessInput(tenantA, {
+        reportedDate: "2026-09-14",
+        firstWorkingDaySick: "2026-01-05",
+        episodeState: "ONGOING",
+      }),
+      now,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const absence = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      result.id,
+    );
+    expect(absence.sickness?.episodeState).toBe("ONGOING");
+    expect(absence.sickness?.sicknessEndedDate).toBeNull();
+    const tasks = await prisma.absenceFollowUp.findMany({
+      where: { absenceId: result.id, purpose: "REQUEST_FIT_NOTE", state: "OPEN" },
+    });
+    expect(tasks).toHaveLength(1);
+  });
+
+  it("saves Ended without a fit note request when the last day is before the requirement date", async () => {
+    const result = await createSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: sicknessInput(tenantA, {
+        reportedDate: "2026-09-14",
+        firstWorkingDaySick: "2026-08-10",
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-08-16",
+      }),
+      now,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const absence = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      result.id,
+    );
+    expect(absence.sickness?.episodeState).toBe("ENDED");
+    const tasks = await prisma.absenceFollowUp.findMany({
+      where: { absenceId: result.id, purpose: "REQUEST_FIT_NOTE" },
+    });
+    expect(tasks).toHaveLength(0);
   });
 
   it("creates a report with optional fields, line breaks, and advance acknowledgement", async () => {

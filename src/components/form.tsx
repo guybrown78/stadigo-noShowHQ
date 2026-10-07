@@ -55,6 +55,11 @@ export function controlClassName(extra = "") {
     .join(" ");
 }
 
+/** Select controls with the arrow inset from the border. */
+export function selectControlClassName(extra = "") {
+  return controlClassName(`field-select ${extra}`);
+}
+
 /** Compact controls for list-page filter toolbars. */
 export function filterControlClassName(extra = "") {
   return [

@@ -109,7 +109,7 @@ function HistoryList({ absence }: { absence: AbsenceDetail }) {
             </p>
             <p className="mt-1 text-slate-600">
               {formatLondonDateTime(entry.createdAt)}
-              {` · ${actorName(entry.actedBy)}`}
+              {` · ${entry.systemActor ? "NoShowHQ" : actorName(entry.actedBy)}`}
             </p>
             {entry.reason ? (
               <p className="mt-1 text-slate-600">{entry.reason}</p>
@@ -298,7 +298,7 @@ function FlashBanners({
       ) : null}
       {flash.episodeUpdated === "1" ? (
         <Banner tone="success" className="mt-4">
-          Sickness episode updated.
+          Sickness status updated.
         </Banner>
       ) : null}
       {flash.followUp === "1" ? (
@@ -605,7 +605,7 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
         ) : null}
         {detail.episodeState === "NOT_CONFIRMED" ? (
           <p className="mt-1 text-sm text-slate-600">
-            Episode status not confirmed means no end date or explicit ongoing
+            Sickness status not yet confirmed means no end date and no ongoing
             confirmation has been recorded.
           </p>
         ) : null}

@@ -67,7 +67,7 @@ describe("absence detail drawer contract", () => {
     expect(absenceArchiveActionLabel("SICKNESS")).toBe(
       "Archive sickness report",
     );
-    expect(absenceEpisodeUpdateActionLabel()).toBe("Update sickness episode");
+    expect(absenceEpisodeUpdateActionLabel()).toBe("Update sickness");
   });
 
   it("keeps type-specific bodies and does not invent Event or Venue for Sickness", () => {
@@ -135,7 +135,7 @@ describe("formatSicknessLedgerEpisodeContext", () => {
         episodeState: "NOT_CONFIRMED",
         sicknessEndedDate: null,
       }),
-    ).toBe("Episode status not confirmed");
+    ).toBe("Sickness status not yet confirmed");
     expect(
       formatSicknessLedgerEpisodeContext({
         episodeState: "ONGOING",
