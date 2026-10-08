@@ -24,11 +24,13 @@ export function CardHeader({
   description,
   action,
   className,
+  headingId,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   className?: string;
+  headingId?: string;
 }) {
   return (
     <div
@@ -38,7 +40,9 @@ export function CardHeader({
       )}
     >
       <div>
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+        <h2 id={headingId} className="text-base font-semibold text-slate-900">
+          {title}
+        </h2>
         {description ? (
           <p className="mt-1 text-sm text-slate-500">{description}</p>
         ) : null}
