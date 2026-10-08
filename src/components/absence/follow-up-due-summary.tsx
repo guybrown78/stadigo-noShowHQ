@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { FOLLOW_UP_DUE_LABELS } from "@/lib/absence/follow-up";
 import { followUpQueueHref } from "@/lib/absence/follow-up-url";
 
 export function FollowUpDueSummary({
   counts,
+  className,
 }: {
   counts: { overdue: number; dueToday: number; upcoming: number };
+  className?: string;
 }) {
   const groups = [
     {
@@ -27,12 +30,12 @@ export function FollowUpDueSummary({
   ];
 
   return (
-    <section className="mt-8" aria-labelledby="follow-up-summary-heading">
+    <section className={cn("mt-8", className)} aria-labelledby="follow-up-summary-heading">
       <h2
         id="follow-up-summary-heading"
-        className="text-lg font-semibold text-slate-900"
+        className="text-base font-semibold text-slate-900"
       >
-        Follow-ups
+        Open follow-ups
       </h2>
       <ul className="mt-4 grid gap-3 sm:grid-cols-3">
         {groups.map((group) => (

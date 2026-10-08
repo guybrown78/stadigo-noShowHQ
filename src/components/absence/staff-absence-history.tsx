@@ -50,7 +50,10 @@ export async function StaffAbsenceHistory({
     });
 
   return (
-    <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+    <section
+      id="absence-history"
+      className="mt-8 scroll-mt-8 rounded-lg border border-slate-200 bg-white p-6"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">
           Absence history
