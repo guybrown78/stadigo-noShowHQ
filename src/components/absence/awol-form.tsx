@@ -16,6 +16,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
 import {
+  DATE_RECORDED_BEFORE_EVENT_MESSAGE,
   previewAwolEventEligibility,
   requiresSameDayUnknownStartConfirmation,
 } from "@/lib/absence/eligibility";
@@ -91,6 +92,7 @@ export function AwolForm({
 
   const eligibility = previewAwolEventEligibility({
     eventDate: selectedEvent?.eventDate,
+    eventBriefingTime: selectedEvent?.briefingTime,
     eventStartTime: selectedEvent?.startTime,
     sameDayStartUnknownConfirmed: sameDayConfirmed,
     timeZone,
@@ -98,6 +100,7 @@ export function AwolForm({
   const needsConfirmation = selectedEvent
     ? requiresSameDayUnknownStartConfirmation({
         eventDate: selectedEvent.eventDate,
+        eventBriefingTime: selectedEvent.briefingTime,
         eventStartTime: selectedEvent.startTime,
         timeZone,
       })
@@ -120,6 +123,24 @@ export function AwolForm({
   const eventDate = selectedEvent
     ? parseLocalDate(selectedEvent.eventDate)
     : null;
+  const eventDateIso = selectedEvent?.eventDate ?? "";
+  const recordedBeforeEvent = Boolean(
+    eventDateIso && reportedDate && reportedDate < eventDateIso,
+  );
+  const recordedDateMin =
+    eventDateIso && eventDateIso <= defaultReportedDate ? eventDateIso : undefined;
+  const eventErrors = (state.fieldErrors?.eventId ?? []).filter(
+    (message) => !(selectedEvent && message === "Select an event"),
+  );
+  const serverDateErrors = state.fieldErrors?.reportedDate ?? [];
+  const reportedDateErrors = recordedBeforeEvent
+    ? [
+        DATE_RECORDED_BEFORE_EVENT_MESSAGE,
+        ...serverDateErrors.filter(
+          (message) => message !== DATE_RECORDED_BEFORE_EVENT_MESSAGE,
+        ),
+      ]
+    : serverDateErrors;
 
   const detailsFields = (
     <>
@@ -140,6 +161,8 @@ export function AwolForm({
             id={`${formId}-date`}
             name="reportedDate"
             type="date"
+            min={recordedDateMin}
+            max={defaultReportedDate}
             value={reportedDate}
             onChange={(event) => {
               const next = event.target.value;
@@ -147,20 +170,19 @@ export function AwolForm({
                 setReportedDate(next);
               }
             }}
-            aria-invalid={Boolean(state.fieldErrors?.reportedDate)}
+            aria-invalid={reportedDateErrors.length > 0}
             aria-describedby={
-              state.fieldErrors?.reportedDate
-                ? `${formId}-date-error`
-                : undefined
+              reportedDateErrors.length > 0 ? `${formId}-date-error` : undefined
             }
             className={controlClassName("w-full")}
           />
           <p className="mt-1 text-sm text-slate-500">
-            The local date this AWOL was entered or confirmed.
+            The local date this AWOL was entered or confirmed. It cannot be
+            before the event date or in the future.
           </p>
           <FieldError
             id={`${formId}-date-error`}
-            messages={state.fieldErrors?.reportedDate}
+            messages={reportedDateErrors}
           />
         </div>
       </div>
@@ -177,8 +199,8 @@ export function AwolForm({
       {needsConfirmation ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
           <p className="text-sm text-amber-900">
-            This Event is today and has no start time. Confirm that the staff
-            member was expected and failed to attend.
+            This Event is today and has no briefing or start time. Confirm that
+            the staff member was expected and failed to attend.
           </p>
           <label className="mt-2 flex items-start gap-2 text-sm text-slate-800">
             <input
@@ -276,6 +298,14 @@ export function AwolForm({
         <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
       ) : null}
       <input type="hidden" name="type" value="AWOL" />
+      <input type="hidden" name="todayIso" value={defaultReportedDate} />
+      <input type="hidden" name="eventId" value={selectedEvent?.id ?? ""} />
+      <input type="hidden" name="eventDate" value={selectedEvent?.eventDate ?? ""} />
+      <input
+        type="hidden"
+        name="eventStartTime"
+        value={selectedEvent?.startTime ?? ""}
+      />
       <FormAlert>{state.error}</FormAlert>
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
@@ -314,7 +344,7 @@ export function AwolForm({
               initialEvent={selectedEvent}
               searchMode="awol"
               errorId={`${formId}-event-error`}
-              errorMessages={state.fieldErrors?.eventId}
+              errorMessages={eventErrors}
               onSelect={(event) => {
                 setSelectedEvent(event);
                 setSameDayConfirmed(false);
@@ -352,7 +382,7 @@ export function AwolForm({
             initialEvent={initialEvent}
             searchMode="awol"
             errorId={`${formId}-event-error`}
-            errorMessages={state.fieldErrors?.eventId}
+            errorMessages={eventErrors}
             onSelect={(event) => {
               setSelectedEvent(event);
               setSameDayConfirmed(false);

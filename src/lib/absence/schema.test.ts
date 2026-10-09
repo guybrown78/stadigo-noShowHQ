@@ -585,6 +585,21 @@ describe("awolInputSchema", () => {
     expect(parsed.success).toBe(false);
   });
 
+  it("rejects a future Date recorded", () => {
+    const parsed = parseAwolFormData(
+      awolData({
+        reportedDate: "2026-09-20",
+        eventDate: "2026-09-10",
+        todayIso: "2026-09-12",
+      }),
+    );
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(parsed.error.issues.some((issue) => issue.path[0] === "reportedDate")).toBe(
+      true,
+    );
+  });
+
   it("requires a correction reason and expectedUpdatedAt", () => {
     expect(parseCorrectAwolFormData(awolData()).success).toBe(false);
     const data = awolData();

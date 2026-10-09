@@ -79,6 +79,7 @@ export default async function CorrectAbsencePage({
                   name: absence.awol.eventNameSnapshot,
                   reference: absence.awol.eventReferenceSnapshot,
                   eventDate: formatLocalDateIso(absence.awol.eventDateSnapshot),
+                  briefingTime: null,
                   startTime: absence.awol.eventStartTimeSnapshot,
                   endTime: absence.awol.eventEndTimeSnapshot,
                   venueName: absence.awol.venueNameSnapshot ?? "",
@@ -165,6 +166,7 @@ export default async function CorrectAbsencePage({
               eventDate: formatLocalDateIso(
                 absence.cancellation.eventDateSnapshot,
               ),
+              briefingTime: null,
               startTime: absence.cancellation.eventStartTimeSnapshot,
               endTime: null,
               venueName: absence.cancellation.venueNameSnapshot ?? "",

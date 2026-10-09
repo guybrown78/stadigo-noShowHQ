@@ -32,7 +32,7 @@ One-to-one type-specific row for AWOL. Stores Event/Venue snapshots used as oper
 - optional start/end time snapshots
 - optional venue id/name snapshots
 - optional `eventTypeSnapshot` / `eventSubtypeSnapshot` (missing type displays as Unspecified; never inferred later from the live Event)
-- `sameDayStartUnknownConfirmed` — `true` only when the Event date is the tenant-local current date, the Event has no start time, and the administrator confirmed non-attendance
+- `sameDayStartUnknownConfirmed` — `true` only when the Event date is the tenant-local current date, the Event has no briefing time and no start time, and the administrator confirmed non-attendance
 
 Do not copy Internal notes into `Absence.reason`. AWOL has no notice, payment, follow-up, impact, or shift columns.
 
@@ -129,10 +129,10 @@ Used by AWOL create (`AWOL_CREATE`), Sickness create (`SICKNESS_CREATE`), Sickne
 ## AWOL date semantics
 
 - **Event date** is snapshotted from the selected Event. The administrator does not type a second occurrence date.
-- **Date recorded** is stored in `reportedDate` and labelled Date recorded in the AWOL UI. It defaults to the tenant-local current date, cannot be in the future, and cannot be earlier than the Event date.
-- A past Event is eligible. A future Event is not.
-- A same-day Event with a known start time is eligible only when tenant-local now is at or after that start. Overnight Events use the stored start date/time.
-- A same-day Event with no start time requires `sameDayStartUnknownConfirmed`.
+- **Date recorded** is stored in `reportedDate` and labelled Date recorded in the AWOL UI. It defaults to the tenant-local current date, cannot be in the future, and cannot be earlier than the Event date. The date control starts at the selected Event date and stops at tenant-local today. A date before the Event is shown on the field immediately. The client schema and the server both reject it.
+- A past Event is eligible. A future Event is not, and AWOL event search does not offer it.
+- Check-in is the briefing time when it is set, otherwise the start time. A same-day Event is eligible only when tenant-local now is at or after that check-in time. Search hides a same-day Event until then. Overnight Events use the stored check-in date/time.
+- A same-day Event with no briefing time and no start time requires `sameDayStartUnknownConfirmed`.
 - Client previews are usability only. The server recalculates at save using trusted Event values and a controllable clock in tests.
 
 ## Sickness date semantics

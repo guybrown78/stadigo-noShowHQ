@@ -10,7 +10,7 @@ import {
   LEDGER_PAGE_SIZE,
   STAFF_ABSENCE_HISTORY_PAGE_SIZE,
 } from "@/lib/absence/catalog";
-import { requireIanaTimeZone } from "@/lib/absence/timezone";
+import { requireIanaTimeZone, timeHHmmInTimeZone } from "@/lib/absence/timezone";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import { issueSummaryPresent } from "@/lib/absence/sensitive";
 import {
@@ -119,6 +119,7 @@ export type AbsenceEventOption = {
   name: string;
   reference: string | null;
   eventDate: string;
+  briefingTime: string | null;
   startTime: string | null;
   endTime: string | null;
   venueName: string;
@@ -254,13 +255,19 @@ export async function searchEventsForAbsence(
   db: PrismaClient,
   tenantId: string,
   query: string,
-  options: { mode?: AbsenceEventSearchMode; todayIso?: string } = {},
+  options: {
+    mode?: AbsenceEventSearchMode;
+    todayIso?: string;
+    nowHHmm?: string;
+  } = {},
 ): Promise<AbsenceEventOption[]> {
   const search = query.trim();
   const todayIso = options.todayIso ?? londonTodayIso();
+  const nowHHmm = options.nowHHmm ?? timeHHmmInTimeZone("Europe/London");
   const parsedDate = parseEventSearchDate(search);
   const dateIso = parsedDate ? formatLocalDateIso(parsedDate) : null;
   const awolOnly = options.mode === "awol";
+  const checkInTime = Prisma.sql`COALESCE(NULLIF(btrim(e."briefingTime"), ''), NULLIF(btrim(e."startTime"), ''))`;
 
   const ids = await db.$queryRaw<{ id: string }[]>`
     SELECT e.id
@@ -269,7 +276,20 @@ export async function searchEventsForAbsence(
     WHERE e."tenantId" = ${tenantId}
       AND e."deletedAt" IS NULL
       AND e."archivedAt" IS NULL
-      ${awolOnly ? Prisma.sql`AND e."eventDate" <= ${todayIso}::date` : Prisma.empty}
+      ${
+        awolOnly
+          ? Prisma.sql`AND (
+              e."eventDate" < ${todayIso}::date
+              OR (
+                e."eventDate" = ${todayIso}::date
+                AND (
+                  ${checkInTime} IS NULL
+                  OR ${checkInTime} <= ${nowHHmm}
+                )
+              )
+            )`
+          : Prisma.empty
+      }
       ${
         search
           ? Prisma.sql`AND (
@@ -318,6 +338,7 @@ export async function searchEventsForAbsence(
     name: event.name,
     reference: event.reference,
     eventDate: formatLocalDateIso(event.eventDate),
+    briefingTime: event.briefingTime,
     startTime: event.startTime,
     endTime: event.endTime,
     venueName: event.venue.name,
@@ -347,6 +368,7 @@ export async function getEventOptionForAbsence(
     name: event.name,
     reference: event.reference,
     eventDate: formatLocalDateIso(event.eventDate),
+    briefingTime: event.briefingTime,
     startTime: event.startTime,
     endTime: event.endTime,
     venueName: event.venue.name,

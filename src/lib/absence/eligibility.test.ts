@@ -54,6 +54,7 @@ describe("evaluateAwolEventEligibility", () => {
   it("allows a same-day Event at or after a known start time", () => {
     const result = evaluateAwolEventEligibility({
       eventDate: "2026-05-02",
+      eventBriefingTime: null,
       eventStartTime: "14:00",
       sameDayStartUnknownConfirmed: false,
       timeZone: london,
@@ -62,9 +63,37 @@ describe("evaluateAwolEventEligibility", () => {
     expect(result).toEqual({ ok: true, requiresSameDayConfirmation: false });
   });
 
-  it("requires confirmation for a same-day Event with no start time", () => {
+  it("allows a same-day Event after briefing and before start", () => {
+    // 11:30 UTC = 12:30 BST. Briefing 12:00, start 15:00.
+    const result = evaluateAwolEventEligibility({
+      eventDate: "2026-05-02",
+      eventBriefingTime: "12:00",
+      eventStartTime: "15:00",
+      sameDayStartUnknownConfirmed: false,
+      timeZone: london,
+      now: new Date("2026-05-02T11:30:00.000Z"),
+    });
+    expect(result).toEqual({ ok: true, requiresSameDayConfirmation: false });
+  });
+
+  it("rejects a same-day Event before briefing", () => {
+    const result = evaluateAwolEventEligibility({
+      eventDate: "2026-05-02",
+      eventBriefingTime: "15:00",
+      eventStartTime: "18:00",
+      sameDayStartUnknownConfirmed: false,
+      timeZone: london,
+      now: new Date("2026-05-02T13:00:00.000Z"),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBe(EVENT_NOT_STARTED_MESSAGE);
+  });
+
+  it("requires confirmation for a same-day Event with no briefing or start time", () => {
     const missing = evaluateAwolEventEligibility({
       eventDate: "2026-05-02",
+      eventBriefingTime: null,
       eventStartTime: null,
       sameDayStartUnknownConfirmed: false,
       timeZone: london,
@@ -77,6 +106,7 @@ describe("evaluateAwolEventEligibility", () => {
 
     const confirmed = evaluateAwolEventEligibility({
       eventDate: "2026-05-02",
+      eventBriefingTime: "",
       eventStartTime: null,
       sameDayStartUnknownConfirmed: true,
       timeZone: london,

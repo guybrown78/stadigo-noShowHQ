@@ -11,9 +11,9 @@ import { parseLocalTime } from "@/lib/events/dates";
 export const SAME_DAY_CONFIRMATION_MESSAGE =
   "Confirm that the staff member was expected and has failed to attend this Event.";
 export const FUTURE_EVENT_MESSAGE =
-  "AWOL can only be recorded for an Event that has started or has passed.";
+  "AWOL can only be recorded for an Event that has reached check-in or has passed.";
 export const EVENT_NOT_STARTED_MESSAGE =
-  "This Event has not started yet. AWOL can be recorded at or after the Event start time.";
+  "This Event has not reached check-in yet. AWOL can be recorded at or after the briefing time, or the start time when no briefing time is set.";
 export const DATE_RECORDED_FUTURE_MESSAGE =
   "Date recorded cannot be in the future.";
 export const DATE_RECORDED_BEFORE_EVENT_MESSAGE =
@@ -31,8 +31,17 @@ export type ReportedDateEligibility =
   | { ok: true }
   | { ok: false; field: "reportedDate" | "timezone"; message: string };
 
+/** Briefing time when set, otherwise start time. Blank or invalid values are ignored. */
+export function awolCheckInTime(
+  briefingTime: string | null | undefined,
+  startTime: string | null | undefined,
+): string | null {
+  return parseLocalTime(briefingTime ?? "") ?? parseLocalTime(startTime ?? "");
+}
+
 export function evaluateAwolEventEligibility(params: {
   eventDate: Date | string;
+  eventBriefingTime?: string | null | undefined;
   eventStartTime: string | null | undefined;
   sameDayStartUnknownConfirmed: boolean;
   timeZone: string;
@@ -61,12 +70,13 @@ export function evaluateAwolEventEligibility(params: {
     return { ok: true, requiresSameDayConfirmation: false };
   }
 
-  const startTime = params.eventStartTime
-    ? parseLocalTime(params.eventStartTime)
-    : null;
-  if (startTime) {
-    const eventStart = wallClockToUtc(eventDateIso, startTime, timeZone);
-    if (now.getTime() < eventStart.getTime()) {
+  const checkInTime = awolCheckInTime(
+    params.eventBriefingTime,
+    params.eventStartTime,
+  );
+  if (checkInTime) {
+    const checkIn = wallClockToUtc(eventDateIso, checkInTime, timeZone);
+    if (now.getTime() < checkIn.getTime()) {
       return { ok: false, field: "eventId", message: EVENT_NOT_STARTED_MESSAGE };
     }
     return { ok: true, requiresSameDayConfirmation: false };
@@ -84,6 +94,7 @@ export function evaluateAwolEventEligibility(params: {
 
 export function previewAwolEventEligibility(params: {
   eventDate: Date | string | null | undefined;
+  eventBriefingTime?: string | null | undefined;
   eventStartTime: string | null | undefined;
   sameDayStartUnknownConfirmed: boolean;
   timeZone: string;
@@ -101,6 +112,7 @@ export function previewAwolEventEligibility(params: {
   }
   return evaluateAwolEventEligibility({
     eventDate: eventDateIso,
+    eventBriefingTime: params.eventBriefingTime,
     eventStartTime: params.eventStartTime,
     sameDayStartUnknownConfirmed: params.sameDayStartUnknownConfirmed,
     timeZone: params.timeZone,
@@ -150,6 +162,7 @@ export function evaluateAwolReportedDate(params: {
 
 export function requiresSameDayUnknownStartConfirmation(params: {
   eventDate: Date | string;
+  eventBriefingTime?: string | null | undefined;
   eventStartTime: string | null | undefined;
   timeZone: string;
   now?: Date;
@@ -163,7 +176,7 @@ export function requiresSameDayUnknownStartConfirmation(params: {
   if (eventDateIso !== todayIso) {
     return false;
   }
-  return !parseLocalTime(params.eventStartTime ?? "");
+  return !awolCheckInTime(params.eventBriefingTime, params.eventStartTime);
 }
 
 export function tenantNowParts(timeZone: string, now: Date = new Date()) {

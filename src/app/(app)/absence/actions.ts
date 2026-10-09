@@ -36,7 +36,7 @@ import {
   createSickness,
   updateSicknessEpisode,
 } from "@/lib/absence/service";
-import { todayIsoInTimeZone } from "@/lib/absence/timezone";
+import { timeHHmmInTimeZone, todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
@@ -61,17 +61,21 @@ export async function searchAbsenceEventsAction(
 ): Promise<AbsenceEventOption[]> {
   const user = await requireTenant();
   let todayIso: string | undefined;
+  let nowHHmm: string | undefined;
   if (mode === "awol") {
     try {
       const timeZone = await getTenantTimezone(prisma, user.tenantId);
       todayIso = todayIsoInTimeZone(timeZone);
+      nowHHmm = timeHHmmInTimeZone(timeZone);
     } catch {
       todayIso = undefined;
+      nowHHmm = undefined;
     }
   }
   return searchEventsForAbsence(prisma, user.tenantId, query, {
     mode,
     todayIso,
+    nowHHmm,
   });
 }
 

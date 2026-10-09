@@ -6,10 +6,12 @@ import {
   createAwol,
   createCancellation,
 } from "@/lib/absence/service";
+import { EVENT_NOT_STARTED_MESSAGE } from "@/lib/absence/eligibility";
 import {
   getAbsenceForTenant,
   listActiveAbsencesForStaff,
   listActiveAwolsForLedger,
+  searchEventsForAbsence,
 } from "@/lib/absence/queries";
 import { parseHistoryChanges } from "@/lib/absence/history";
 import { defaultLedgerListQuery, type AwolInput } from "@/lib/absence/schema";
@@ -151,7 +153,13 @@ function awolInput(
 
 async function addEvent(
   fixture: Fixture,
-  data: { name: string; reference: string | null; eventDate: string; startTime?: string | null },
+  data: {
+    name: string;
+    reference: string | null;
+    eventDate: string;
+    briefingTime?: string | null;
+    startTime?: string | null;
+  },
 ) {
   const result = await createEvent(prisma, {
     tenantId: fixture.tenant.id,
@@ -167,7 +175,7 @@ async function addEvent(
       newVenueTownCity: null,
       newVenuePostcode: null,
       eventDate: data.eventDate,
-      briefingTime: null,
+      briefingTime: data.briefingTime ?? null,
       startTime: data.startTime ?? "14:00",
       endTime: "17:00",
       endsNextDay: false,
@@ -587,6 +595,86 @@ describe("AWOL service", () => {
       }),
     ]);
     expect([first.ok, second.ok].filter(Boolean)).toHaveLength(1);
+  });
+
+  it("records AWOL after briefing and before start, and rejects AWOL before briefing", async () => {
+    const event = await addEvent(tenantA, {
+      name: "Briefing Window",
+      reference: "BW-1",
+      eventDate: "2026-09-12",
+      briefingTime: "12:00",
+      startTime: "15:00",
+    });
+    const beforeBriefing = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: awolInput(tenantA, {
+        eventId: event.id,
+        reportedDate: "2026-09-12",
+      }),
+      now: new Date("2026-09-12T10:30:00.000Z"),
+    });
+    expect(beforeBriefing.ok).toBe(false);
+    if (!beforeBriefing.ok) {
+      expect(beforeBriefing.fieldErrors?.eventId?.[0]).toBe(EVENT_NOT_STARTED_MESSAGE);
+    }
+    expect(
+      await prisma.absence.count({
+        where: { tenantId: tenantA.tenant.id, eventId: event.id },
+      }),
+    ).toBe(0);
+
+    const afterBriefing = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: awolInput(tenantA, {
+        eventId: event.id,
+        reportedDate: "2026-09-12",
+      }),
+      now: new Date("2026-09-12T11:30:00.000Z"),
+    });
+    expect(afterBriefing.ok).toBe(true);
+  });
+
+  it("hides a same-day Event from AWOL search until check-in, and still offers it for cancellation", async () => {
+    const token = `${prefix}-checkin`;
+    const ready = await addEvent(tenantA, {
+      name: `${token} ready`,
+      reference: "CK-READY",
+      eventDate: "2026-09-12",
+      briefingTime: "12:00",
+      startTime: "15:00",
+    });
+    const ahead = await addEvent(tenantA, {
+      name: `${token} ahead`,
+      reference: "CK-AHEAD",
+      eventDate: "2026-09-12",
+      briefingTime: "18:00",
+      startTime: "19:00",
+    });
+    const searchOptions = { todayIso: "2026-09-12", nowHHmm: "13:00" };
+
+    const awolHits = await searchEventsForAbsence(
+      prisma,
+      tenantA.tenant.id,
+      token,
+      { mode: "awol", ...searchOptions },
+    );
+    expect(awolHits.map((event) => event.id)).toContain(ready.id);
+    expect(awolHits.map((event) => event.id)).not.toContain(ahead.id);
+    expect(awolHits.find((event) => event.id === ready.id)?.briefingTime).toBe(
+      "12:00",
+    );
+
+    const cancellationHits = await searchEventsForAbsence(
+      prisma,
+      tenantA.tenant.id,
+      token,
+      searchOptions,
+    );
+    expect(cancellationHits.map((event) => event.id)).toEqual(
+      expect.arrayContaining([ready.id, ahead.id]),
+    );
   });
 
   it("rejects a future Event and a Date recorded before the Event date", async () => {
