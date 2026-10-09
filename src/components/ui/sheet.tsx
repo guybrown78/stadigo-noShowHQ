@@ -31,12 +31,16 @@ export function Sheet({
   labelledBy,
   closeHref,
   returnFocusId,
+  onClose,
+  headerAction,
   children,
 }: {
   open: boolean;
   labelledBy: string;
   closeHref: string;
   returnFocusId?: string;
+  onClose?: () => void;
+  headerAction?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -49,6 +53,7 @@ export function Sheet({
   const closeLabelId = useId();
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
+  const [motion, setMotion] = useState(false);
   const mountedRef = useRef(mounted);
 
   if (children) {
@@ -63,6 +68,7 @@ export function Sheet({
   const finishUnmount = useCallback(() => {
     setMounted(false);
     setEntered(false);
+    setMotion(false);
     closingRef.current = false;
     closeStartedAtRef.current = 0;
     const id = returnFocusRef.current;
@@ -79,8 +85,12 @@ export function Sheet({
   }, []);
 
   const navigateClosed = useCallback(() => {
+    if (onClose) {
+      onClose();
+      return;
+    }
     router.replace(closeHref, { scroll: false });
-  }, [router, closeHref]);
+  }, [closeHref, onClose, router]);
 
   const close = useCallback(() => {
     if (closingRef.current || !mountedRef.current) {
@@ -119,8 +129,18 @@ export function Sheet({
     if (!open || !mounted) {
       return;
     }
+    if (prefersReducedMotion()) {
+      setEntered(true);
+      return;
+    }
+    // Commit the off-screen position before the transition exists, so the
+    // panel travels in from the right instead of interpolating from rest.
     panelRef.current?.getBoundingClientRect();
-    setEntered(true);
+    const frame = window.requestAnimationFrame(() => {
+      setMotion(true);
+      setEntered(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [mounted, open]);
 
   useLayoutEffect(() => {
@@ -189,7 +209,7 @@ export function Sheet({
     }
     panelRef.current
       ?.querySelector<HTMLElement>("[data-sheet-close]")
-      ?.focus();
+      ?.focus({ preventScroll: true });
   }, [entered]);
 
   if (!mounted) {
@@ -199,18 +219,18 @@ export function Sheet({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[60] overflow-hidden",
+        "fixed inset-0 z-[60] overflow-clip",
         entered ? null : "pointer-events-none",
       )}
       data-sheet-root=""
       data-state={entered ? "open" : "closed"}
+      data-motion={motion ? "on" : "off"}
     >
       <button
         type="button"
         className="absolute inset-0 bg-slate-900/40"
         data-sheet-backdrop=""
         aria-label="Close details"
-        style={{ opacity: entered ? 1 : 0 }}
         onClick={close}
       />
       <div
@@ -219,10 +239,17 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={labelledBy}
         data-sheet-panel=""
-        className="absolute inset-0 flex h-dvh w-full flex-col overflow-hidden bg-white shadow-2xl sm:inset-y-0 sm:right-0 sm:left-auto sm:w-[32rem] sm:max-w-[100vw] sm:rounded-l-2xl sm:border-l sm:border-border"
-        style={{ translate: entered ? "0 0" : "100% 0" }}
+        className="absolute top-0 right-0 bottom-0 left-auto flex h-dvh w-full max-w-full flex-col overflow-hidden bg-white shadow-2xl sm:w-[32rem] sm:max-w-[100vw] sm:rounded-l-2xl sm:border-l sm:border-border"
       >
-        <div className="flex shrink-0 justify-end border-b border-border px-4 py-3">
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-3 border-b border-border px-4 py-3",
+            headerAction ? "justify-between" : "justify-end",
+          )}
+        >
+          {headerAction ? (
+            <div className="flex items-center">{headerAction}</div>
+          ) : null}
           <Button
             type="button"
             variant="secondary"
