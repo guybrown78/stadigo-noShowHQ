@@ -13,6 +13,8 @@ Key fields: `name`, optional tenant-unique `reference`, `eventDate` (`DATE`, Eur
 
 `tenantId`, `createdById`, and `updatedById` always come from the authenticated session, never from the client.
 
+The event page reports absences logged against that event. Active cancellations and AWOLs each count as one person. Archived records are excluded. Sickness is not included, because a sickness record cannot reference an event. Estimated fill rate is `max(0, staffRequired - absences) / staffRequired`, rounded to the nearest percent. It is green at or above the warning threshold, amber from the critical threshold up to the warning threshold, and red below critical. There is no rota, so this is an estimate from logged absences, and dropping below a threshold does not send an alert. Cancellation notice is summarised as a calendar-day window for every cancellation, and as hour buckets only when an exact time was recorded.
+
 ### EventType / EventSubtype
 Per-tenant taxonomy, seeded when a tenant is provisioned (and on first Events visit for existing tenants). Subtypes belong to one type. The database enforces the pairing with a composite foreign key `(eventSubtypeId, eventTypeId)`.
 
