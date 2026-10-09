@@ -1,4 +1,4 @@
-export const SHEET_ENTER_MS = 550;
+export const SHEET_ENTER_MS = 240;
 export const SHEET_EXIT_MS = 320;
 export const SHEET_MOTION_MS = SHEET_EXIT_MS;
 

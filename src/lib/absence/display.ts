@@ -34,6 +34,18 @@ export function ledgerViewDetailsLabel(type: AbsenceType): string {
   return "View Cancellation details";
 }
 
+export function ledgerFullPageLabel(type: AbsenceType): string {
+  if (type === "AWOL") {
+    return "View full AWOL page";
+  }
+  if (type === "SICKNESS") {
+    return "View full sickness page";
+  }
+  return "View full cancellation page";
+}
+
+export const LEDGER_FULL_PAGE_LABEL = "View full absence page";
+
 export function absenceAllowsCorrectAndArchive(
   recordStatus: AbsenceRecordStatus,
 ): boolean {

@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
-import { AbsenceDetailContent } from "@/components/absence/absence-detail-content";
-import { LedgerDetailDrawer } from "@/components/absence/ledger-detail-drawer";
+import {
+  LedgerDetailHost,
+  ViewAbsenceButton,
+} from "@/components/absence/ledger-detail-host";
 import {
   AbsenceTypeBadge,
   NoticeWarningBadges,
@@ -60,16 +62,10 @@ import {
   type LedgerAbsenceRow,
   type LedgerFilterOptions,
 } from "@/lib/absence/ledger-query";
-import { AbsenceAccessError } from "@/lib/absence/errors";
-import { getAbsenceForTenant, getTenantTimezone } from "@/lib/absence/queries";
+import { toLedgerDrawerPreview } from "@/lib/absence/ledger-drawer-preview";
+import { getTenantTimezone } from "@/lib/absence/queries";
 import {
-  ledgerArchiveReturnHref,
   ledgerCloseDetailHref,
-  ledgerDetailHref,
-  ledgerEpisodeUpdateReturnHref,
-  ledgerEvidenceReturnHref,
-  ledgerFollowUpReturnHref,
-  ledgerReturnToWorkReturnHref,
   ledgerListHref,
   ledgerLogAbsenceHref,
 } from "@/lib/absence/url";
@@ -260,26 +256,12 @@ function StatusBadge({ row }: { row: LedgerAbsenceRow }) {
   );
 }
 
-function ViewAbsenceLink({
-  row,
-  query,
-}: {
-  row: LedgerAbsenceRow;
-  query: LedgerListQuery;
-}) {
+function ViewAbsenceLink({ row }: { row: LedgerAbsenceRow }) {
   return (
-    <ButtonLink
-      href={ledgerDetailHref(query, row.id)}
-      scroll={false}
-      variant="secondary"
-      size="sm"
-      aria-label={ledgerViewDetailsLabel(row.type)}
-      aria-haspopup="dialog"
-      aria-expanded={query.detail === row.id}
-      data-ledger-view={row.id}
-    >
-      View
-    </ButtonLink>
+    <ViewAbsenceButton
+      absenceId={row.id}
+      label={ledgerViewDetailsLabel(row.type)}
+    />
   );
 }
 
@@ -373,14 +355,12 @@ export default async function LedgerPage({
   const preserveSort =
     query.sort !== defaultSort || query.direction !== DEFAULT_LEDGER_DIRECTION;
 
-  let timeZone = "";
   let todayIso = "";
-  if (query.view === "sickness" || query.detail) {
+  if (query.view === "sickness") {
     try {
-      timeZone = await getTenantTimezone(prisma, user.tenantId);
+      const timeZone = await getTenantTimezone(prisma, user.tenantId);
       todayIso = todayIsoInTimeZone(timeZone);
     } catch {
-      timeZone = "";
       todayIso = "";
     }
   }
@@ -406,32 +386,6 @@ export default async function LedgerPage({
     ),
   ]);
 
-  let detailAbsence = null;
-  if (query.detail) {
-    try {
-      detailAbsence = await getAbsenceForTenant(
-        prisma,
-        user.tenantId,
-        query.detail,
-      );
-    } catch (error) {
-      if (error instanceof AbsenceAccessError) {
-        redirect(ledgerCloseDetailHref(query));
-      }
-      throw error;
-    }
-  }
-
-  if (detailAbsence && !todayIso) {
-    try {
-      timeZone = await getTenantTimezone(prisma, user.tenantId);
-      todayIso = todayIsoInTimeZone(timeZone);
-    } catch {
-      timeZone = "";
-      todayIso = "";
-    }
-  }
-
   const {
     rows,
     total,
@@ -455,8 +409,21 @@ export default async function LedgerPage({
   const affectedTo = resolvedLedgerAffectedTo(query);
 
   return (
-    <div>
-      <div inert={Boolean(detailAbsence) || undefined}>
+    <LedgerDetailHost
+      previews={rows.map(toLedgerDrawerPreview)}
+      listHref={ledgerCloseDetailHref(query)}
+      initialDetailId={query.detail}
+      flash={{
+        created: first(raw.created),
+        updated: first(raw.updated),
+        archived: first(raw.archived),
+        episodeUpdated: first(raw.episodeUpdated),
+        followUp: first(raw.followUp),
+        evidence: first(raw.evidence),
+        returnToWork: first(raw.returnToWork),
+      }}
+    >
+      <div>
       <PageHeader
         breadcrumbs={[
           { href: "/dashboard", label: "Dashboard" },
@@ -488,9 +455,13 @@ export default async function LedgerPage({
         {query.view !== "all" ? (
           <input type="hidden" name="view" value={query.view} />
         ) : null}
-        {query.detail ? (
-          <input type="hidden" name="detail" value={query.detail} />
-        ) : null}
+        <input
+          type="hidden"
+          name="detail"
+          defaultValue={query.detail}
+          data-ledger-detail=""
+          disabled={query.detail.length === 0}
+        />
         <FilterBar
           ariaLabel="Filter absences"
           active={hasFilters}
@@ -788,7 +759,7 @@ export default async function LedgerPage({
                     <StatusBadge row={row} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <ViewAbsenceLink row={row} query={query} />
+                    <ViewAbsenceLink row={row} />
                   </td>
                 </tr>
               ))}
@@ -819,7 +790,7 @@ export default async function LedgerPage({
                     <ContextCell row={row} />
                   </div>
                   <div className="mt-3">
-                    <ViewAbsenceLink row={row} query={query} />
+                    <ViewAbsenceLink row={row} />
                   </div>
                 </Card>
               </li>
@@ -841,43 +812,6 @@ export default async function LedgerPage({
         </>
       )}
       </div>
-
-      <LedgerDetailDrawer
-        open={Boolean(detailAbsence)}
-        titleId="ledger-absence-detail-title"
-        closeHref={ledgerCloseDetailHref(query)}
-        returnFocusId={detailAbsence?.id ?? ""}
-      >
-        {detailAbsence ? (
-          <AbsenceDetailContent
-            absence={detailAbsence}
-            flash={{
-              created: first(raw.created),
-              updated: first(raw.updated),
-              archived: first(raw.archived),
-              episodeUpdated: first(raw.episodeUpdated),
-              followUp: first(raw.followUp),
-              evidence: first(raw.evidence),
-              returnToWork: first(raw.returnToWork),
-            }}
-            layout="drawer"
-            titleId="ledger-absence-detail-title"
-            archiveReturnTo={ledgerArchiveReturnHref(query, detailAbsence.id)}
-            episodeUpdateReturnTo={ledgerEpisodeUpdateReturnHref(
-              query,
-              detailAbsence.id,
-            )}
-            followUpReturnTo={ledgerFollowUpReturnHref(query, detailAbsence.id)}
-            evidenceReturnTo={ledgerEvidenceReturnHref(query, detailAbsence.id)}
-            returnToWorkReturnTo={ledgerReturnToWorkReturnHref(
-              query,
-              detailAbsence.id,
-            )}
-            timeZone={timeZone || undefined}
-            todayIso={todayIso || undefined}
-          />
-        ) : null}
-      </LedgerDetailDrawer>
-    </div>
+    </LedgerDetailHost>
   );
 }

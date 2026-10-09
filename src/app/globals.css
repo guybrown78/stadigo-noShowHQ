@@ -61,7 +61,7 @@ select {
 }
 
 [data-sheet-panel] {
-  translate: 100% 0;
+  transform: translateX(100%);
 }
 
 [data-sheet-root][data-state="open"] [data-sheet-backdrop] {
@@ -69,25 +69,21 @@ select {
 }
 
 [data-sheet-root][data-state="open"] [data-sheet-panel] {
-  translate: 0 0;
+  transform: translateX(0);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  [data-sheet-backdrop] {
-    transition: opacity 550ms cubic-bezier(0.16, 1, 0.3, 1);
+  [data-sheet-root][data-motion="on"] [data-sheet-backdrop] {
+    transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  [data-sheet-panel] {
-    transition: translate 550ms cubic-bezier(0.16, 1, 0.3, 1);
+  [data-sheet-root][data-motion="on"] [data-sheet-panel] {
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  [data-sheet-root][data-state="closed"] [data-sheet-backdrop] {
+  [data-sheet-root][data-motion="on"][data-state="closed"] [data-sheet-backdrop],
+  [data-sheet-root][data-motion="on"][data-state="closed"] [data-sheet-panel] {
     transition-duration: 320ms;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  [data-sheet-root][data-state="closed"] [data-sheet-panel] {
-    transition-duration: 320ms;
-    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
   }
 }

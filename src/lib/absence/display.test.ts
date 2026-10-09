@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatLedgerResultsSummary,
   ledgerSearchPlaceholder,
+  ledgerFullPageLabel,
   ledgerViewDetailsLabel,
   absenceAllowsCorrectAndArchive,
   absenceArchiveActionLabel,
@@ -45,6 +46,16 @@ describe("ledgerViewDetailsLabel", () => {
     );
     expect(ledgerViewDetailsLabel("AWOL")).toBe("View AWOL details");
     expect(ledgerViewDetailsLabel("SICKNESS")).toBe("View Sickness details");
+  });
+});
+
+describe("ledgerFullPageLabel", () => {
+  it("names the full absence page by type", () => {
+    expect(ledgerFullPageLabel("CANCELLATION")).toBe(
+      "View full cancellation page",
+    );
+    expect(ledgerFullPageLabel("AWOL")).toBe("View full AWOL page");
+    expect(ledgerFullPageLabel("SICKNESS")).toBe("View full sickness page");
   });
 });
 
