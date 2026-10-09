@@ -1,5 +1,6 @@
 import {
   Prisma,
+  type AbsenceType,
   type EmploymentStatus,
   type PrismaClient,
 } from "@prisma/client";
@@ -531,6 +532,107 @@ export async function findActiveSicknessDuplicate(
     },
     select: { id: true },
   });
+}
+
+export type EventAbsenceReportRow = {
+  id: string;
+  type: "CANCELLATION" | "AWOL";
+  reason: string | null;
+  staff: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    staffIdNumber: string;
+  };
+  notice: {
+    noticeCalendarDays: number;
+    noticeMinutes: number | null;
+    noticeBasis: "EXACT_TIME" | "CALENDAR_DATE";
+    isShortNotice: boolean;
+  } | null;
+};
+
+export async function getEventAbsenceReport(
+  db: DbClient,
+  tenantId: string,
+  eventId: string,
+): Promise<{ absences: EventAbsenceReportRow[]; archivedCount: number }> {
+  const eventAbsenceTypes: AbsenceType[] = ["CANCELLATION", "AWOL"];
+  const whereActive = {
+    tenantId,
+    eventId,
+    recordStatus: "ACTIVE" as const,
+    type: { in: eventAbsenceTypes },
+  };
+  const [records, archivedCount] = await Promise.all([
+    db.absence.findMany({
+      where: whereActive,
+      select: {
+        id: true,
+        type: true,
+        reason: true,
+        staff: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            staffIdNumber: true,
+          },
+        },
+        cancellation: {
+          select: {
+            noticeCalendarDays: true,
+            noticeMinutes: true,
+            noticeBasis: true,
+            isShortNotice: true,
+          },
+        },
+      },
+    }),
+    db.absence.count({
+      where: {
+        tenantId,
+        eventId,
+        recordStatus: "ARCHIVED",
+        type: { in: eventAbsenceTypes },
+      },
+    }),
+  ]);
+
+  const absences: EventAbsenceReportRow[] = records.flatMap((record) => {
+    if (record.type !== "CANCELLATION" && record.type !== "AWOL") {
+      return [];
+    }
+    return [
+      {
+        id: record.id,
+        type: record.type,
+        reason: record.reason,
+        staff: record.staff,
+        notice: record.cancellation,
+      },
+    ];
+  });
+  absences.sort(compareEventAbsenceRows);
+  return { absences, archivedCount };
+}
+
+function compareEventAbsenceRows(
+  a: EventAbsenceReportRow,
+  b: EventAbsenceReportRow,
+): number {
+  if (a.type !== b.type) {
+    return a.type === "CANCELLATION" ? -1 : 1;
+  }
+  const lastName = a.staff.lastName.localeCompare(b.staff.lastName, "en");
+  if (lastName !== 0) {
+    return lastName;
+  }
+  const firstName = a.staff.firstName.localeCompare(b.staff.firstName, "en");
+  if (firstName !== 0) {
+    return firstName;
+  }
+  return a.id.localeCompare(b.id);
 }
 
 export async function findActiveCancellationOrAwol(

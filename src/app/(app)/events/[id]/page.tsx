@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArchiveEventDialog } from "@/components/events/archive-event-dialog";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
+import { EventAbsenceMetrics } from "@/components/events/event-absence-metrics";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
 import { Banner } from "@/components/ui/banner";
+import { getEventAbsenceReport } from "@/lib/absence/queries";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -56,6 +58,11 @@ export default async function EventDetailPage({
     event.startTime,
     event.endTime,
     event.endsNextDay,
+  );
+  const absenceReport = await getEventAbsenceReport(
+    prisma,
+    user.tenantId,
+    event.id,
   );
 
   return (
@@ -157,6 +164,14 @@ export default async function EventDetailPage({
           {event.updatedAt.toLocaleString("en-GB")}
         </Detail>
       </dl>
+
+      <EventAbsenceMetrics
+        staffRequired={event.staffRequired}
+        warningFillRate={event.warningFillRate}
+        criticalFillRate={event.criticalFillRate}
+        absences={absenceReport.absences}
+        archivedCount={absenceReport.archivedCount}
+      />
     </div>
   );
 }

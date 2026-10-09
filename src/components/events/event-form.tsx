@@ -685,9 +685,9 @@ export function EventForm({
           Staffing and risk
         </legend>
         <p className="text-sm text-slate-600">
-          These thresholds are stored now so future risk alerts can flag events
-          whose fill rate drops below them. Live fill-rate calculation is not
-          enabled yet.
+          The event page estimates fill rate from logged cancellations and
+          AWOLs and compares it with these thresholds. Risk alerts are not sent
+          yet.
         </p>
 
         <div>
