@@ -87,6 +87,7 @@ type LoadedEvent = {
   name: string;
   reference: string | null;
   eventDate: Date;
+  briefingTime: string | null;
   startTime: string | null;
   endTime: string | null;
   venueId: string;
@@ -175,6 +176,7 @@ async function loadLiveEvent(
       name: true,
       reference: true,
       eventDate: true,
+      briefingTime: true,
       startTime: true,
       endTime: true,
       venueId: true,
@@ -835,6 +837,7 @@ async function resolveAwolWrite(
   const now = params.now ?? new Date();
   const eligibility = evaluateAwolEventEligibility({
     eventDate: event.eventDate,
+    eventBriefingTime: event.briefingTime,
     eventStartTime: event.startTime,
     sameDayStartUnknownConfirmed: params.input.sameDayStartUnknownConfirmed,
     timeZone,

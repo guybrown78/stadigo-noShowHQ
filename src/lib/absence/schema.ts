@@ -26,7 +26,10 @@ import {
   type LedgerSortField,
   type LedgerView,
 } from "@/lib/absence/catalog";
-import { DATE_RECORDED_BEFORE_EVENT_MESSAGE } from "@/lib/absence/eligibility";
+import {
+  DATE_RECORDED_BEFORE_EVENT_MESSAGE,
+  DATE_RECORDED_FUTURE_MESSAGE,
+} from "@/lib/absence/eligibility";
 import {
   SICKNESS_ADVANCE_BEYOND_LIMIT_MESSAGE,
   SICKNESS_ADVANCE_UNCONFIRMED_MESSAGE,
@@ -209,24 +212,32 @@ const awolFields = {
   sameDayStartUnknownConfirmed: z.boolean(),
   eventDate: z.string().optional(),
   eventStartTime: z.string().optional(),
+  todayIso: z.string().optional(),
 };
 
 function refineAwolDates(
   value: {
     reportedDate: string;
     eventDate?: string;
+    todayIso?: string;
   },
   ctx: z.RefinementCtx,
 ) {
   const eventDate = coerceLocalDateIso(value.eventDate?.trim() ?? "");
-  if (!eventDate) {
-    return;
-  }
-  if (value.reportedDate < eventDate) {
+  if (eventDate && value.reportedDate < eventDate) {
     ctx.addIssue({
       code: "custom",
       path: ["reportedDate"],
       message: DATE_RECORDED_BEFORE_EVENT_MESSAGE,
+    });
+  }
+
+  const todayIso = value.todayIso?.trim();
+  if (todayIso && parseLocalDate(todayIso) && value.reportedDate > todayIso) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["reportedDate"],
+      message: DATE_RECORDED_FUTURE_MESSAGE,
     });
   }
 }
@@ -264,12 +275,12 @@ export const archiveAwolInputSchema = z.object({
 
 export type AwolInput = Omit<
   z.infer<typeof awolInputSchema>,
-  "eventDate" | "eventStartTime"
+  "eventDate" | "eventStartTime" | "todayIso"
 >;
 
 export type CorrectAwolInput = Omit<
   z.infer<typeof correctAwolInputSchema>,
-  "eventDate" | "eventStartTime"
+  "eventDate" | "eventStartTime" | "todayIso"
 >;
 
 export type ArchiveAwolInput = z.infer<typeof archiveAwolInputSchema>;
@@ -819,6 +830,7 @@ function awolFormObject(formData: FormData) {
       formData.get("sameDayStartUnknownConfirmed") === "on",
     eventDate: String(formData.get("eventDate") ?? ""),
     eventStartTime: String(formData.get("eventStartTime") ?? ""),
+    todayIso: String(formData.get("todayIso") ?? ""),
   };
 }
 
