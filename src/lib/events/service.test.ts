@@ -1,11 +1,27 @@
 import { Role } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { searchEventsForAbsence } from "@/lib/absence/queries";
 import { prisma } from "@/lib/db";
+import {
+  formatLocalDateIso,
+  londonTodayIso,
+  parseLocalDate,
+} from "@/lib/events/dates";
 import { EventAccessError } from "@/lib/events/errors";
 import { provisionTenantEventCatalog } from "@/lib/events/provision";
 import { getEventForTenant, listEventsForTenant } from "@/lib/events/queries";
-import type { EventInput } from "@/lib/events/schema";
-import { createEvent, deleteEvent, updateEvent } from "@/lib/events/service";
+import {
+  eventListQuerySchema,
+  type EventInput,
+  type EventListQuery,
+} from "@/lib/events/schema";
+import {
+  archiveEvent,
+  createEvent,
+  deleteEvent,
+  unarchiveEvent,
+  updateEvent,
+} from "@/lib/events/service";
 import { createVenue, getVenueForTenant, updateVenue } from "@/lib/events/venues";
 
 const prefix = `vitest-events-${Date.now()}`;
@@ -65,6 +81,28 @@ async function createFixture(label: string): Promise<Fixture> {
     subtypeId: sporting.subtypes[0]!.id,
     otherSubtypeId: music.subtypes[0]!.id,
     venueId: venue.id,
+  };
+}
+
+function shiftIso(iso: string, days: number): string {
+  const date = parseLocalDate(iso);
+  if (!date) {
+    throw new Error(`Invalid date ${iso}`);
+  }
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatLocalDateIso(date);
+}
+
+function listQuery(overrides: Partial<EventListQuery> = {}): EventListQuery {
+  return {
+    q: "",
+    status: "",
+    type: "",
+    range: "upcoming",
+    from: "",
+    to: "",
+    page: 1,
+    ...overrides,
   };
 }
 
@@ -242,15 +280,11 @@ describe("event service", () => {
       getEventForTenant(prisma, tenantA.tenant.id, created.id),
     ).rejects.toBeInstanceOf(EventAccessError);
 
-    const list = await listEventsForTenant(prisma, tenantA.tenant.id, {
-      q: "To be deleted",
-      status: "",
-      type: "",
-      range: "all",
-      from: "",
-      to: "",
-      page: 1,
-    });
+    const list = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "To be deleted", range: "all" }),
+    );
     expect(list.events.some((event) => event.id === created.id)).toBe(false);
   });
 
@@ -337,6 +371,200 @@ describe("venue service", () => {
     if (!result.ok) {
       expect(result.fieldErrors?.name?.[0]).toMatch(/already exists/i);
     }
+  });
+
+  it("lists upcoming events in date order and keeps past events on Past", async () => {
+    const today = londonTodayIso();
+    const dates = {
+      yesterday: shiftIso(today, -2),
+      older: shiftIso(today, -8),
+      today,
+      soon: shiftIso(today, 2),
+      later: shiftIso(today, 9),
+    };
+    const names = {
+      yesterday: "List order yesterday",
+      older: "List order older",
+      today: "List order today",
+      soon: "List order soon",
+      later: "List order later",
+    };
+
+    for (const key of ["later", "older", "soon", "yesterday", "today"] as const) {
+      const created = await createEvent(prisma, {
+        tenantId: tenantA.tenant.id,
+        userId: tenantA.user.id,
+        input: inputFor(tenantA, {
+          name: names[key],
+          eventDate: dates[key],
+          reference: null,
+        }),
+      });
+      expect(created.ok).toBe(true);
+    }
+
+    expect(eventListQuerySchema.parse({ q: "List order" }).range).toBe(
+      "upcoming",
+    );
+
+    const upcoming = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "List order" }),
+    );
+    expect(upcoming.events.map((event) => event.name)).toEqual([
+      names.today,
+      names.soon,
+      names.later,
+    ]);
+
+    const past = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "List order", range: "past" }),
+    );
+    expect(past.events.map((event) => event.name)).toEqual([
+      names.yesterday,
+      names.older,
+    ]);
+
+    const all = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "List order", range: "all" }),
+    );
+    expect(all.events.map((event) => event.name)).toEqual([
+      names.older,
+      names.yesterday,
+      names.today,
+      names.soon,
+      names.later,
+    ]);
+  });
+
+  it("archives an event out of the working lists and restores it", async () => {
+    const created = await createEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor(tenantA, {
+        name: "Archive me",
+        reference: "ARC-1",
+        eventDate: shiftIso(londonTodayIso(), -3),
+      }),
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    await archiveEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      eventId: created.id,
+    });
+
+    const stored = await getEventForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(stored.archivedAt).not.toBeNull();
+    expect(stored.archivedById).toBe(tenantA.user.id);
+
+    for (const range of ["upcoming", "past", "all"] as const) {
+      const list = await listEventsForTenant(
+        prisma,
+        tenantA.tenant.id,
+        listQuery({ q: "Archive me", range }),
+      );
+      expect(list.events.some((event) => event.id === created.id)).toBe(false);
+    }
+
+    const archived = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "Archive me", range: "archived" }),
+    );
+    expect(archived.events.map((event) => event.id)).toEqual([created.id]);
+
+    const hiddenFromAbsence = await searchEventsForAbsence(
+      prisma,
+      tenantA.tenant.id,
+      "Archive me",
+    );
+    expect(hiddenFromAbsence.some((event) => event.id === created.id)).toBe(
+      false,
+    );
+
+    await expect(
+      unarchiveEvent(prisma, {
+        tenantId: tenantB.tenant.id,
+        userId: tenantB.user.id,
+        eventId: created.id,
+      }),
+    ).rejects.toBeInstanceOf(EventAccessError);
+
+    await unarchiveEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      eventId: created.id,
+    });
+
+    const restored = await getEventForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(restored.archivedAt).toBeNull();
+    expect(restored.archivedById).toBeNull();
+
+    const past = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "Archive me", range: "past" }),
+    );
+    expect(past.events.some((event) => event.id === created.id)).toBe(true);
+
+    const archivedAfter = await listEventsForTenant(
+      prisma,
+      tenantA.tenant.id,
+      listQuery({ q: "Archive me", range: "archived" }),
+    );
+    expect(archivedAfter.events.some((event) => event.id === created.id)).toBe(
+      false,
+    );
+
+    const visibleToAbsence = await searchEventsForAbsence(
+      prisma,
+      tenantA.tenant.id,
+      "Archive me",
+    );
+    expect(visibleToAbsence.some((event) => event.id === created.id)).toBe(
+      true,
+    );
+  });
+
+  it("does not let one tenant archive another tenant's event", async () => {
+    const created = await createEvent(prisma, {
+      tenantId: tenantB.tenant.id,
+      userId: tenantB.user.id,
+      input: inputFor(tenantB, { name: "Private archive target" }),
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    await expect(
+      archiveEvent(prisma, {
+        tenantId: tenantA.tenant.id,
+        userId: tenantA.user.id,
+        eventId: created.id,
+      }),
+    ).rejects.toBeInstanceOf(EventAccessError);
+
+    const original = await getEventForTenant(
+      prisma,
+      tenantB.tenant.id,
+      created.id,
+    );
+    expect(original.archivedAt).toBeNull();
   });
 
   it("does not let one tenant read or update another tenant's venue", async () => {

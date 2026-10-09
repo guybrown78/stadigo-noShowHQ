@@ -337,6 +337,64 @@ export async function deleteEvent(
   return { ok: true };
 }
 
+export async function archiveEvent(
+  db: DbClient,
+  params: { tenantId: string; userId: string; eventId: string },
+): Promise<{ ok: true }> {
+  const existing = await db.event.findFirst({
+    where: {
+      id: params.eventId,
+      tenantId: params.tenantId,
+      deletedAt: null,
+      archivedAt: null,
+    },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new EventAccessError();
+  }
+
+  await db.event.update({
+    where: { id: existing.id },
+    data: {
+      archivedAt: new Date(),
+      archivedById: params.userId,
+      updatedById: params.userId,
+    },
+  });
+
+  return { ok: true };
+}
+
+export async function unarchiveEvent(
+  db: DbClient,
+  params: { tenantId: string; userId: string; eventId: string },
+): Promise<{ ok: true }> {
+  const existing = await db.event.findFirst({
+    where: {
+      id: params.eventId,
+      tenantId: params.tenantId,
+      deletedAt: null,
+      archivedAt: { not: null },
+    },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new EventAccessError();
+  }
+
+  await db.event.update({
+    where: { id: existing.id },
+    data: {
+      archivedAt: null,
+      archivedById: null,
+      updatedById: params.userId,
+    },
+  });
+
+  return { ok: true };
+}
+
 function mapWriteError(error: unknown): EventMutationResult {
   if (
     error instanceof Prisma.PrismaClientKnownRequestError &&

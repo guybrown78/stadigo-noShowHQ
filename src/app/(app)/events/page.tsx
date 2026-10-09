@@ -23,6 +23,7 @@ import {
 import { ensureTenantEventCatalog } from "@/lib/events/provision";
 import { eventListQuerySchema, type EventListQuery } from "@/lib/events/schema";
 import { eventsListHref } from "@/lib/events/url";
+import { ArchiveEventDialog } from "@/components/events/archive-event-dialog";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { EventRowActions } from "@/components/events/event-row-actions";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
@@ -48,7 +49,7 @@ export default async function EventsPage({
     q: first(raw.q),
     status: first(raw.status),
     type: first(raw.type),
-    range: first(raw.range) || "all",
+    range: first(raw.range) || "upcoming",
     from: first(raw.from),
     to: first(raw.to),
     page: first(raw.page) || "1",
@@ -59,7 +60,7 @@ export default async function EventsPage({
         q: "",
         status: "",
         type: "",
-        range: "all",
+        range: "upcoming",
         from: "",
         to: "",
         page: 1,
@@ -70,9 +71,10 @@ export default async function EventsPage({
 
   const { events, total, page, pageCount } = list;
   const deleted = first(raw.deleted) === "1";
-  const hasFilters = Boolean(
-    query.q || query.status || query.type || query.range !== "all" || query.from || query.to,
-  );
+  const archived = first(raw.archived) === "1";
+  const unarchived = first(raw.unarchived) === "1";
+  const onlyRange = !query.q && !query.status && !query.type && !query.from && !query.to;
+  const hasFilters = Boolean(!onlyRange || query.range !== "upcoming");
 
   return (
     <div>
@@ -102,6 +104,16 @@ export default async function EventsPage({
           Event removed from the active list.
         </Banner>
       ) : null}
+      {archived ? (
+        <Banner tone="success" className="mt-6">
+          Event archived. Open Archived to find it again.
+        </Banner>
+      ) : null}
+      {unarchived ? (
+        <Banner tone="success" className="mt-6">
+          Event restored to the active list.
+        </Banner>
+      ) : null}
 
       <form method="get" className="mt-4">
         <FilterBar
@@ -120,7 +132,7 @@ export default async function EventsPage({
             </>
           }
         >
-        {query.range !== "all" ? (
+        {query.range !== "upcoming" ? (
           <input type="hidden" name="range" value={query.range} />
         ) : null}
         <FilterField label="Search" htmlFor="events-q" className="min-w-[12rem] flex-[1.3]">
@@ -189,11 +201,6 @@ export default async function EventsPage({
         label="Quick date filters"
         items={[
           {
-            href: eventsListHref(query, { range: "all", page: 1, from: "", to: "" }),
-            label: "All",
-            active: query.range === "all",
-          },
-          {
             href: eventsListHref(query, {
               range: "upcoming",
               page: 1,
@@ -204,9 +211,24 @@ export default async function EventsPage({
             active: query.range === "upcoming",
           },
           {
+            href: eventsListHref(query, { range: "all", page: 1, from: "", to: "" }),
+            label: "All",
+            active: query.range === "all",
+          },
+          {
             href: eventsListHref(query, { range: "past", page: 1, from: "", to: "" }),
             label: "Past",
             active: query.range === "past",
+          },
+          {
+            href: eventsListHref(query, {
+              range: "archived",
+              page: 1,
+              from: "",
+              to: "",
+            }),
+            label: "Archived",
+            active: query.range === "archived",
           },
         ]}
       />
@@ -214,17 +236,47 @@ export default async function EventsPage({
       {events.length === 0 ? (
         <EmptyState
           className="mt-6"
-          title={hasFilters ? "No events match these filters" : "No events yet"}
+          title={
+            !onlyRange
+              ? "No events match these filters"
+              : query.range === "past"
+                ? "No past events"
+                : query.range === "archived"
+                  ? "No archived events"
+                  : query.range === "all"
+                    ? "No events yet"
+                    : "No upcoming events"
+          }
           description={
-            hasFilters
-              ? "Try a different search, or clear the filters to see all events."
-              : "Add your first event to start tracking fixtures, venues, and staffing requirements."
+            !onlyRange
+              ? "Try a different search, or clear the filters to see upcoming events."
+              : query.range === "past"
+                ? "Events on today or later stay on Upcoming until their date has passed."
+                : query.range === "archived"
+                  ? "Archive an event when you no longer need it on the working lists. You can restore it later."
+                  : query.range === "all"
+                    ? "Add your first event to start tracking fixtures, venues, and staffing requirements."
+                    : "Events on earlier dates stay on Past. Add an event when you have one coming up."
           }
           action={
-            hasFilters ? (
+            !onlyRange || query.range === "past" || query.range === "archived" ? (
               <ButtonLink href="/events" variant="secondary">
-                Clear filters
+                {query.range === "upcoming" || !onlyRange
+                  ? "Clear filters"
+                  : "Show upcoming events"}
               </ButtonLink>
+            ) : query.range === "upcoming" ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <ButtonLink href="/events/new" icon={Plus}>
+                  Add event
+                </ButtonLink>
+                <ButtonLink
+                  href={eventsListHref(query, { range: "past", page: 1 })}
+                  variant="secondary"
+                >
+                  View past events
+                </ButtonLink>
+              </div>
             ) : (
               <div className="flex flex-wrap justify-center gap-2">
                 <ButtonLink href="/events/new" icon={Plus}>
@@ -304,6 +356,7 @@ export default async function EventsPage({
                       <EventRowActions
                         eventId={event.id}
                         eventName={event.name}
+                        archived={Boolean(event.archivedAt)}
                       />
                     </td>
                   </tr>
@@ -345,6 +398,11 @@ export default async function EventsPage({
                   <ButtonLink href={`/events/${event.id}/edit`} variant="secondary" size="sm">
                     Edit
                   </ButtonLink>
+                  <ArchiveEventDialog
+                    eventId={event.id}
+                    eventName={event.name}
+                    archived={Boolean(event.archivedAt)}
+                  />
                   <DeleteEventDialog
                     eventId={event.id}
                     eventName={event.name}

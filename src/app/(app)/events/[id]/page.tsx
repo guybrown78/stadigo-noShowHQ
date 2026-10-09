@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArchiveEventDialog } from "@/components/events/archive-event-dialog";
 import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
+import { Banner } from "@/components/ui/banner";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -82,6 +84,12 @@ export default async function EventDetailPage({
           Event updated.
         </p>
       ) : null}
+      {event.archivedAt ? (
+        <Banner tone="neutral" className="mt-4">
+          This event is archived. Restore it to show it on the upcoming, past,
+          and all-dates lists.
+        </Banner>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -104,6 +112,11 @@ export default async function EventDetailPage({
           >
             Edit event
           </Link>
+          <ArchiveEventDialog
+            eventId={event.id}
+            eventName={event.name}
+            archived={Boolean(event.archivedAt)}
+          />
           <DeleteEventDialog eventId={event.id} eventName={event.name} />
         </div>
       </div>

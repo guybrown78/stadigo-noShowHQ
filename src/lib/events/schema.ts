@@ -195,7 +195,10 @@ export const eventListQuerySchema = z.object({
     .optional()
     .default(""),
   type: z.string().trim().optional().default(""),
-  range: z.enum(["all", "upcoming", "past"]).optional().default("all"),
+  range: z
+    .enum(["all", "upcoming", "past", "archived"])
+    .optional()
+    .default("upcoming"),
   from: z.string().trim().optional().default(""),
   to: z.string().trim().optional().default(""),
   page: z.coerce.number().int().min(1).optional().default(1),

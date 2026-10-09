@@ -81,6 +81,7 @@ model User {
   eventsCreated           Event[]              @relation("EventCreatedBy")
   eventsUpdated           Event[]              @relation("EventUpdatedBy")
   eventsDeleted           Event[]              @relation("EventDeletedBy")
+  eventsArchived          Event[]              @relation("EventArchivedBy")
   eventImportsUploaded    EventImport[]        @relation("EventImportUploadedBy")
   staffImportsUploaded         StaffImport[]             @relation("StaffImportUploadedBy")
   staffCreated                 Staff[]                   @relation("StaffCreatedBy")
@@ -254,12 +255,16 @@ model Event {
   deletedAt        DateTime?
   deletedById      String?
   deletedBy        User?        @relation("EventDeletedBy", fields: [deletedById], references: [id], onDelete: Restrict)
+  archivedAt       DateTime?
+  archivedById     String?
+  archivedBy       User?        @relation("EventArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   importRows       EventImportRow[]
   absences         Absence[]
 
   @@unique([id, tenantId])
   @@unique([tenantId, reference])
   @@index([tenantId, deletedAt, eventDate])
+  @@index([tenantId, deletedAt, archivedAt, eventDate])
   @@index([tenantId, status])
   @@index([tenantId, eventTypeId])
   @@index([tenantId, name])
