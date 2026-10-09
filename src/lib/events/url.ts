@@ -10,7 +10,9 @@ export function eventsListHref(
   if (merged.q) params.set("q", merged.q);
   if (merged.status) params.set("status", merged.status);
   if (merged.type) params.set("type", merged.type);
-  if (merged.range && merged.range !== "all") params.set("range", merged.range);
+  if (merged.range && merged.range !== "upcoming") {
+    params.set("range", merged.range);
+  }
   if (merged.from) params.set("from", merged.from);
   if (merged.to) params.set("to", merged.to);
   if (merged.page && merged.page > 1) params.set("page", String(merged.page));

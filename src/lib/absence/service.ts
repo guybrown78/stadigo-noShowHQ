@@ -169,7 +169,7 @@ async function loadLiveEvent(
   eventId: string,
 ): Promise<LoadedEvent | null> {
   return db.event.findFirst({
-    where: { id: eventId, tenantId, deletedAt: null },
+    where: { id: eventId, tenantId, deletedAt: null, archivedAt: null },
     select: {
       id: true,
       name: true,

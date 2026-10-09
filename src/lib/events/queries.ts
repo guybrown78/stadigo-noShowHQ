@@ -70,6 +70,7 @@ function listWhere(
   return {
     tenantId,
     deletedAt: null,
+    archivedAt: query.range === "archived" ? { not: null } : null,
     ...(query.status
       ? { status: query.status as EventStatus }
       : {}),
@@ -105,6 +106,11 @@ export async function listEventsForTenant(
       INNER JOIN "Venue" v ON v.id = e."venueId"
       WHERE e."tenantId" = ${tenantId}
         AND e."deletedAt" IS NULL
+        ${
+          query.range === "archived"
+            ? Prisma.sql`AND e."archivedAt" IS NOT NULL`
+            : Prisma.sql`AND e."archivedAt" IS NULL`
+        }
         ${query.status ? Prisma.sql`AND e.status = ${query.status}::"EventStatus"` : Prisma.empty}
         ${query.type ? Prisma.sql`AND e."eventTypeId" = ${query.type}` : Prisma.empty}
         ${
@@ -137,9 +143,11 @@ export async function listEventsForTenant(
             : Prisma.empty
         }
       ORDER BY
-        (e."eventDate" >= ${todayIso}::date) DESC,
-        CASE WHEN e."eventDate" >= ${todayIso}::date THEN e."eventDate" END ASC,
-        CASE WHEN e."eventDate" < ${todayIso}::date THEN e."eventDate" END DESC,
+        ${
+          query.range === "past" || query.range === "archived"
+            ? Prisma.sql`e."eventDate" DESC`
+            : Prisma.sql`e."eventDate" ASC`
+        },
         e.name ASC
       LIMIT ${EVENT_PAGE_SIZE}
       OFFSET ${skip}

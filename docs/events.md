@@ -7,6 +7,8 @@ Tenant-scoped operational events. This module is the record other features (abse
 ### Event
 Belongs to exactly one tenant. Soft-deleted with `deletedAt` / `deletedById`; deleted events are excluded from lists, search, and normal get/edit.
 
+Archived events use `archivedAt` / `archivedById` and stay readable and editable. Upcoming (the default list), Past, and All hide them. The Archived list shows them, newest date first, with no upcoming or past date cut. Restore clears the archive fields. Absence event search skips archived events so they are not offered for a new absence. Import duplicate checks still see them.
+
 Key fields: `name`, optional tenant-unique `reference`, `eventDate` (`DATE`, Europe/London calendar date stored as UTC midnight), optional local `briefingTime` / `startTime` / `endTime` (`HH:mm` strings; the form sets hour and minutes separately, with minutes in 5-minute steps), `endsNextDay` for overnight events (briefing must be earlier than start; end must be later than start unless this flag is set), `staffRequired`, `warningFillRate` (default 90) and `criticalFillRate` (default 85, must be strictly lower), `status` (`PLANNED` | `CONFIRMED` | `CANCELLED` | `COMPLETED`).
 
 `tenantId`, `createdById`, and `updatedById` always come from the authenticated session, never from the client.

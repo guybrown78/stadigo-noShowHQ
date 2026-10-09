@@ -267,6 +267,7 @@ export async function searchEventsForAbsence(
     INNER JOIN "Venue" v ON v.id = e."venueId"
     WHERE e."tenantId" = ${tenantId}
       AND e."deletedAt" IS NULL
+      AND e."archivedAt" IS NULL
       ${awolOnly ? Prisma.sql`AND e."eventDate" <= ${todayIso}::date` : Prisma.empty}
       ${
         search

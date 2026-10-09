@@ -83,7 +83,7 @@ export default async function ImportCompletePage({
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href={eventsListHref({}, { from, to, page: 1 })}
+            href={eventsListHref({}, { range: "all", from, to, page: 1 })}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover"
           >
             View imported events

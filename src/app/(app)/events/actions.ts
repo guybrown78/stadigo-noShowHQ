@@ -7,7 +7,13 @@ import { prisma } from "@/lib/db";
 import { EventAccessError } from "@/lib/events/errors";
 import { flattenFieldErrors, parseEventFormData } from "@/lib/events/schema";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
-import { createEvent, deleteEvent, updateEvent } from "@/lib/events/service";
+import {
+  archiveEvent,
+  createEvent,
+  deleteEvent,
+  unarchiveEvent,
+  updateEvent,
+} from "@/lib/events/service";
 
 export type EventActionState = {
   error?: string;
@@ -105,4 +111,54 @@ export async function deleteEventAction(formData: FormData) {
 
   revalidatePath("/events");
   redirect("/events?deleted=1");
+}
+
+export async function archiveEventAction(formData: FormData) {
+  const user = await requireTenant();
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!eventId) {
+    notFound();
+  }
+
+  try {
+    await archiveEvent(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      eventId,
+    });
+  } catch (error) {
+    if (error instanceof EventAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect("/events?archived=1");
+}
+
+export async function unarchiveEventAction(formData: FormData) {
+  const user = await requireTenant();
+  const eventId = String(formData.get("eventId") ?? "");
+  if (!eventId) {
+    notFound();
+  }
+
+  try {
+    await unarchiveEvent(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      eventId,
+    });
+  } catch (error) {
+    if (error instanceof EventAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+
+  revalidatePath("/events");
+  revalidatePath(`/events/${eventId}`);
+  redirect("/events?unarchived=1");
 }
