@@ -57,7 +57,7 @@ export function EventAbsenceMetrics({
   absences,
   archivedCount,
 }: {
-  staffRequired: number;
+  staffRequired: number | null;
   warningFillRate: number;
   criticalFillRate: number;
   absences: EventAbsenceReportRow[];
@@ -101,14 +101,25 @@ export function EventAbsenceMetrics({
       ) : null}
 
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Staff required" value={String(summary.staffRequired)} />
         <MetricCard
-          label="Estimated fill rate"
-          value={`${summary.fillRate}%`}
-          valueClassName={`text-3xl ${FILL_TEXT[summary.fillStatus]}`}
-          detail={FILL_STATUS_LABEL[summary.fillStatus]}
-          bar={FILL_BAR[summary.fillStatus]}
+          label="Staff required"
+          value={summary.staffRequired == null ? "Not set" : String(summary.staffRequired)}
         />
+        {summary.fillStatus && summary.fillRate != null ? (
+          <MetricCard
+            label="Estimated fill rate"
+            value={`${summary.fillRate}%`}
+            valueClassName={`text-3xl ${FILL_TEXT[summary.fillStatus]}`}
+            detail={FILL_STATUS_LABEL[summary.fillStatus]}
+            bar={FILL_BAR[summary.fillStatus]}
+          />
+        ) : (
+          <MetricCard
+            label="Estimated fill rate"
+            value="Not set"
+            detail="Set staff required before fill rate can be calculated."
+          />
+        )}
         <MetricCard
           label="Absences logged"
           value={String(summary.absences)}
@@ -135,12 +146,31 @@ export function EventAbsenceMetrics({
           description={`Warning at ${warningFillRate}% · Critical at ${criticalFillRate}%. Each logged absence counts as one person.`}
         />
         <CardBody>
-          <FillRateBar summary={summary} />
-          <p className="mt-3 text-sm text-slate-600">
-            {summary.exceedsRequirement
-              ? "Logged absences exceed the staff requirement, so the estimate is 0%."
-              : `${summary.covered} of ${summary.staffRequired} required staff still covered.`}
-          </p>
+          {summary.fillStatus &&
+          summary.fillRate != null &&
+          summary.covered != null &&
+          summary.staffRequired != null ? (
+            <>
+              <FillRateBar
+                summary={{
+                  ...summary,
+                  fillRate: summary.fillRate,
+                  fillStatus: summary.fillStatus,
+                  covered: summary.covered,
+                  staffRequired: summary.staffRequired,
+                }}
+              />
+              <p className="mt-3 text-sm text-slate-600">
+                {summary.exceedsRequirement
+                  ? "Logged absences exceed the staff requirement, so the estimate is 0%."
+                  : `${summary.covered} of ${summary.staffRequired} required staff still covered.`}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-slate-600">
+              Staff required is not set yet, so fill rate is not calculated.
+            </p>
+          )}
         </CardBody>
       </Card>
 
@@ -349,7 +379,14 @@ function MetricCard({
   );
 }
 
-function FillRateBar({ summary }: { summary: EventAbsenceSummary }) {
+function FillRateBar({
+  summary,
+}: {
+  summary: EventAbsenceSummary & {
+    fillRate: number;
+    fillStatus: FillStatus;
+  };
+}) {
   return (
     <div
       role="img"

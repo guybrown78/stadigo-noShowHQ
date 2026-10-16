@@ -29,6 +29,13 @@ export const STAFF_IMPORT_HEADERS = [
 
 export type StaffImportHeader = (typeof STAFF_IMPORT_HEADERS)[number];
 
+export const STAFF_IMPORT_REQUIRED_HEADERS = [
+  "Staff ID",
+  "First Name",
+  "Last Name",
+  "Role",
+] as const satisfies readonly StaffImportHeader[];
+
 export const STAFF_IMPORT_DATE_HEADERS = [
   "Start Date",
   "Probation End Date",

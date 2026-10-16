@@ -17,7 +17,7 @@ export type ImportRowNormalized = {
   startTime: string | null;
   endTime: string | null;
   overnight: boolean;
-  staffRequired: number;
+  staffRequired: number | null;
   warningFillRate: number;
   criticalFillRate: number;
   status: EventStatusValue;

@@ -17,6 +17,7 @@ export const EMPLOYMENT_STATUS_LABELS: Record<EmploymentStatus, string> = {
   CONTACT_REQUIRED: "Contact required",
   DISABLED: "Disabled",
   INACTIVE: "Inactive",
+  LONG_TERM_SICK: "Long-term sick",
 };
 
 export const EMPLOYMENT_STATUS_STYLES: Record<EmploymentStatus, string> = {
@@ -25,6 +26,7 @@ export const EMPLOYMENT_STATUS_STYLES: Record<EmploymentStatus, string> = {
   CONTACT_REQUIRED: "bg-orange-100 text-orange-900",
   DISABLED: "bg-slate-200 text-slate-800",
   INACTIVE: "bg-slate-100 text-slate-700",
+  LONG_TERM_SICK: "bg-rose-100 text-rose-900",
 };
 
 export const PROBATION_STATUS_LABELS: Record<ProbationStatus, string> = {

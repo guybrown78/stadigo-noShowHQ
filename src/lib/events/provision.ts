@@ -6,6 +6,7 @@ import {
   isCentreCircleTenant,
 } from "@/lib/events/catalog";
 import { normalizeUkPostcode, normalizeVenueNameKey } from "@/lib/events/normalize";
+import { nextVenueIdentifier } from "@/lib/events/venues";
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
 
@@ -65,18 +66,25 @@ export async function provisionTenantEventCatalog(
 
   for (const venue of CENTRE_CIRCLE_VENUES) {
     const nameNormalized = normalizeVenueNameKey(venue.name);
-    await db.venue.upsert({
+    const existing = await db.venue.findUnique({
       where: {
         tenantId_nameNormalized: {
           tenantId: tenant.id,
           nameNormalized,
         },
       },
-      update: {},
-      create: {
+      select: { id: true },
+    });
+    if (existing) {
+      continue;
+    }
+    const identifier = await nextVenueIdentifier(db, tenant.id);
+    await db.venue.create({
+      data: {
         tenantId: tenant.id,
         name: venue.name,
         nameNormalized,
+        identifier,
         addressLine1: venue.addressLine1 ?? null,
         townCity: venue.townCity ?? null,
         postcode: venue.postcode
@@ -98,6 +106,10 @@ export async function ensureTenantEventCatalog(
     select: { id: true, name: true, slug: true },
   });
   if (!tenant) {
+    return;
+  }
+  const existingTypes = await db.eventType.count({ where: { tenantId } });
+  if (existingTypes > 0) {
     return;
   }
   await provisionTenantEventCatalog(db, tenant);

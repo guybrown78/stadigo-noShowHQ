@@ -34,24 +34,26 @@ export function formatLocalDateIso(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-const DISPLAY_MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sept",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
 
-/** Calendar dates stored as UTC midnight. Avoid Intl month names: Node and Chrome disagree on en-GB “Sept” vs “Sep”. */
+/** Calendar dates stored as UTC midnight, shown as UK DD/MM/YYYY. */
 export function formatLocalDateDisplay(date: Date): string {
-  return `${date.getUTCDate()} ${DISPLAY_MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+  return `${pad2(date.getUTCDate())}/${pad2(date.getUTCMonth() + 1)}/${date.getUTCFullYear()}`;
+}
+
+/** Instant shown as a UK calendar date in Europe/London. */
+export function formatLondonDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("day")}/${value("month")}/${value("year")}`;
 }
 
 /** Instants shown in Europe/London with numeric parts so Node and Chrome agree. */

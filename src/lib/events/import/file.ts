@@ -1,5 +1,6 @@
 import {
   EVENT_IMPORT_HEADERS,
+  EVENT_IMPORT_REQUIRED_HEADERS,
   MAX_IMPORT_FILE_BYTES,
   type EventImportHeader,
 } from "@/lib/events/import/constants";
@@ -57,10 +58,14 @@ export function validateImportFileBytes(
   return null;
 }
 
+const KNOWN_HEADERS = new Set<string>(EVENT_IMPORT_HEADERS);
+
 export function headerIndexMap(
   headers: string[],
-): { ok: true; index: Record<EventImportHeader, number> } | { ok: false; error: string } {
-  const index = {} as Record<EventImportHeader, number>;
+):
+  | { ok: true; index: Partial<Record<EventImportHeader, number>> }
+  | { ok: false; error: string } {
+  const index: Partial<Record<EventImportHeader, number>> = {};
   const seen = new Map<string, number>();
   headers.forEach((header, i) => {
     const key = header.replace(/^\uFEFF/, "").trim();
@@ -69,16 +74,29 @@ export function headerIndexMap(
     }
   });
 
-  const missing = EVENT_IMPORT_HEADERS.filter((header) => !seen.has(header));
-  if (missing.length > 0) {
-    return {
-      ok: false,
-      error: `The file headers do not match the template. Missing: ${missing.join(", ")}. Download a fresh template and keep the header row unchanged.`,
-    };
+  const missing = EVENT_IMPORT_REQUIRED_HEADERS.filter(
+    (header) => !seen.has(header),
+  );
+  const unknown = [...seen.keys()].filter((header) => !KNOWN_HEADERS.has(header));
+  if (missing.length > 0 || unknown.length > 0) {
+    const parts = ["The file headers do not match the template."];
+    if (missing.length > 0) {
+      parts.push(`Missing required: ${missing.join(", ")}.`);
+    }
+    if (unknown.length > 0) {
+      parts.push(`Unknown: ${unknown.join(", ")}.`);
+    }
+    parts.push(
+      "Download a fresh template and keep the header names unchanged. Optional columns may be left out.",
+    );
+    return { ok: false, error: parts.join(" ") };
   }
 
   for (const header of EVENT_IMPORT_HEADERS) {
-    index[header] = seen.get(header)!;
+    const column = seen.get(header);
+    if (column !== undefined) {
+      index[header] = column;
+    }
   }
   return { ok: true, index };
 }

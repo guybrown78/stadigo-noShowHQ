@@ -53,6 +53,7 @@ async function createFixture(label: string): Promise<Fixture> {
       tenantId: tenant.id,
       name: `Existing Venue ${label}`,
       nameNormalized: `existing venue ${label}`,
+      identifier: "VEN-1",
       timezone: "Europe/London",
       active: true,
     },
@@ -208,6 +209,46 @@ describe("event import service", () => {
     expect(event.warningFillRate).toBe(90);
     expect(event.criticalFillRate).toBe(85);
     expect(event.status).toBe("PLANNED");
+  });
+
+  it("creates a planned event when staff required and times are blank", async () => {
+    const bytes = csvFromRows([
+      validRow(tenantA, {
+        "Event Name": "Sparse imported fixture",
+        Reference: "IMP-SPARSE-1",
+        "Staff Required": "",
+        "Briefing Time": "",
+        "Start Time": "",
+        "End Time": "",
+      }),
+    ]);
+    const uploaded = await createImportFromUpload(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      fileName: "sparse.csv",
+      bytes,
+    });
+    expect(uploaded.ok).toBe(true);
+    if (!uploaded.ok) return;
+    const venues = await confirmImportVenues(prisma, {
+      tenantId: tenantA.tenant.id,
+      importId: uploaded.importId,
+    });
+    expect(venues.ok).toBe(true);
+    const created = await confirmImportEvents(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      importId: uploaded.importId,
+    });
+    expect(created.ok).toBe(true);
+    const event = await prisma.event.findFirstOrThrow({
+      where: { tenantId: tenantA.tenant.id, reference: "IMP-SPARSE-1" },
+    });
+    expect(event.staffRequired).toBeNull();
+    expect(event.status).toBe("PLANNED");
+    expect(event.briefingTime).toBeNull();
+    expect(event.startTime).toBeNull();
+    expect(event.endTime).toBeNull();
   });
 
   it("requires confirmation even when all venues already exist", async () => {

@@ -158,7 +158,7 @@ describe("formatSicknessLedgerEpisodeContext", () => {
         episodeState: "ENDED",
         sicknessEndedDate: new Date("2026-09-17T00:00:00.000Z"),
       }),
-    ).toBe("Ended · 17 Sept 2026");
+    ).toBe("Ended · 17/09/2026");
   });
 });
 

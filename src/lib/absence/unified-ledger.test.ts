@@ -105,6 +105,7 @@ async function createFixture(label: string): Promise<Fixture> {
       tenantId: tenant.id,
       name: `Unified Venue ${label}`,
       nameNormalized: `unified venue ${label}`,
+      identifier: "VEN-1",
       timezone: "Europe/London",
       active: true,
     },

@@ -33,15 +33,16 @@ export type EventAbsenceReasonCount = {
 };
 
 export type EventAbsenceSummary = {
-  staffRequired: number;
+  staffRequired: number | null;
+  staffingKnown: boolean;
   warningFillRate: number;
   criticalFillRate: number;
   absences: number;
   cancellations: number;
   awols: number;
-  covered: number;
-  fillRate: number;
-  fillStatus: FillStatus;
+  covered: number | null;
+  fillRate: number | null;
+  fillStatus: FillStatus | null;
   exceedsRequirement: boolean;
   averageNoticeMinutes: number | null;
   averageNoticeCalendarDays: number | null;
@@ -56,7 +57,7 @@ const TWELVE_HOURS = 12 * 60;
 const TWENTY_FOUR_HOURS = 24 * 60;
 
 export function summariseEventAbsences(params: {
-  staffRequired: number;
+  staffRequired: number | null;
   warningFillRate: number;
   criticalFillRate: number;
   absences: EventAbsenceFact[];
@@ -66,8 +67,14 @@ export function summariseEventAbsences(params: {
   );
   const awols = params.absences.length - cancellations.length;
   const staffRequired = params.staffRequired;
-  const covered = Math.max(0, staffRequired - params.absences.length);
-  const fillRate = fillRatePercent(staffRequired, covered);
+  const staffingKnown = staffRequired != null;
+  const covered = staffingKnown
+    ? Math.max(0, staffRequired - params.absences.length)
+    : null;
+  const fillRate =
+    staffingKnown && covered != null
+      ? fillRatePercent(staffRequired, covered)
+      : null;
   const window = emptyWindow();
   const noticeHours = emptyNoticeHours();
   const minuteValues: number[] = [];
@@ -99,6 +106,7 @@ export function summariseEventAbsences(params: {
 
   return {
     staffRequired,
+    staffingKnown,
     warningFillRate: params.warningFillRate,
     criticalFillRate: params.criticalFillRate,
     absences: params.absences.length,
@@ -106,8 +114,12 @@ export function summariseEventAbsences(params: {
     awols,
     covered,
     fillRate,
-    fillStatus: fillStatus(fillRate, params.warningFillRate, params.criticalFillRate),
-    exceedsRequirement: params.absences.length > staffRequired,
+    fillStatus:
+      staffingKnown && fillRate != null
+        ? fillStatus(fillRate, params.warningFillRate, params.criticalFillRate)
+        : null,
+    exceedsRequirement:
+      staffingKnown && params.absences.length > staffRequired,
     averageNoticeMinutes: meanRounded(minuteValues),
     averageNoticeCalendarDays: meanRounded(dayValues),
     window,

@@ -70,6 +70,7 @@ async function createFixture(label: string): Promise<Fixture> {
       tenantId: tenant.id,
       name: `Test Venue ${label}`,
       nameNormalized: `test venue ${label}`,
+      identifier: "VEN-1",
       timezone: "Europe/London",
       active: true,
     },
@@ -337,6 +338,7 @@ describe("venue service", () => {
       tenantId: tenantA.tenant.id,
       input: {
         name: "Emirates Stadium",
+        code: null,
         addressLine1: "Hornsey Road",
         townCity: "London",
         postcode: "N5 7AY",
@@ -361,6 +363,7 @@ describe("venue service", () => {
       tenantId: tenantA.tenant.id,
       input: {
         name: "Test Venue a",
+        code: null,
         addressLine1: null,
         townCity: null,
         postcode: null,
@@ -578,6 +581,7 @@ describe("venue service", () => {
         venueId: tenantB.venueId,
         input: {
           name: "Hijacked venue",
+          code: null,
           addressLine1: null,
           townCity: null,
           postcode: null,

@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { StaffSectionNav } from "@/components/staff/staff-section-nav";
 import { StaffAbsenceHistory } from "@/components/absence/staff-absence-history";
+import { AwolFollowUpForm } from "@/components/staff/awol-follow-up-form";
 import {
   ClearanceStatusBadge,
   EmploymentStatusBadge,
@@ -20,6 +21,7 @@ import { prisma } from "@/lib/db";
 import {
   formatLocalDateDisplay,
   formatLocalDateIso,
+  formatLondonDateTime,
   londonTodayIso,
   parseLocalDate,
 } from "@/lib/events/dates";
@@ -102,9 +104,12 @@ export default async function StaffDetailPage({
   }
   const probation = currentProbation(staff);
   const todayIso = londonTodayIso();
-  const [openCount, defaultProbationDays] = await Promise.all([
+  const [openCount, defaultProbationDays, awolFollowUp] = await Promise.all([
     countOpenProbationTasks(prisma, user.tenantId, todayIso),
     getTenantProbationDefault(prisma, user.tenantId),
+    prisma.staffAwolFollowUp.findUnique({
+      where: { staffId_tenantId: { staffId: id, tenantId: user.tenantId } },
+    }),
   ]);
   const lifecycle = probation
     ? deriveProbationLifecycle({
@@ -328,12 +333,31 @@ export default async function StaffDetailPage({
           </dd>
         </div>
         <Detail label="Created">
-          {staff.createdAt.toLocaleString("en-GB")}
+          {formatLondonDateTime(staff.createdAt)}
         </Detail>
         <Detail label="Last updated">
-          {staff.updatedAt.toLocaleString("en-GB")}
+          {formatLondonDateTime(staff.updatedAt)}
         </Detail>
       </dl>
+
+      <AwolFollowUpForm
+        staffId={staff.id}
+        contact1At={
+          awolFollowUp?.contact1At
+            ? formatLocalDateIso(awolFollowUp.contact1At)
+            : ""
+        }
+        contact2At={
+          awolFollowUp?.contact2At
+            ? formatLocalDateIso(awolFollowUp.contact2At)
+            : ""
+        }
+        formalProcessAt={
+          awolFollowUp?.formalProcessAt
+            ? formatLocalDateIso(awolFollowUp.formalProcessAt)
+            : ""
+        }
+      />
 
       {openTask && probation && !probation.completedAt ? (
         <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
@@ -390,7 +414,7 @@ export default async function StaffDetailPage({
                   {PROBATION_ACTION_LABELS[entry.action]}
                 </p>
                 <p className="mt-1 text-slate-600">
-                  {entry.createdAt.toLocaleString("en-GB")}
+                  {formatLondonDateTime(entry.createdAt)}
                   {` · ${
                     entry.systemActor || !entry.actedBy
                       ? "System"

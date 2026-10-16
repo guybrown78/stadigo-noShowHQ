@@ -190,7 +190,11 @@ export default async function EventSettingsPage({
                 {venues.map((venue) => (
                   <tr key={venue.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-4 py-3 font-medium text-slate-900">
-                      {venue.name}
+                      <div>{venue.name}</div>
+                      <div className="mt-0.5 font-mono text-xs font-normal text-slate-500">
+                        {venue.identifier}
+                        {venue.code ? ` · ${venue.code}` : ""}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {formatVenueAddress(venue) ?? "—"}
@@ -232,6 +236,10 @@ export default async function EventSettingsPage({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-medium text-slate-900">{venue.name}</p>
+                    <p className="mt-0.5 font-mono text-xs text-slate-500">
+                      {venue.identifier}
+                      {venue.code ? ` · ${venue.code}` : ""}
+                    </p>
                     <p className="mt-1 text-sm text-slate-600">
                       {formatVenueAddress(venue) ?? "No address"}
                     </p>

@@ -63,6 +63,8 @@ export async function createImportFromUpload(
         id: true,
         name: true,
         nameNormalized: true,
+        identifier: true,
+        code: true,
         addressLine1: true,
         townCity: true,
         postcode: true,
@@ -157,7 +159,11 @@ export async function createImportFromUpload(
 
 export async function confirmImportVenues(
   db: DbClient,
-  params: { tenantId: string; importId: string },
+  params: {
+    tenantId: string;
+    importId: string;
+    choices?: Record<string, string>;
+  },
 ): Promise<ImportMutationResult> {
   const record = await getImportForTenant(db, params.tenantId, params.importId);
 
@@ -196,10 +202,16 @@ export async function confirmImportVenues(
     await db.$transaction(
       async (tx) => {
         await lockImport(tx, params.tenantId, params.importId);
+        await applyVenueChoices(tx, params.tenantId, record.venues, params.choices);
+        const venues = await tx.eventImportVenue.findMany({
+          where: { importId: record.id, tenantId: params.tenantId },
+        });
         let createdCount = 0;
-        for (const venue of record.venues) {
+        for (const venue of venues) {
           if (venue.outcome === EventImportVenueOutcome.AMBIGUOUS) {
-            throw new Error("Ambiguous venue mapping");
+            throw new Error(
+              `Choose a saved venue for ${venue.importedName}. Those rows do not agree.`,
+            );
           }
           if (venue.outcome === EventImportVenueOutcome.MATCHED) {
             if (!venue.matchedVenueId) {
@@ -268,6 +280,13 @@ export async function confirmImportVenues(
     if (error instanceof EventAccessError) {
       throw error;
     }
+    if (
+      error instanceof Error &&
+      (error.message.endsWith("Choose it from the list.") ||
+        error.message.startsWith("Choose a saved venue for "))
+    ) {
+      return { ok: false, error: error.message };
+    }
     return {
       ok: false,
       error:
@@ -280,6 +299,63 @@ export async function confirmImportVenues(
     importId: record.id,
     href: `/events/import/${record.id}/confirm`,
   };
+}
+
+async function applyVenueChoices(
+  db: Prisma.TransactionClient,
+  tenantId: string,
+  venues: { id: string; nameNormalized: string; importedName: string; outcome: EventImportVenueOutcome }[],
+  choices: Record<string, string> | undefined,
+) {
+  if (!choices) {
+    return;
+  }
+  for (const venue of venues) {
+    const choice = choices[venue.id];
+    if (!choice) {
+      continue;
+    }
+    if (choice === "new") {
+      const taken = await db.venue.findUnique({
+        where: {
+          tenantId_nameNormalized: {
+            tenantId,
+            nameNormalized: venue.nameNormalized,
+          },
+        },
+        select: { id: true },
+      });
+      if (taken) {
+        throw new Error(
+          `${venue.importedName} is already a saved venue. Choose it from the list.`,
+        );
+      }
+      await db.eventImportVenue.update({
+        where: { id: venue.id },
+        data: {
+          outcome: EventImportVenueOutcome.NEW,
+          matchedVenueId: null,
+          inactiveMatch: false,
+        },
+      });
+      continue;
+    }
+    const existing = await db.venue.findFirst({
+      where: { id: choice, tenantId },
+      select: { id: true, active: true },
+    });
+    if (!existing) {
+      throw new EventAccessError();
+    }
+    await db.eventImportVenue.update({
+      where: { id: venue.id },
+      data: {
+        outcome: EventImportVenueOutcome.MATCHED,
+        matchedVenueId: existing.id,
+        inactiveMatch: !existing.active,
+      },
+    });
+  }
 }
 
 export async function confirmImportEvents(
@@ -373,14 +449,25 @@ export async function confirmImportEvents(
             startTime: normalized.startTime ?? "",
             endTime: normalized.endTime ?? "",
             endsNextDay: normalized.overnight,
-            staffRequired: normalized.staffRequired,
+            staffRequired:
+              normalized.staffRequired == null
+                ? ""
+                : String(normalized.staffRequired),
             warningFillRate: normalized.warningFillRate,
             criticalFillRate: normalized.criticalFillRate,
             status: normalized.status,
             notes: normalized.notes ?? "",
           });
           if (!parsed.success) {
-            throw new Error("A row failed validation before create");
+            const fields = parsed.error.issues
+              .map((issue) => issue.path.join("."))
+              .filter(Boolean)
+              .join(", ");
+            throw new Error(
+              fields
+                ? `A row failed validation before create: ${fields}`
+                : "A row failed validation before create",
+            );
           }
           items.push({ rowId: row.id, input: parsed.data, venueId });
         }

@@ -20,20 +20,25 @@ export function RowActionsMenu({
   const [coords, setCoords] = useState({ top: 0, right: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
   function placeMenu() {
     const button = buttonRef.current;
     if (!button) return;
     const rect = button.getBoundingClientRect();
+    const menuHeight = menuRef.current?.offsetHeight ?? items.length * 40 + 8;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openAbove = spaceBelow < menuHeight + 8 && rect.top > menuHeight + 8;
     setCoords({
-      top: rect.bottom + 4,
+      top: openAbove ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4,
       right: window.innerWidth - rect.right,
     });
   }
 
   useEffect(() => {
     if (!open) return;
+    placeMenu();
 
     function onPointerDown(event: MouseEvent) {
       if (
@@ -93,6 +98,7 @@ export function RowActionsMenu({
       </button>
       {open ? (
         <div
+          ref={menuRef}
           id={menuId}
           role="menu"
           aria-label={label}

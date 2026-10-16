@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { STAFF_IMPORT_HEADERS } from "@/lib/staff/import/constants";
+import {
+  STAFF_IMPORT_HEADERS,
+  STAFF_IMPORT_REQUIRED_HEADERS,
+} from "@/lib/staff/import/constants";
 import { parseImportFile } from "@/lib/staff/import/parse";
 import { validateImportRows } from "@/lib/staff/import/validate";
 import type {
@@ -41,6 +44,25 @@ describe("staff import parse", () => {
     if (!parsed.ok) {
       expect(parsed.error).toMatch(/headers/i);
     }
+  });
+
+  it("accepts an identity-only row and a plain employment status label", async () => {
+    const bytes = new TextEncoder().encode(
+      [
+        [...STAFF_IMPORT_REQUIRED_HEADERS, "Employment Status"].join(","),
+        "ST-9,Sam,Lee,Steward,Monitoring",
+      ].join("\n"),
+    );
+    const parsed = await parseImportFile("staff.csv", bytes);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const result = validateImportRows(parsed.rows, {
+      existingStaff: [],
+      tenantDefaultDays: 90,
+    });
+    expect(result.hasBlockingErrors).toBe(false);
+    expect(result.rows[0]?.normalized?.employmentStatus).toBe("MONITORING");
+    expect(result.rows[0]?.normalized?.applyProbation).toBe(false);
   });
 
   it("keeps empty rows in the middle and trims trailing empty rows", async () => {
@@ -278,7 +300,7 @@ describe("staff import validation", () => {
     expect(result.hasBlockingErrors).toBe(true);
     expect(
       result.rows[0]?.fieldErrors.securityClearanceExpiryDate?.[0],
-    ).toMatch(/YYYY-MM-DD|expiry/i);
+    ).toMatch(/DD\/MM\/YYYY|expiry/i);
   });
 
   it("rejects probation duration when Apply Probation is No", async () => {

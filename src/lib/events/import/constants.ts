@@ -5,6 +5,7 @@ export const IMPORT_EVENT_BATCH_SIZE = 250;
 export const IMPORT_TRANSACTION_TIMEOUT_MS = 120_000;
 
 export const EVENTS_SHEET_NAME = "Events";
+export const VENUES_SHEET_NAME = "Venues";
 export const INSTRUCTIONS_SHEET_NAME = "Instructions";
 export const REFERENCE_SHEET_NAME = "Reference Data";
 
@@ -30,6 +31,16 @@ export const EVENT_IMPORT_HEADERS = [
 ] as const;
 
 export type EventImportHeader = (typeof EVENT_IMPORT_HEADERS)[number];
+
+export const EVENT_IMPORT_REQUIRED_HEADERS = [
+  "Event Name",
+  "Event Type",
+  "Event Subtype",
+  "Venue Name",
+  "Event Date",
+] as const satisfies readonly EventImportHeader[];
+
+export type EventImportTemplateVariant = "full" | "minimum";
 
 export const IMPORT_STATUS_COLUMN = "Import Status";
 export const IMPORT_ERRORS_COLUMN = "Import Errors";

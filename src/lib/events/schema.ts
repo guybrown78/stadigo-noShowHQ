@@ -5,7 +5,12 @@ import {
   EVENT_STATUSES,
 } from "@/lib/events/catalog";
 import { isTimeBefore, parseLocalDate, parseLocalTime } from "@/lib/events/dates";
-import { emptyToNull, normalizeUkPostcode, normalizeVenueName } from "@/lib/events/normalize";
+import {
+  emptyToNull,
+  normalizeUkPostcode,
+  normalizeVenueCode,
+  normalizeVenueName,
+} from "@/lib/events/normalize";
 
 function optionalString(max: number, message: string) {
   return z
@@ -60,11 +65,34 @@ export const eventInputSchema = z
     startTime: localTimeSchema,
     endTime: localTimeSchema,
     endsNextDay: z.boolean().optional().default(false),
-    staffRequired: z.coerce
-      .number()
-      .int("Staff required must be a whole number")
-      .min(1, "Staff required must be at least 1")
-      .max(100000, "Staff required must be 100,000 or fewer"),
+    staffRequired: z
+      .string()
+      .trim()
+      .superRefine((value, ctx) => {
+        if (value === "") {
+          return;
+        }
+        if (!/^\d+$/.test(value)) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Staff required must be a whole number",
+          });
+          return;
+        }
+        const count = Number(value);
+        if (count < 1) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Staff required must be at least 1",
+          });
+        } else if (count > 100000) {
+          ctx.addIssue({
+            code: "custom",
+            message: "Staff required must be 100,000 or fewer",
+          });
+        }
+      })
+      .transform((value) => (value === "" ? null : Number(value))),
     warningFillRate: z.coerce
       .number()
       .int("Warning fill rate must be a whole number")
@@ -153,6 +181,18 @@ export const venueInputSchema = z.object({
     .min(2, "Venue name must be at least 2 characters")
     .max(160, "Venue name must be 160 characters or fewer")
     .transform((value) => normalizeVenueName(value)),
+  code: z
+    .string()
+    .nullish()
+    .transform((value) => normalizeVenueCode(value ?? ""))
+    .refine(
+      (value) => value === null || /^[A-Z0-9-]{2,20}$/.test(value),
+      "Venue code must be 2–20 letters, numbers, or hyphens",
+    )
+    .refine(
+      (value) => value === null || !/^VEN-\d+$/.test(value),
+      "That format is reserved for the venue ID, such as VEN-1",
+    ),
   addressLine1: optionalString(
     160,
     "Address must be 160 characters or fewer",
@@ -181,6 +221,7 @@ export type VenueListQuery = z.infer<typeof venueListQuerySchema>;
 export function parseVenueFormData(formData: FormData) {
   return venueInputSchema.safeParse({
     name: formData.get("name") ?? "",
+    code: formData.get("code") ?? "",
     addressLine1: formData.get("addressLine1") ?? "",
     townCity: formData.get("townCity") ?? "",
     postcode: formData.get("postcode") ?? "",

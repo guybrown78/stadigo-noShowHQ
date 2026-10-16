@@ -11,7 +11,7 @@ import {
   previewSicknessEvidenceBackfill,
 } from "@/lib/absence/evidence-settings";
 import { sicknessEpisodeStateLabel } from "@/lib/absence/sickness";
-import { formatLocalDateDisplay } from "@/lib/events/dates";
+import { formatLocalDateDisplay, formatLondonDateTime } from "@/lib/events/dates";
 import type { SicknessEpisodeState } from "@/lib/absence/catalog";
 
 export const metadata = { title: "Sickness evidence settings" };
@@ -64,7 +64,7 @@ export default async function SicknessEvidenceSettingsPage({
           </p>
           {settings.updatedAt ? (
             <p className="mt-1 text-sm text-slate-500">
-              Last changed {settings.updatedAt.toLocaleString("en-GB")}
+              Last changed {formatLondonDateTime(settings.updatedAt)}
               {settings.updatedBy
                 ? ` by ${settings.updatedBy.firstName} ${settings.updatedBy.lastName}`
                 : ""}
@@ -73,7 +73,7 @@ export default async function SicknessEvidenceSettingsPage({
           ) : null}
           {lastRun ? (
             <p className="mt-1 text-sm text-slate-500">
-              Last check {lastRun.startedAt.toLocaleString("en-GB")}
+              Last check {formatLondonDateTime(lastRun.startedAt)}
               {lastRun.status === "SUCCESS" ? "" : ", failed"}.{" "}
               {lastRun.episodesScanned} episodes, {lastRun.tasksCreated} tasks
               created.

@@ -4,6 +4,7 @@ export const EVENT_STATUSES = [
   "PLANNED",
   "CONFIRMED",
   "CANCELLED",
+  "POSTPONED",
   "COMPLETED",
 ] as const;
 

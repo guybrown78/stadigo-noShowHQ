@@ -109,15 +109,12 @@ export function formatDashboardSpanCompact(fromIso: string, toIso: string): stri
   if (fromIso === toIso) {
     return formatLocalDateDisplay(from);
   }
-  const fromParts = formatLocalDateDisplay(from).split(" ");
-  const toParts = formatLocalDateDisplay(to).split(" ");
-  if (fromParts[2] === toParts[2] && fromParts[1] === toParts[1]) {
-    return `${fromParts[0]}–${toParts[0]} ${fromParts[1]} ${fromParts[2]}`;
+  const fromLabel = formatLocalDateDisplay(from);
+  const toLabel = formatLocalDateDisplay(to);
+  if (fromLabel.slice(6) === toLabel.slice(6)) {
+    return `${fromLabel.slice(0, 5)} – ${toLabel}`;
   }
-  if (fromParts[2] === toParts[2]) {
-    return `${fromParts[0]} ${fromParts[1]} – ${toParts[0]} ${toParts[1]} ${toParts[2]}`;
-  }
-  return `${formatLocalDateDisplay(from)} – ${formatLocalDateDisplay(to)}`;
+  return `${fromLabel} – ${toLabel}`;
 }
 
 export function dashboardHref(filters: {
@@ -357,37 +354,44 @@ function bucketLabel(
   toIso: string,
   includeYear: boolean,
 ): string {
+  const from = dateParts(fromIso);
+  if (!from) {
+    return fromIso;
+  }
   if (grain === "month") {
-    const full = formatLocalDateDisplay(parseLocalDate(fromIso)!);
-    const parts = full.split(" ");
-    return `${parts[1]} ${parts[2]}`;
+    return `${from.month}/${from.year}`;
   }
   if (grain === "day" || fromIso === toIso) {
-    return compactDate(fromIso, includeYear);
+    return includeYear
+      ? `${from.day}/${from.month}/${from.year}`
+      : `${from.day}/${from.month}`;
   }
   return weekLabel(fromIso, toIso);
 }
 
-function compactDate(iso: string, includeYear: boolean): string {
-  const full = formatLocalDateDisplay(parseLocalDate(iso)!);
-  if (includeYear) {
-    return full;
+function dateParts(iso: string): { day: string; month: string; year: string } | null {
+  const date = parseLocalDate(iso);
+  if (!date) {
+    return null;
   }
-  return full.slice(0, full.lastIndexOf(" "));
+  return {
+    day: String(date.getUTCDate()).padStart(2, "0"),
+    month: String(date.getUTCMonth() + 1).padStart(2, "0"),
+    year: String(date.getUTCFullYear()),
+  };
 }
 
 function weekLabel(fromIso: string, toIso: string): string {
-  const fromFull = formatLocalDateDisplay(parseLocalDate(fromIso)!);
-  const toFull = formatLocalDateDisplay(parseLocalDate(toIso)!);
-  const fromParts = fromFull.split(" ");
-  const toParts = toFull.split(" ");
-  const sameYear = fromParts[2] === toParts[2];
-  const sameMonth = sameYear && fromParts[1] === toParts[1];
-  if (sameMonth) {
-    return `${fromParts[0]}–${toParts[0]} ${fromParts[1]}`;
+  const from = dateParts(fromIso);
+  const to = dateParts(toIso);
+  if (!from || !to) {
+    return `${fromIso}–${toIso}`;
   }
-  if (sameYear) {
-    return `${fromParts[0]} ${fromParts[1]}–${toParts[0]} ${toParts[1]}`;
+  if (from.year === to.year && from.month === to.month) {
+    return `${from.day}–${to.day}/${from.month}`;
   }
-  return `${fromFull}–${toFull}`;
+  if (from.year === to.year) {
+    return `${from.day}/${from.month}–${to.day}/${to.month}`;
+  }
+  return `${from.day}/${from.month}/${from.year}–${to.day}/${to.month}/${to.year}`;
 }

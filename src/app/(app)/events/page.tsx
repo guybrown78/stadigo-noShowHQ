@@ -14,7 +14,7 @@ import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { EVENT_STATUSES } from "@/lib/events/catalog";
 import { formatLocalDateDisplay, formatTimeRange } from "@/lib/events/dates";
-import { EVENT_STATUS_LABELS } from "@/lib/events/display";
+import { EVENT_STATUS_LABELS, formatStaffRequired } from "@/lib/events/display";
 import {
   EVENT_PAGE_SIZE,
   listEventsForTenant,
@@ -66,8 +66,10 @@ export default async function EventsPage({
         page: 1,
       };
 
-  const types = await listEventTypesForTenant(prisma, user.tenantId);
-  const list = await listEventsForTenant(prisma, user.tenantId, query);
+  const [types, list] = await Promise.all([
+    listEventTypesForTenant(prisma, user.tenantId),
+    listEventsForTenant(prisma, user.tenantId, query),
+  ]);
 
   const { events, total, page, pageCount } = list;
   const deleted = first(raw.deleted) === "1";
@@ -347,7 +349,7 @@ export default async function EventsPage({
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {event.staffRequired}
+                      {formatStaffRequired(event.staffRequired)}
                     </td>
                     <td className="px-4 py-3">
                       <EventStatusBadge status={event.status} />
@@ -389,7 +391,7 @@ export default async function EventsPage({
                   <EventStatusBadge status={event.status} />
                 </div>
                 <p className="mt-3 text-sm text-slate-600">
-                  Staff required: {event.staffRequired}
+                  Staff required: {formatStaffRequired(event.staffRequired)}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <ButtonLink href={`/events/${event.id}`} variant="secondary" size="sm">

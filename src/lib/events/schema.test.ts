@@ -39,6 +39,21 @@ describe("eventInputSchema", () => {
     }
   });
 
+  it("accepts a blank staff required value as unknown", () => {
+    const parsed = eventInputSchema.safeParse(validInput({ staffRequired: "" }));
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.staffRequired).toBeNull();
+    }
+  });
+
+  it("rejects zero and non-numeric staff required", () => {
+    const zero = eventInputSchema.safeParse(validInput({ staffRequired: "0" }));
+    const text = eventInputSchema.safeParse(validInput({ staffRequired: "abc" }));
+    expect(zero.success).toBe(false);
+    expect(text.success).toBe(false);
+  });
+
   it("rejects a name that is too short after trimming", () => {
     const parsed = eventInputSchema.safeParse(validInput({ name: " A " }));
     expect(parsed.success).toBe(false);
@@ -193,6 +208,18 @@ describe("venueInputSchema", () => {
       expect(parsed.data.name).toBe("Wembley Stadium");
       expect(parsed.data.postcode).toBe("HA9 0WS");
     }
+  });
+
+  it("rejects a venue code that uses the venue ID format", () => {
+    const parsed = venueInputSchema.safeParse({
+      name: "Wembley Stadium",
+      code: "VEN-1",
+      addressLine1: "",
+      townCity: "",
+      postcode: "",
+      active: true,
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it("rejects a venue name that is too short", () => {

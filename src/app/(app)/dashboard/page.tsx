@@ -1,8 +1,10 @@
 import { AbsenceContext } from "@/components/dashboard/absence-context";
 import { AbsenceTotals } from "@/components/dashboard/absence-totals";
 import { AbsenceTrend } from "@/components/dashboard/absence-trend";
+import { AttendanceWatchlist } from "@/components/dashboard/attendance-watchlist";
 import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
 import { RepeatAbsences } from "@/components/dashboard/repeat-absences";
+import { WorkforceStatus } from "@/components/dashboard/workforce-status";
 import { FollowUpDueSummary } from "@/components/absence/follow-up-due-summary";
 import { PageHeader } from "@/components/ui/page-header";
 import { countFollowUpsByDueState } from "@/lib/absence/follow-up-service";
@@ -18,7 +20,12 @@ import { listLedgerFilterOptions, getTenantTimezone } from "@/lib/absence/querie
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
-import { parseLocalDate } from "@/lib/events/dates";
+import {
+  awolWatchlist,
+  cancellationWatchlists,
+  countWorkforceStatuses,
+} from "@/lib/absence/watchlists";
+import { formatLocalDateDisplay, parseLocalDate } from "@/lib/events/dates";
 
 export const metadata = { title: "Dashboard" };
 
@@ -98,6 +105,21 @@ export default async function DashboardPage({
       })
     : null;
 
+  const attendance = await prisma.tenant.findUniqueOrThrow({
+    where: { id: user.tenantId },
+    select: {
+      payPeriodStartDay: true,
+      cancellationThreshold: true,
+      awolThresholdCount: true,
+      awolWindowDays: true,
+    },
+  });
+  const [workforce, cancellations, awol] = await Promise.all([
+    countWorkforceStatuses(prisma, user.tenantId),
+    cancellationWatchlists(prisma, user.tenantId, todayIso, attendance),
+    awolWatchlist(prisma, user.tenantId, todayIso, attendance),
+  ]);
+
   let followUps: { overdue: number; dueToday: number; upcoming: number } | null =
     null;
   try {
@@ -159,6 +181,44 @@ export default async function DashboardPage({
       ) : followUps ? (
         <FollowUpDueSummary counts={followUps} />
       ) : null}
+      <WorkforceStatus counts={workforce} />
+      <AttendanceWatchlist
+        title="Cancellations this pay period"
+        description={`${attendance.cancellationThreshold} or more cancellations reported from ${periodLabel(cancellations.currentPeriod.fromIso, cancellations.currentPeriod.toIso)}.`}
+        rows={cancellations.current}
+        empty="Nobody has reached the cancellation threshold this pay period."
+        fromIso={cancellations.currentPeriod.fromIso}
+        toIso={cancellations.currentPeriod.toIso}
+        type="cancellations"
+      />
+      <AttendanceWatchlist
+        title="Repeated cancellations"
+        description={`Also reached ${attendance.cancellationThreshold} or more in the previous pay period, ${periodLabel(cancellations.previousPeriod.fromIso, cancellations.previousPeriod.toIso)}.`}
+        rows={cancellations.repeated}
+        empty="Nobody reached the threshold in both this pay period and the previous one."
+        fromIso={cancellations.previousPeriod.fromIso}
+        toIso={cancellations.previousPeriod.toIso}
+        type="cancellations"
+      />
+      <AttendanceWatchlist
+        title="AWOL threshold"
+        description={`${attendance.awolThresholdCount} or more AWOLs from ${periodLabel(awol.fromIso, awol.toIso)}. Cancelling or postponing the event does not remove these records.`}
+        rows={awol.rows}
+        empty="Nobody has reached the AWOL threshold in this window."
+        fromIso={awol.fromIso}
+        toIso={awol.toIso}
+        type="awol"
+        dateField="affected"
+      />
     </div>
   );
+}
+
+function periodLabel(fromIso: string, toIso: string): string {
+  const from = parseLocalDate(fromIso);
+  const to = parseLocalDate(toIso);
+  if (!from || !to) {
+    return `${fromIso} to ${toIso}`;
+  }
+  return `${formatLocalDateDisplay(from)} to ${formatLocalDateDisplay(to)}`;
 }

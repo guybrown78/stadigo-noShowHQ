@@ -1,6 +1,7 @@
 import {
   MAX_IMPORT_FILE_BYTES,
   STAFF_IMPORT_HEADERS,
+  STAFF_IMPORT_REQUIRED_HEADERS,
   type StaffImportHeader,
 } from "@/lib/staff/import/constants";
 
@@ -57,10 +58,14 @@ export function validateImportFileBytes(
   return null;
 }
 
+const KNOWN_HEADERS = new Set<string>(STAFF_IMPORT_HEADERS);
+
 export function headerIndexMap(
   headers: string[],
-): { ok: true; index: Record<StaffImportHeader, number> } | { ok: false; error: string } {
-  const index = {} as Record<StaffImportHeader, number>;
+):
+  | { ok: true; index: Partial<Record<StaffImportHeader, number>> }
+  | { ok: false; error: string } {
+  const index: Partial<Record<StaffImportHeader, number>> = {};
   const seen = new Map<string, number>();
   headers.forEach((header, i) => {
     const key = header.replace(/^\uFEFF/, "").trim();
@@ -69,16 +74,29 @@ export function headerIndexMap(
     }
   });
 
-  const missing = STAFF_IMPORT_HEADERS.filter((header) => !seen.has(header));
-  if (missing.length > 0) {
-    return {
-      ok: false,
-      error: `The file headers do not match the template. Missing: ${missing.join(", ")}. Download a fresh template and keep the header row unchanged.`,
-    };
+  const missing = STAFF_IMPORT_REQUIRED_HEADERS.filter(
+    (header) => !seen.has(header),
+  );
+  const unknown = [...seen.keys()].filter((header) => !KNOWN_HEADERS.has(header));
+  if (missing.length > 0 || unknown.length > 0) {
+    const parts = ["The file headers do not match the template."];
+    if (missing.length > 0) {
+      parts.push(`Missing required: ${missing.join(", ")}.`);
+    }
+    if (unknown.length > 0) {
+      parts.push(`Unknown: ${unknown.join(", ")}.`);
+    }
+    parts.push(
+      "Download a fresh template and keep the header names unchanged. Optional columns may be left out.",
+    );
+    return { ok: false, error: parts.join(" ") };
   }
 
   for (const header of STAFF_IMPORT_HEADERS) {
-    index[header] = seen.get(header)!;
+    const column = seen.get(header);
+    if (column !== undefined) {
+      index[header] = column;
+    }
   }
   return { ok: true, index };
 }

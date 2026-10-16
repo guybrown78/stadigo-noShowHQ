@@ -14,12 +14,18 @@ export function LogAbsenceForm({
   timeZone,
   initialStaff,
   cancelHref,
+  cancellationReasons = [],
+  sicknessReasons = [],
+  shortNoticeHours,
 }: {
   initialType?: LogAbsenceType;
   defaultReportedDate: string;
   timeZone: string;
   initialStaff?: AbsenceStaffOption | null;
   cancelHref?: string;
+  cancellationReasons?: { label: string }[];
+  sicknessReasons?: { label: string }[];
+  shortNoticeHours?: number;
 }) {
   const [type, setType] = useState<LogAbsenceType>(initialType);
   const [staff, setStaff] = useState<AbsenceStaffOption | null>(
@@ -57,6 +63,7 @@ export function LogAbsenceForm({
           initialStaff={staff}
           cancelHref={cancelHref}
           onStaffChange={setStaff}
+          reasons={sicknessReasons}
         />
       ) : (
         <CancellationForm
@@ -67,6 +74,8 @@ export function LogAbsenceForm({
           initialStaff={staff}
           cancelHref={cancelHref}
           onStaffChange={setStaff}
+          reasons={cancellationReasons}
+          shortNoticeHours={shortNoticeHours}
         />
       )}
     </div>

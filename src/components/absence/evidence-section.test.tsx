@@ -154,8 +154,8 @@ describe("sickness evidence section", () => {
     expect(
       screen.getAllByText(FIT_NOTE_STATUS_LABELS[status]).length,
     ).toBeGreaterThan(0);
-    const requested = screen.queryByText(/1 Sept 2026/);
-    const received = screen.queryByText(/10 Sept 2026/);
+    const requested = screen.queryByText(/01\/09\/2026/);
+    const received = screen.queryByText(/10\/09\/2026/);
     if (status === "REQUESTED" || status === "RECEIVED") {
       expect(requested).toBeTruthy();
     } else {

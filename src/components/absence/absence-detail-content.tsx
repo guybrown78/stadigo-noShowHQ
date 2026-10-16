@@ -40,6 +40,7 @@ import {
   SICKNESS_CALENDAR_DAY_SPAN_HINT,
   sicknessEpisodeStateLabel,
 } from "@/lib/absence/sickness";
+import { EVENT_STATUS_LABELS } from "@/lib/events/display";
 import { formatStaffName } from "@/lib/staff/display";
 import { EmploymentStatusBadge } from "@/components/staff/staff-status-badge";
 import { cn } from "@/lib/cn";
@@ -437,6 +438,26 @@ function AbsenceActions({
   );
 }
 
+function EventOutcomeNote({ event }: { event: AbsenceDetail["event"] }) {
+  if (!event || event.deletedAt) {
+    return (
+      <p className="mt-1 text-sm font-medium text-slate-700">
+        This event was removed. The date, venue, and this absence stay on the
+        record.
+      </p>
+    );
+  }
+  if (event.status === "CANCELLED" || event.status === "POSTPONED") {
+    return (
+      <p className="mt-1 text-sm font-medium text-slate-700">
+        This event was {EVENT_STATUS_LABELS[event.status].toLowerCase()}. The
+        date, venue, and this absence stay on the record.
+      </p>
+    );
+  }
+  return null;
+}
+
 function CancellationFields({ absence }: { absence: AbsenceDetail }) {
   const detail = absence.cancellation!;
   const archived = absence.recordStatus === "ARCHIVED";
@@ -449,6 +470,7 @@ function CancellationFields({ absence }: { absence: AbsenceDetail }) {
       />
       <Detail label={ABSENCE_DETAIL_LABEL.venue}>
         {detail.venueNameSnapshot ?? "No venue recorded"}
+        <EventOutcomeNote event={absence.event} />
       </Detail>
       <Detail label={ABSENCE_DETAIL_LABEL.reported}>
         {formatLocalDateDisplay(absence.reportedDate)}
@@ -525,6 +547,7 @@ function AwolFields({ absence }: { absence: AbsenceDetail }) {
         <p className="mt-1 text-sm text-slate-600">
           {detail.venueNameSnapshot ?? "No venue recorded"}
         </p>
+        <EventOutcomeNote event={absence.event} />
         <p className="mt-1 text-sm text-slate-600">
           {detail.eventTypeSnapshot ?? "Unspecified"}
           {detail.eventSubtypeSnapshot

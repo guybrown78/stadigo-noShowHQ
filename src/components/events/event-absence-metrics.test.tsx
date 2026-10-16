@@ -35,11 +35,13 @@ const grace: EventAbsenceReportRow["staff"] = {
 
 function renderReport(
   absences: EventAbsenceReportRow[],
-  options?: { archivedCount?: number; staffRequired?: number },
+  options?: { archivedCount?: number; staffRequired?: number | null },
 ) {
   return renderToStaticMarkup(
     <EventAbsenceMetrics
-      staffRequired={options?.staffRequired ?? 10}
+      staffRequired={
+        options?.staffRequired === undefined ? 10 : options.staffRequired
+      }
       warningFillRate={90}
       criticalFillRate={85}
       absences={absences}
@@ -150,5 +152,12 @@ describe("EventAbsenceMetrics", () => {
     expect(html).toContain(
       "Logged absences exceed the staff requirement, so the estimate is 0%.",
     );
+  });
+
+  it("does not show a critical fill rate when staff required is not set", () => {
+    const html = renderReport([], { staffRequired: null });
+    expect(html).toContain("Staff required is not set yet, so fill rate is not calculated.");
+    expect(html).not.toContain("Below the critical threshold");
+    expect(html).toContain("Not set");
   });
 });

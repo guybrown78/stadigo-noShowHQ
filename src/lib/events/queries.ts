@@ -200,6 +200,7 @@ export async function listVenuesForTenant(db: DbClient, tenantId: string) {
     orderBy: { name: "asc" },
     select: {
       id: true,
+      identifier: true,
       name: true,
       postcode: true,
       addressLine1: true,
@@ -222,6 +223,8 @@ export async function listVenuesForSettings(
       ? {
           OR: [
             { name: { contains: search, mode: "insensitive" } },
+            { identifier: { contains: search, mode: "insensitive" } },
+            { code: { contains: search, mode: "insensitive" } },
             { postcode: { contains: search, mode: "insensitive" } },
             { townCity: { contains: search, mode: "insensitive" } },
             { addressLine1: { contains: search, mode: "insensitive" } },
@@ -239,7 +242,9 @@ export async function listVenuesForSettings(
       take: VENUE_PAGE_SIZE,
       select: {
         id: true,
+        identifier: true,
         name: true,
+        code: true,
         addressLine1: true,
         townCity: true,
         postcode: true,

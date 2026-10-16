@@ -306,11 +306,16 @@ async function resolveCancellationWrite(
     };
   }
 
+  const tenant = await db.tenant.findUnique({
+    where: { id: params.tenantId },
+    select: { shortNoticeHours: true },
+  });
   const notice = calculateNotice({
     eventDate: event.eventDate,
     eventStartTime: event.startTime,
     reportedDate,
     reportedTime: params.input.reportedTime,
+    shortNoticeMinutes: (tenant?.shortNoticeHours ?? 24) * 60,
   });
   if (notice.isRetrospective && !params.input.retrospectiveConfirmed) {
     return {

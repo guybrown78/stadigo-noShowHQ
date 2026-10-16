@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db";
 import { CancelImportForm } from "@/components/events/cancel-import-form";
 import { ConfirmEventsForm } from "@/components/events/confirm-events-form";
 import { ImportStepper } from "@/components/events/import-stepper";
-import { EVENT_STATUS_LABELS } from "@/lib/events/display";
+import { EVENT_STATUS_LABELS, formatStaffRequired } from "@/lib/events/display";
+import { formatLocalDateDisplay, parseLocalDate } from "@/lib/events/dates";
 import { EventAccessError } from "@/lib/events/errors";
 import {
   getImportForTenant,
@@ -21,6 +22,11 @@ export const maxDuration = 120;
 function first(value: string | string[] | undefined): string {
   if (Array.isArray(value)) return value[0] ?? "";
   return value ?? "";
+}
+
+function displayImportDate(iso: string): string {
+  const date = parseLocalDate(iso);
+  return date ? formatLocalDateDisplay(date) : iso;
 }
 
 export default async function ImportConfirmPage({
@@ -131,7 +137,9 @@ export default async function ImportConfirmPage({
           <SummaryCard
             label="Date range"
             value={
-              dates.length > 0 ? `${dates[0]} to ${dates[dates.length - 1]}` : "—"
+              dates.length > 0
+                ? `${displayImportDate(dates[0]!)} to ${displayImportDate(dates[dates.length - 1]!)}`
+                : "—"
             }
           />
         </dl>
@@ -183,7 +191,9 @@ export default async function ImportConfirmPage({
                       {normalized?.name ?? "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                      {normalized?.eventDate ?? "—"}
+                      {normalized?.eventDate
+                        ? displayImportDate(normalized.eventDate)
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {row.venueKey
@@ -196,7 +206,9 @@ export default async function ImportConfirmPage({
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
-                      {normalized?.staffRequired ?? "—"}
+                      {normalized
+                        ? formatStaffRequired(normalized.staffRequired)
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">
                       {normalized
