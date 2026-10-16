@@ -34,11 +34,6 @@ export function AbsenceSettingsForms({
     updateAttendanceSettingsAction,
     initialState,
   );
-  const [addState, addAction, addPending] = useActionState(
-    addAbsenceReasonAction,
-    initialState,
-  );
-
   return (
     <div className="mt-8 space-y-8">
       <Card>
@@ -91,24 +86,7 @@ export function AbsenceSettingsForms({
           title="Reasons"
           description="Cancellation and sickness are separate lists. Saved absences keep the reason already written on them."
         />
-        <CardBody className="space-y-6">
-          <form action={addAction} className="flex flex-wrap items-end gap-3">
-            <FormAlert>{addState.error}</FormAlert>
-            <label className="text-sm font-medium text-slate-700">
-              List
-              <select name="kind" className={`${controlClassName("mt-1 block")}`}>
-                <option value="CANCELLATION">Cancellation</option>
-                <option value="SICKNESS">Sickness</option>
-              </select>
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Reason
-              <input name="label" className={controlClassName("mt-1 block")} />
-            </label>
-            <Button type="submit" disabled={addPending}>
-              Add reason
-            </Button>
-          </form>
+        <CardBody className="space-y-8">
           <ReasonList kind="CANCELLATION" title="Cancellation" reasons={reasons} />
           <ReasonList kind="SICKNESS" title="Sickness" reasons={reasons} />
         </CardBody>
@@ -272,6 +250,56 @@ function IconButton({
   );
 }
 
+function AddReasonForm({
+  kind,
+  title,
+}: {
+  kind: AbsenceReasonKind;
+  title: string;
+}) {
+  const [state, action, pending] = useActionState(
+    addAbsenceReasonAction,
+    initialState,
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const wasPending = useRef(false);
+  const listName = title.toLowerCase();
+
+  useLayoutEffect(() => {
+    if (wasPending.current && !pending && state.ok) {
+      formRef.current?.reset();
+    }
+    wasPending.current = pending;
+  }, [pending, state.ok]);
+
+  return (
+    <form
+      ref={formRef}
+      action={action}
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3"
+    >
+      <p className="w-full text-sm font-medium text-slate-900">
+        Add a {listName} reason
+      </p>
+      <input type="hidden" name="kind" value={kind} />
+      <input
+        name="label"
+        aria-label={`New ${listName} reason`}
+        placeholder={`New ${listName} reason`}
+        className={controlClassName("min-w-64 flex-1")}
+      />
+      <Button type="submit" disabled={pending}>
+        Add to {listName}
+      </Button>
+      {state.error ? (
+        <p className="w-full text-sm text-red-700" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 function ReasonList({
   kind,
   title,
@@ -341,6 +369,7 @@ function ReasonList({
   return (
     <div>
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <AddReasonForm kind={kind} title={title} />
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-slate-600">No reasons yet.</p>
       ) : (
