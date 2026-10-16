@@ -117,26 +117,34 @@ export async function addAbsenceReasonAction(
 }
 
 export async function updateAbsenceReasonAction(
+  _prev: SettingsActionState,
   formData: FormData,
-): Promise<void> {
+): Promise<SettingsActionState> {
   const user = await requireTenant();
   const id = String(formData.get("id") ?? "");
   const label = String(formData.get("label") ?? "").trim().replace(/\s+/g, " ");
   const active = formData.get("active") === "on";
-  if (label.length < 2 || label.length > 80) {
-    return;
+  if (label.length < 2 || label.length > 80 || label.startsWith("Other:")) {
+    return { error: "Enter a reason of 2 to 80 characters." };
   }
   const existing = await prisma.absenceReason.findFirst({
     where: { id, tenantId: user.tenantId },
   });
   if (!existing) {
-    return;
+    return { error: "That reason could not be found." };
   }
-  await prisma.absenceReason.update({
-    where: { id: existing.id },
-    data: { label, active },
-  });
+  try {
+    await prisma.absenceReason.update({
+      where: { id: existing.id },
+      data: { label, active },
+    });
+  } catch {
+    return { error: "That reason is already on the list." };
+  }
   revalidatePath("/settings/absence");
+  revalidatePath("/absence/new");
+  revalidatePath("/absence", "layout");
+  return { ok: true };
 }
 
 export async function deleteAbsenceReasonAction(formData: FormData) {

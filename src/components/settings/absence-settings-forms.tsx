@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useLayoutEffect, useRef, useState, useTransition } from "react";
 import type { AbsenceReason, AbsenceReasonKind } from "@prisma/client";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   addAbsenceReasonAction,
   deleteAbsenceReasonAction,
@@ -88,7 +89,7 @@ export function AbsenceSettingsForms({
         <CardHeader
           headingId="absence-reasons-heading"
           title="Reasons"
-          description="Cancellation reasons and sickness issues are separate. Other stays available on the forms. Delete removes a reason from these lists. Absences already saved keep the reason written on them."
+          description="Cancellation and sickness are separate lists. Saved absences keep the reason already written on them."
         />
         <CardBody className="space-y-6">
           <form action={addAction} className="flex flex-wrap items-end gap-3">
@@ -116,7 +117,7 @@ export function AbsenceSettingsForms({
   );
 }
 
-function DeleteReasonButton({ id, label }: { id: string; label: string }) {
+function DeleteReasonButton({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
   if (!confirming) {
     return (
@@ -124,6 +125,7 @@ function DeleteReasonButton({ id, label }: { id: string; label: string }) {
         type="button"
         variant="danger"
         size="sm"
+        className="w-full"
         onClick={() => setConfirming(true)}
       >
         Delete
@@ -131,19 +133,17 @@ function DeleteReasonButton({ id, label }: { id: string; label: string }) {
     );
   }
   return (
-    <form action={deleteAbsenceReasonAction} className="flex items-center gap-2">
+    <form action={deleteAbsenceReasonAction}>
       <input type="hidden" name="id" value={id} />
-      <span className="text-sm text-slate-600">Delete {label}?</span>
-      <Button type="submit" variant="danger" size="sm">
-        Delete
-      </Button>
       <Button
-        type="button"
-        variant="secondary"
+        type="submit"
+        variant="danger"
         size="sm"
-        onClick={() => setConfirming(false)}
+        className="w-full"
+        autoFocus
+        onBlur={() => setConfirming(false)}
       >
-        Cancel
+        Confirm
       </Button>
     </form>
   );
@@ -171,6 +171,107 @@ function NumberField({
   );
 }
 
+function ReasonRow({
+  reason,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  rowRef,
+}: {
+  reason: AbsenceReason;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  rowRef: (node: HTMLLIElement | null) => void;
+}) {
+  const [label, setLabel] = useState(reason.label);
+  const [active, setActive] = useState(reason.active);
+  const [state, action, pending] = useActionState(
+    updateAbsenceReasonAction,
+    initialState,
+  );
+  const savedLabel = reason.label;
+  const savedActive = reason.active;
+  const dirty =
+    label.trim().replace(/\s+/g, " ") !== savedLabel || active !== savedActive;
+
+  return (
+    <li
+      ref={rowRef}
+      className={
+        dirty
+          ? "grid grid-cols-[minmax(12rem,20rem)_7.5rem_5.5rem_2.25rem_2.25rem_5.5rem] items-center gap-2 rounded-md border border-emerald-600 bg-emerald-50 px-2 py-1.5"
+          : "grid grid-cols-[minmax(12rem,20rem)_7.5rem_5.5rem_2.25rem_2.25rem_5.5rem] items-center gap-2 rounded-md border border-transparent px-2 py-1.5"
+      }
+    >
+      <form action={action} className="contents">
+        <input type="hidden" name="id" value={reason.id} />
+        <input
+          name="label"
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          aria-label={savedLabel}
+          className={controlClassName("w-full")}
+        />
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            name="active"
+            checked={active}
+            onChange={(event) => setActive(event.target.checked)}
+          />
+          Active
+        </label>
+        {dirty ? (
+          <Button type="submit" size="sm" disabled={pending} className="w-full">
+            Save
+          </Button>
+        ) : (
+          <span />
+        )}
+      </form>
+      <IconButton label="Move up" disabled={!canMoveUp} onClick={onMoveUp}>
+        <ChevronUp className="size-4" aria-hidden="true" />
+      </IconButton>
+      <IconButton label="Move down" disabled={!canMoveDown} onClick={onMoveDown}>
+        <ChevronDown className="size-4" aria-hidden="true" />
+      </IconButton>
+      <DeleteReasonButton id={reason.id} />
+      {state.error ? (
+        <p className="col-span-full text-sm text-red-700" role="alert">
+          {state.error}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
+function IconButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex size-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-30"
+    >
+      {children}
+    </button>
+  );
+}
+
 function ReasonList({
   kind,
   title,
@@ -180,47 +281,83 @@ function ReasonList({
   title: string;
   reasons: AbsenceReason[];
 }) {
-  const rows = reasons.filter((reason) => reason.kind === kind);
+  const incoming = reasons.filter((reason) => reason.kind === kind);
+  const incomingKey = incoming
+    .map((reason) => `${reason.id}:${reason.sortOrder}:${reason.label}:${reason.active}`)
+    .join("|");
+  const [rows, setRows] = useState(incoming);
+  const [, startMove] = useTransition();
+  const positions = useRef(new Map<string, number>());
+  const rowNodes = useRef(new Map<string, HTMLLIElement>());
+
+  useLayoutEffect(() => {
+    const nextPositions = new Map<string, number>();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const row of rows) {
+      const element = rowNodes.current.get(row.id);
+      if (!element) continue;
+      const top = element.getBoundingClientRect().top;
+      const previous = positions.current.get(row.id);
+      if (!reduceMotion && previous != null && Math.abs(previous - top) > 1) {
+        element.animate(
+          [
+            { transform: `translateY(${previous - top}px)` },
+            { transform: "translateY(0)" },
+          ],
+          { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+        );
+      }
+      nextPositions.set(row.id, top);
+    }
+    positions.current = nextPositions;
+  }, [rows]);
+
+  useLayoutEffect(() => {
+    setRows(incoming);
+    // incomingKey captures label, order, and active changes from the server.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingKey]);
+
+  function move(id: string, direction: -1 | 1) {
+    setRows((current) => {
+      const index = current.findIndex((reason) => reason.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = current.slice();
+      const [item] = next.splice(index, 1);
+      next.splice(target, 0, item!);
+      return next;
+    });
+    const formData = new FormData();
+    formData.set("id", id);
+    formData.set("direction", direction < 0 ? "up" : "down");
+    startMove(() => {
+      void moveAbsenceReasonAction(formData);
+    });
+  }
+
   return (
     <div>
       <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-slate-600">No reasons yet.</p>
       ) : (
-        <ul className="mt-2 space-y-2">
-          {rows.map((reason) => (
-            <li key={reason.id} className="flex flex-wrap items-center gap-2">
-              <form action={updateAbsenceReasonAction} className="flex flex-wrap items-center gap-2">
-                <input type="hidden" name="id" value={reason.id} />
-                <input
-                  name="label"
-                  defaultValue={reason.label}
-                  className={controlClassName("w-64")}
-                />
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" name="active" defaultChecked={reason.active} />
-                  Active
-                </label>
-                <Button type="submit" variant="secondary" size="sm">
-                  Save
-                </Button>
-              </form>
-              <form action={moveAbsenceReasonAction}>
-                <input type="hidden" name="id" value={reason.id} />
-                <input type="hidden" name="direction" value="up" />
-                <Button type="submit" variant="secondary" size="sm">
-                  Up
-                </Button>
-              </form>
-              <form action={moveAbsenceReasonAction}>
-                <input type="hidden" name="id" value={reason.id} />
-                <input type="hidden" name="direction" value="down" />
-                <Button type="submit" variant="secondary" size="sm">
-                  Down
-                </Button>
-              </form>
-              <DeleteReasonButton id={reason.id} label={reason.label} />
-            </li>
+        <ul className="mt-2 space-y-1 overflow-x-auto">
+          {rows.map((reason, index) => (
+            <ReasonRow
+              key={reason.id}
+              reason={reason}
+              canMoveUp={index > 0}
+              canMoveDown={index < rows.length - 1}
+              onMoveUp={() => move(reason.id, -1)}
+              onMoveDown={() => move(reason.id, 1)}
+              rowRef={(node) => {
+                if (node) rowNodes.current.set(reason.id, node);
+                else rowNodes.current.delete(reason.id);
+              }}
+            />
           ))}
         </ul>
       )}
