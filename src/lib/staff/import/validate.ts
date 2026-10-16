@@ -7,6 +7,7 @@ import {
   EMPLOYMENT_STATUSES,
   SECURITY_CLEARANCE_STATUSES,
 } from "@/lib/staff/catalog";
+import { EMPLOYMENT_STATUS_LABELS } from "@/lib/staff/display";
 import {
   normalizeStaffIdKey,
   normalizeStaffIdNumber,
@@ -245,7 +246,7 @@ function validateOneRow(
     pushError(
       fieldErrors,
       "employmentStatus",
-      "Employment Status must be ACTIVE, MONITORING, CONTACT_REQUIRED, DISABLED or INACTIVE. Leave blank for ACTIVE.",
+      "Employment Status must be a listed status, such as Active or Monitoring. Leave blank for Active.",
     );
   }
 
@@ -566,13 +567,20 @@ function parseEmployment(
   if (!trimmed) {
     return { ok: true, value: "ACTIVE" };
   }
-  const match = EMPLOYMENT_STATUSES.find(
-    (status) => status.toLowerCase() === trimmed.toLowerCase(),
+  const normalized = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
+  const byCode = EMPLOYMENT_STATUSES.find(
+    (status) => status.toLowerCase() === normalized,
   );
-  if (!match) {
+  if (byCode) {
+    return { ok: true, value: byCode };
+  }
+  const byLabel = EMPLOYMENT_STATUSES.find(
+    (status) => EMPLOYMENT_STATUS_LABELS[status].toLowerCase() === trimmed.toLowerCase(),
+  );
+  if (!byLabel) {
     return { ok: false };
   }
-  return { ok: true, value: match };
+  return { ok: true, value: byLabel };
 }
 
 function parseClearance(
@@ -598,7 +606,7 @@ function rewriteSchemaMessage(field: string, message: string): string {
     field === "securityClearanceExpiryDate"
   ) {
     if (/valid date/i.test(message) || /enter a/i.test(message)) {
-      return `${importFieldLabel(field)} must be a valid calendar date in YYYY-MM-DD format.`;
+      return `${importFieldLabel(field)} must be a real date in DD/MM/YYYY format, for example 12/09/2026.`;
     }
   }
   return message;

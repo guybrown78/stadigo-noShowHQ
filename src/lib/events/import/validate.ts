@@ -8,6 +8,8 @@ import { flattenFieldErrors, eventInputSchema } from "@/lib/events/schema";
 import {
   emptyToNull,
   normalizeUkPostcode,
+  normalizeVenueCode,
+  normalizeVenueIdentifier,
   normalizeVenueName,
   normalizeVenueNameKey,
 } from "@/lib/events/normalize";
@@ -39,6 +41,8 @@ export type ExistingVenueForImport = {
   id: string;
   name: string;
   nameNormalized: string;
+  identifier?: string | null;
+  code?: string | null;
   addressLine1: string | null;
   townCity: string | null;
   postcode: string | null;
@@ -111,6 +115,18 @@ export function validateImportRows(
   const venuesByKey = new Map(
     params.existingVenues.map((venue) => [venue.nameNormalized, venue]),
   );
+  const venuesByCode = new Map<string, ExistingVenueForImport>();
+  const venuesByIdentifier = new Map<string, ExistingVenueForImport>();
+  for (const venue of params.existingVenues) {
+    const code = normalizeVenueCode(venue.code);
+    if (code) {
+      venuesByCode.set(code, venue);
+    }
+    const identifier = normalizeVenueIdentifier(venue.identifier);
+    if (identifier) {
+      venuesByIdentifier.set(identifier, venue);
+    }
+  }
 
   const fileRefs = new Map<string, number[]>();
   const fileDupKeys = new Map<string, number[]>();
@@ -130,6 +146,8 @@ export function validateImportRows(
     }
     return validateOneRow(row, typeIndex);
   });
+
+  applyVenueAliases(rows, venuesByKey, venuesByCode, venuesByIdentifier);
 
   for (const row of rows) {
     if (row.status !== "VALID" || !row.normalized) {
@@ -275,7 +293,7 @@ function validateOneRow(
     pushError(
       fieldErrors,
       "status",
-      "Status must be PLANNED, CONFIRMED, CANCELLED or COMPLETED. Leave blank for PLANNED.",
+      "Status must be PLANNED, CONFIRMED, CANCELLED, POSTPONED or COMPLETED. Leave blank for PLANNED.",
     );
   }
 
@@ -341,6 +359,35 @@ function validateOneRow(
   };
 }
 
+function applyVenueAliases(
+  rows: ValidatedImportRow[],
+  venuesByKey: Map<string, ExistingVenueForImport>,
+  venuesByCode: Map<string, ExistingVenueForImport>,
+  venuesByIdentifier: Map<string, ExistingVenueForImport>,
+) {
+  for (const row of rows) {
+    if (row.status !== "VALID" || !row.normalized || !row.venueKey) {
+      continue;
+    }
+    if (venuesByKey.has(row.venueKey)) {
+      continue;
+    }
+    const typed = row.raw["Venue Name"];
+    const identifier = normalizeVenueIdentifier(typed);
+    const byIdentifier = identifier
+      ? venuesByIdentifier.get(identifier)
+      : undefined;
+    const code = normalizeVenueCode(typed);
+    const byCode = !byIdentifier && code ? venuesByCode.get(code) : undefined;
+    const match = byIdentifier ?? byCode;
+    if (!match) {
+      continue;
+    }
+    row.venueKey = match.nameNormalized;
+    row.normalized = { ...row.normalized, venueName: match.name };
+  }
+}
+
 function toNormalized(
   data: {
     reference: string | null;
@@ -354,7 +401,7 @@ function toNormalized(
     startTime: string | null;
     endTime: string | null;
     endsNextDay: boolean;
-    staffRequired: number;
+    staffRequired: number | null;
     warningFillRate: number;
     criticalFillRate: number;
     status: EventStatusValue;
@@ -585,7 +632,7 @@ function rewriteSchemaMessage(field: string, message: string): string {
     return "End time must be later than start time. For overnight events, set Overnight to Yes.";
   }
   if (field === "eventDate") {
-    return "Event date must be a valid calendar date in YYYY-MM-DD format.";
+    return "Event date must be a real date in DD/MM/YYYY format, for example 12/09/2026.";
   }
   if (field === "eventTypeId") {
     return "Event type is required and must match an active type listed in the template.";

@@ -38,7 +38,7 @@ import {
   listDepartmentsForTenant,
   listStaffForTenant,
 } from "@/lib/staff/queries";
-import { countOpenProbationTasks, reconcileTenantProbationWork } from "@/lib/staff/tasks";
+import { countOpenProbationTasks } from "@/lib/staff/tasks";
 import {
   staffListQuerySchema,
   type StaffListQuery,
@@ -100,7 +100,6 @@ export default async function StaffPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const user = await requireTenant();
-  await reconcileTenantProbationWork(prisma, user.tenantId);
   const raw = await searchParams;
   const parsedQuery = staffListQuerySchema.safeParse({
     q: first(raw.q),

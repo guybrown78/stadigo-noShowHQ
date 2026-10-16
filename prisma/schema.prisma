@@ -17,6 +17,7 @@ enum EventStatus {
   PLANNED
   CONFIRMED
   CANCELLED
+  POSTPONED
   COMPLETED
 }
 
@@ -34,6 +35,12 @@ model Tenant {
   sicknessEvidenceUpdatedById  String?
   sicknessEvidenceUpdatedBy    User?                   @relation("TenantSicknessEvidenceUpdatedBy", fields: [sicknessEvidenceUpdatedById], references: [id], onDelete: Restrict)
   timezone                     String                  @default("Europe/London")
+  shortNoticeHours             Int                     @default(24)
+  payPeriodStartDay            Int                     @default(1)
+  cancellationThreshold        Int                     @default(3)
+  awolThresholdCount           Int                     @default(3)
+  awolWindowDays               Int                     @default(30)
+  venueSeq                     Int                     @default(0)
   createdAt                    DateTime                @default(now())
   updatedAt                    DateTime                @updatedAt
   users                        User[]
@@ -59,6 +66,8 @@ model Tenant {
   absenceFollowUps             AbsenceFollowUp[]
   settingsAudits               TenantSettingsAudit[]
   sicknessEvidenceEvaluationRuns SicknessEvidenceEvaluationRun[]
+  absenceReasons               AbsenceReason[]
+  awolFollowUps                StaffAwolFollowUp[]
 }
 
 model User {
@@ -205,6 +214,8 @@ model Venue {
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   name           String
   nameNormalized String
+  identifier     String
+  code           String?
   addressLine1   String?
   townCity       String?
   postcode       String?
@@ -220,6 +231,8 @@ model Venue {
 
   @@unique([id, tenantId])
   @@unique([tenantId, nameNormalized])
+  @@unique([tenantId, identifier])
+  @@unique([tenantId, code])
   @@index([tenantId, active])
   @@index([tenantId, name])
 }
@@ -241,7 +254,7 @@ model Event {
   startTime        String?
   endTime          String?
   endsNextDay      Boolean      @default(false)
-  staffRequired    Int
+  staffRequired    Int?
   warningFillRate  Int          @default(90)
   criticalFillRate Int          @default(85)
   status           EventStatus  @default(PLANNED)
@@ -376,6 +389,7 @@ enum EmploymentStatus {
   CONTACT_REQUIRED
   DISABLED
   INACTIVE
+  LONG_TERM_SICK
 }
 
 enum ProbationStatus {
@@ -476,6 +490,7 @@ model Staff {
   probationTasks               StaffProbationTask[]
   absences                     Absence[]
   importRows                   StaffImportRow[]
+  awolFollowUp                 StaffAwolFollowUp?
 
   @@unique([id, tenantId])
   // Live uniqueness: Staff_tenantId_staffIdNormalized_alive_key
@@ -581,6 +596,41 @@ enum AbsenceType {
   CANCELLATION
   AWOL
   SICKNESS
+}
+
+enum AbsenceReasonKind {
+  CANCELLATION
+  SICKNESS
+}
+
+model AbsenceReason {
+  id        String            @id @default(cuid())
+  tenantId  String
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  kind      AbsenceReasonKind
+  label     String
+  active    Boolean           @default(true)
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([tenantId, kind, label])
+  @@index([tenantId, kind, active, sortOrder])
+}
+
+model StaffAwolFollowUp {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  staffId         String
+  staff           Staff     @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  contact1At      DateTime? @db.Date
+  contact2At      DateTime? @db.Date
+  formalProcessAt DateTime? @db.Date
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([staffId, tenantId])
+  @@index([tenantId])
 }
 
 enum AbsenceFollowUpType {

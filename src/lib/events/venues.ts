@@ -27,12 +27,25 @@ function uniqueTarget(error: Prisma.PrismaClientKnownRequestError): string[] {
   return [];
 }
 
+export async function nextVenueIdentifier(
+  db: DbClient,
+  tenantId: string,
+): Promise<string> {
+  const tenant = await db.tenant.update({
+    where: { id: tenantId },
+    data: { venueSeq: { increment: 1 } },
+    select: { venueSeq: true },
+  });
+  return `VEN-${tenant.venueSeq}`;
+}
+
 export function venueRecordData(tenantId: string, input: VenueInput) {
   const name = normalizeVenueName(input.name);
   return {
     tenantId,
     name,
     nameNormalized: normalizeVenueNameKey(name),
+    code: input.code,
     addressLine1: input.addressLine1,
     townCity: input.townCity,
     postcode: input.postcode
@@ -95,11 +108,13 @@ export async function findOrCreateVenue(
   }
 
   try {
+    const identifier = await nextVenueIdentifier(db, params.tenantId);
     const created = await db.venue.create({
       data: {
         tenantId: params.tenantId,
         name,
         nameNormalized,
+        identifier,
         addressLine1: params.input.addressLine1 ?? null,
         townCity: params.input.townCity ?? null,
         postcode,
@@ -158,8 +173,12 @@ export async function createVenue(
   params: { tenantId: string; input: VenueInput },
 ): Promise<VenueMutationResult> {
   try {
+    const identifier = await nextVenueIdentifier(db, params.tenantId);
     const created = await db.venue.create({
-      data: venueRecordData(params.tenantId, params.input),
+      data: {
+        ...venueRecordData(params.tenantId, params.input),
+        identifier,
+      },
       select: { id: true },
     });
     return { ok: true, id: created.id };
@@ -203,6 +222,15 @@ function mapVenueWriteError(error: unknown): VenueMutationResult {
         error: "Check the form and try again.",
         fieldErrors: {
           name: ["A venue with this name already exists"],
+        },
+      };
+    }
+    if (target.includes("code")) {
+      return {
+        ok: false,
+        error: "Check the form and try again.",
+        fieldErrors: {
+          code: ["A venue with this code already exists"],
         },
       };
     }

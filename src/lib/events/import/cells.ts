@@ -93,6 +93,8 @@ export function excelFractionToTime(value: number): string {
   return `${pad2(hours)}:${pad2(minutes)}`;
 }
 
+const UK_DATE_PATTERN = /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/;
+
 export function coerceEventDate(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -100,6 +102,11 @@ export function coerceEventDate(value: string): string {
   }
   if (parseLocalDate(trimmed)) {
     return trimmed;
+  }
+  const uk = trimmed.match(UK_DATE_PATTERN);
+  if (uk) {
+    const iso = `${uk[3]}-${uk[2].padStart(2, "0")}-${uk[1].padStart(2, "0")}`;
+    return parseLocalDate(iso) ? iso : trimmed;
   }
   const numeric = Number(trimmed);
   if (Number.isFinite(numeric) && numeric > 20000 && numeric < 80000) {

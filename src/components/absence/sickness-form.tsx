@@ -8,6 +8,7 @@ import {
   type AbsenceActionState,
 } from "@/app/(app)/absence/actions";
 import { AbsenceTypeSelector } from "@/components/absence/absence-type-selector";
+import { CatalogReasonField } from "@/components/absence/catalog-reason-field";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import {
   FieldError,
@@ -19,10 +20,7 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
-import {
-  ISSUE_SUMMARY_MAX_CODE_POINTS,
-  type SicknessEpisodeState,
-} from "@/lib/absence/catalog";
+import { type SicknessEpisodeState } from "@/lib/absence/catalog";
 import type { AbsenceStaffOption } from "@/lib/absence/queries";
 import {
   parseCorrectSicknessFormData,
@@ -51,6 +49,7 @@ export function SicknessForm({
   hideTypeSelector = false,
   onStaffChange,
   expectedUpdatedAt,
+  reasons = [],
 }: {
   mode: "create" | "edit";
   absenceId?: string;
@@ -67,6 +66,7 @@ export function SicknessForm({
   hideTypeSelector?: boolean;
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
   expectedUpdatedAt?: string;
+  reasons?: { label: string }[];
 }) {
   void timeZone;
   const action = mode === "create" ? createSicknessAction : correctSicknessAction;
@@ -341,18 +341,17 @@ export function SicknessForm({
 
       <div>
         <FieldLabel htmlFor={`${formId}-summary`}>Issue summary</FieldLabel>
-        <textarea
+        <CatalogReasonField
+          key={formKey}
           id={`${formId}-summary`}
           name="issueSummary"
-          rows={3}
-          value={issueSummary}
-          onChange={(event) => setIssueSummary(event.target.value)}
-          maxLength={ISSUE_SUMMARY_MAX_CODE_POINTS}
-          aria-invalid={Boolean(state.fieldErrors?.issueSummary)}
-          aria-describedby={`${formId}-summary-help${
+          reasons={reasons}
+          value={issueSummary ?? ""}
+          onChange={setIssueSummary}
+          invalid={Boolean(state.fieldErrors?.issueSummary)}
+          describedBy={`${formId}-summary-help${
             state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
           }`}
-          className={controlClassName("w-full")}
         />
         <p id={`${formId}-summary-help`} className="mt-1 text-sm text-slate-500">
           {ISSUE_SUMMARY_HELPER_TEXT}

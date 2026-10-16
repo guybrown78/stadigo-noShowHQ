@@ -135,10 +135,11 @@ async function parseXlsx(bytes: Uint8Array): Promise<ParseImportResult> {
   for (let rowNumber = 2; rowNumber <= scanUntil; rowNumber += 1) {
     const excelRow = sheet.getRow(rowNumber);
     const values: string[] = [];
-    const maxCol = Math.max(
-      ...EVENT_IMPORT_HEADERS.map((header) => mapped.index[header] + 1),
-      excelRow.cellCount,
-    );
+    const presentColumns = EVENT_IMPORT_HEADERS.flatMap((header) => {
+      const column = mapped.index[header];
+      return column === undefined ? [] : [column + 1];
+    });
+    const maxCol = Math.max(excelRow.cellCount, ...presentColumns, 0);
     for (let col = 1; col <= maxCol; col += 1) {
       const header = headers[col - 1];
       const asDate = header === "Event Date";
@@ -170,11 +171,12 @@ async function parseXlsx(bytes: Uint8Array): Promise<ParseImportResult> {
 
 function valuesFromIndex(
   row: string[],
-  index: Record<EventImportHeader, number>,
+  index: Partial<Record<EventImportHeader, number>>,
 ): ImportRowRaw {
   const raw = {} as ImportRowRaw;
   for (const header of EVENT_IMPORT_HEADERS) {
-    let value = (row[index[header]] ?? "").trim();
+    const column = index[header];
+    let value = (column === undefined ? "" : (row[column] ?? "")).trim();
     if (header === "Event Date") {
       value = coerceEventDate(value);
     }

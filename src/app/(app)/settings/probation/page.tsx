@@ -4,6 +4,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { formatLondonDateTime } from "@/lib/events/dates";
 import { getTenantProbationSettings } from "@/lib/staff/settings";
 
 export const metadata = { title: "Probation settings" };
@@ -45,7 +46,7 @@ export default async function ProbationSettingsPage({
           </p>
           {settings.updatedAt ? (
             <p className="mt-1 text-sm text-slate-500">
-              Last changed {settings.updatedAt.toLocaleString("en-GB")}
+              Last changed {formatLondonDateTime(settings.updatedAt)}
               {settings.updatedBy
                 ? ` by ${settings.updatedBy.firstName} ${settings.updatedBy.lastName}`
                 : ""}

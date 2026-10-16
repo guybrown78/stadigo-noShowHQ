@@ -51,7 +51,9 @@ export default async function EditVenuePage({
           mode="edit"
           venueId={venue.id}
           initialValues={{
+            identifier: venue.identifier,
             name: venue.name,
+            code: venue.code,
             addressLine1: venue.addressLine1,
             townCity: venue.townCity,
             postcode: venue.postcode,

@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { enterTenantAction } from "@/app/(platform)/admin/actions";
 import { AdminActivitySummary } from "@/components/admin-activity";
 import { prisma } from "@/lib/db";
+import { formatLondonDate } from "@/lib/events/dates";
 
 export default async function AdminTenantsPage({
   searchParams,
@@ -105,7 +106,7 @@ export default async function AdminTenantsPage({
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {tenant.createdAt.toLocaleDateString()}
+                    {formatLondonDate(tenant.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex flex-wrap items-center justify-end gap-2">

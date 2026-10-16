@@ -38,7 +38,7 @@ export async function buildStaffImportTemplate(): Promise<Buffer> {
 
   for (const header of STAFF_IMPORT_DATE_HEADERS) {
     const col = STAFF_IMPORT_HEADERS.indexOf(header) + 1;
-    staff.getColumn(col).numFmt = "@";
+    staff.getColumn(col).numFmt = "dd/mm/yyyy";
   }
   const lastDataRow = MAX_IMPORT_DATA_ROWS + 1;
 
@@ -68,7 +68,7 @@ function writeInstructions(sheet: ExcelJS.Worksheet) {
   const lines = [
     "",
     "How to import",
-    "1. Keep the Staff sheet headers exactly as they are. Do not rename, insert, or delete columns.",
+    "1. Do not rename the header row. Optional columns may be left blank, or left out. Required columns are Staff ID, First Name, Last Name, and Role.",
     "2. Enter one person per row. Leave the Staff sheet blank of examples — examples are on this sheet only.",
     "3. Use Staff IDs consistently. After trimming extra spaces, each ID must be unique in this file and among active staff in your organisation. Matching is case-insensitive.",
     "4. Manager Staff ID must exactly match an active Staff ID already in NoShowHQ, or a Staff ID on another valid row in this file. Never match by name.",
@@ -82,34 +82,28 @@ function writeInstructions(sheet: ExcelJS.Worksheet) {
     "Email is optional. If supplied it must be a valid email (max 254 characters). It is operational contact only and never creates a login.",
     "Phone is optional, 5 to 40 characters. International numbers are allowed.",
     "Department is optional, maximum 100 characters.",
-    "Employment Status is optional: ACTIVE, MONITORING, CONTACT_REQUIRED, DISABLED or INACTIVE. Leave blank for ACTIVE.",
-    "Dates must be ISO dates: YYYY-MM-DD (for example 2026-09-12). Do not use UK or US display formats.",
+    "Employment Status is optional. Use Active, Monitoring, Contact required, Disabled, Inactive, or Long-term sick, or the matching code. Leave blank for Active. Active means available for work. Monitoring means they are under review. Contact required means they need to be contacted. Long-term sick means they stay on the books but are not available for work. Disabled means the record is switched off. Inactive means they are no longer working. Inactive people are not deleted automatically.",
+    "Dates use DD/MM/YYYY, for example 12/09/2026. The date columns open a calendar. YYYY-MM-DD is also accepted.",
     "Start Date is required if Apply Probation is Yes.",
     "Apply Probation is Yes or No. Leave blank for No.",
     `Probation Length Days is an optional individual override, a whole number from 1 to ${MAX_PROBATION_DAYS}. Used only when Apply Probation is Yes and Probation End Date is blank. If both are blank, NoShowHQ uses your organisation’s current default duration at the moment you confirm the import.`,
-    "Probation End Date is an optional manual override, YYYY-MM-DD, and must not be before Start Date. If supplied it takes precedence over Probation Length Days. This is shown clearly in the preview.",
+    "Probation End Date is an optional manual override in DD/MM/YYYY, and must not be before Start Date. If supplied it takes precedence over Probation Length Days. This is shown clearly in the preview.",
     "If Apply Probation is No or blank, leave Probation Length Days and Probation End Date blank.",
     "Do not add a probation status or outcome column. Passed, Extended and Not continued are recorded later through the probation review workflow.",
     "Security Clearance Status is optional: NOT_REQUIRED, PENDING, VALID, EXPIRED or NOT_RECORDED. Leave blank for NOT_RECORDED.",
-    "Security Clearance Expiry Date is required when clearance is VALID or EXPIRED, YYYY-MM-DD.",
+    "Security Clearance Expiry Date is required when clearance is VALID or EXPIRED, in DD/MM/YYYY.",
     "Notes are optional internal notes, maximum 2,000 characters.",
     "",
     "This import creates operational staff records only. It does not create user accounts or send email or SMS.",
     "If any row needs correction, the whole file is rejected. Fix the rows and upload again. Valid rows are not imported on their own.",
     "A Staff ID already used in another organisation does not block this import.",
     "",
-    "Example (do not copy onto the Staff sheet unless this is a real person)",
+    "Example that passes with only the required columns (do not copy onto the Staff sheet unless this is a real person)",
     "Staff ID: ST-1042",
     "First Name: Alex",
     "Last Name: Patel",
     "Role: Steward",
-    "Email: alex.patel@example.com",
-    "Department: South stand",
-    "Manager Staff ID: ST-1001",
-    "Employment Status: ACTIVE",
-    "Start Date: 2026-09-01",
-    "Apply Probation: Yes",
-    "Security Clearance Status: NOT_RECORDED",
+    "Email, phone, department, manager, employment status, start date, and every column from Apply Probation onward may be left blank.",
   ];
   lines.forEach((line, index) => {
     const row = sheet.getRow(index + 2);

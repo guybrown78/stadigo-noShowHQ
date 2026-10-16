@@ -33,6 +33,7 @@ export type EventFormTypeOption = {
 
 export type EventFormVenueOption = {
   id: string;
+  identifier?: string;
   name: string;
   postcode: string | null;
 };
@@ -48,7 +49,7 @@ export type EventFormInitialValues = {
   startTime?: string | null;
   endTime?: string | null;
   endsNextDay?: boolean;
-  staffRequired?: number;
+  staffRequired?: number | null;
   warningFillRate?: number;
   criticalFillRate?: number;
   status?: EventStatus;
@@ -230,6 +231,7 @@ export function EventForm({
       : venues.filter(
           (venue) =>
             venue.name.toLowerCase().includes(q) ||
+            (venue.identifier?.toLowerCase().includes(q) ?? false) ||
             (venue.postcode?.toLowerCase().includes(q) ?? false),
         );
     const selectedId = initialValues?.venueId;
@@ -518,6 +520,7 @@ export function EventForm({
                 <option value="">Select venue</option>
                 {filteredVenues.map((venue) => (
                   <option key={venue.id} value={venue.id}>
+                    {venue.identifier ? `${venue.identifier} · ` : ""}
                     {venue.name}
                     {venue.postcode ? ` · ${venue.postcode}` : ""}
                   </option>
@@ -692,23 +695,28 @@ export function EventForm({
 
         <div>
           <label htmlFor={`${formId}-staff`} className="mb-1 block text-sm font-medium text-slate-700">
-            Staff required <span className="text-red-700">*</span>
+            Staff required
           </label>
           <input
             id={`${formId}-staff`}
             name="staffRequired"
             type="number"
             inputMode="numeric"
-            required
             min={1}
             max={100000}
             step={1}
             defaultValue={initialValues?.staffRequired ?? ""}
-            aria-required="true"
             aria-invalid={Boolean(state.fieldErrors?.staffRequired)}
-            aria-describedby={state.fieldErrors?.staffRequired ? errorId("staff") : undefined}
+            aria-describedby={
+              state.fieldErrors?.staffRequired
+                ? errorId("staff")
+                : `${formId}-staff-hint`
+            }
             className={controlClassName("w-full sm:max-w-xs")}
           />
+          <p id={`${formId}-staff-hint`} className="mt-1 text-sm text-slate-500">
+            Leave blank if you do not know this yet.
+          </p>
           <FieldError id={errorId("staff")} messages={state.fieldErrors?.staffRequired} />
         </div>
 

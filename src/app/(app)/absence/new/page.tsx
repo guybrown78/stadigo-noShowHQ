@@ -8,6 +8,7 @@ import {
   absenceCancelHref,
   parseAbsenceReturnOrigin,
 } from "@/lib/absence/url";
+import { listActiveReasonLabels } from "@/lib/absence/reasons";
 import { formatStaffName } from "@/lib/staff/display";
 
 export const metadata = { title: "Log Absence" };
@@ -36,6 +37,14 @@ export default async function LogAbsencePage({
         ? "SICKNESS"
         : "CANCELLATION";
   const defaultReportedDate = todayIsoInTimeZone(user.tenantTimezone);
+  const [cancellationReasons, sicknessReasons, tenant] = await Promise.all([
+    listActiveReasonLabels(prisma, user.tenantId, "CANCELLATION"),
+    listActiveReasonLabels(prisma, user.tenantId, "SICKNESS"),
+    prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { shortNoticeHours: true },
+    }),
+  ]);
 
   return (
     <div>
@@ -61,6 +70,9 @@ export default async function LogAbsencePage({
           timeZone={user.tenantTimezone}
           initialStaff={initialStaff}
           cancelHref={cancelHref}
+          cancellationReasons={cancellationReasons}
+          sicknessReasons={sicknessReasons}
+          shortNoticeHours={tenant.shortNoticeHours}
         />
       </div>
     </div>

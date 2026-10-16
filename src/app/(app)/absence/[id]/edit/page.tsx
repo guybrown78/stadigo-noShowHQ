@@ -12,6 +12,7 @@ import {
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
+import { listActiveReasonLabels } from "@/lib/absence/reasons";
 import { formatLocalDateIso } from "@/lib/events/dates";
 
 export const metadata = { title: "Correct absence" };
@@ -52,6 +53,14 @@ export default async function CorrectAbsencePage({
     ? await getEventOptionForAbsence(prisma, user.tenantId, absence.eventId)
     : null;
   const defaultReportedDate = todayIsoInTimeZone(user.tenantTimezone);
+  const [sicknessReasons, cancellationReasons, tenant] = await Promise.all([
+    listActiveReasonLabels(prisma, user.tenantId, "SICKNESS"),
+    listActiveReasonLabels(prisma, user.tenantId, "CANCELLATION"),
+    prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { shortNoticeHours: true },
+    }),
+  ]);
 
   if (absence.type === "AWOL" && absence.awol) {
     return (
@@ -130,6 +139,7 @@ export default async function CorrectAbsencePage({
                   : "",
                 issueSummary: absence.sickness.issueSummary,
               }}
+              reasons={sicknessReasons}
             />
           </CardBody>
         </Card>
@@ -180,6 +190,8 @@ export default async function CorrectAbsencePage({
             reason: absence.reason ?? "",
             notes: absence.notes,
           }}
+          reasons={cancellationReasons}
+          shortNoticeHours={tenant.shortNoticeHours}
         />
         </CardBody>
       </Card>

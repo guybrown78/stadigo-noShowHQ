@@ -11,7 +11,9 @@ import { parseVenueFormData } from "@/lib/events/schema";
 import { withClientValidation } from "@/lib/form";
 
 export type VenueFormInitialValues = {
+  identifier?: string | null;
   name?: string;
+  code?: string | null;
   addressLine1?: string | null;
   townCity?: string | null;
   postcode?: string | null;
@@ -53,6 +55,22 @@ export function VenueForm({
 
       <FormAlert>{state.error}</FormAlert>
 
+      {mode === "edit" && initialValues?.identifier ? (
+        <div>
+          <p className="mb-1 text-sm font-medium text-slate-700">Venue ID</p>
+          <p className="font-mono text-sm text-slate-900">{initialValues.identifier}</p>
+          <p className="mt-1 text-sm text-slate-500">
+            Assigned automatically. Use it in the event template when the venue
+            has no code.
+          </p>
+        </div>
+      ) : mode === "create" ? (
+        <p className="text-sm text-slate-500">
+          Saving assigns a Venue ID such as VEN-1. You can use that ID, the
+          venue name, or an optional code in the event template.
+        </p>
+      ) : null}
+
       <div>
         <label
           htmlFor={`${formId}-name`}
@@ -73,6 +91,31 @@ export function VenueForm({
           className={controlClassName("w-full")}
         />
         <FieldError id={errorId("name")} messages={state.fieldErrors?.name} />
+      </div>
+
+      <div>
+        <label
+          htmlFor={`${formId}-code`}
+          className="mb-1 block text-sm font-medium text-slate-700"
+        >
+          Venue code
+        </label>
+        <input
+          id={`${formId}-code`}
+          name="code"
+          maxLength={20}
+          defaultValue={initialValues?.code ?? ""}
+          aria-invalid={Boolean(state.fieldErrors?.code)}
+          aria-describedby={
+            state.fieldErrors?.code ? errorId("code") : `${formId}-code-hint`
+          }
+          className={controlClassName("w-full sm:max-w-xs")}
+        />
+        <p id={`${formId}-code-hint`} className="mt-1 text-sm text-slate-500">
+          Optional short code, unique in this organisation. Leave it blank if
+          you do not have one. The Venue ID is always available for the import.
+        </p>
+        <FieldError id={errorId("code")} messages={state.fieldErrors?.code} />
       </div>
 
       <div>

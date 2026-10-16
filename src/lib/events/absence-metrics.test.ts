@@ -84,6 +84,21 @@ describe("summariseEventAbsences", () => {
     expect(summary.fillStatus).toBe("critical");
   });
 
+  it("does not calculate a fill rate when staff required is unknown", () => {
+    const summary = summariseEventAbsences({
+      staffRequired: null,
+      warningFillRate: 90,
+      criticalFillRate: 85,
+      absences: [cancellation(0)],
+    });
+    expect(summary.staffingKnown).toBe(false);
+    expect(summary.staffRequired).toBeNull();
+    expect(summary.fillRate).toBeNull();
+    expect(summary.fillStatus).toBeNull();
+    expect(summary.exceedsRequirement).toBe(false);
+    expect(summary.cancellations).toBe(1);
+  });
+
   it("floors the fill rate at zero when absences exceed staff required", () => {
     const summary = summariseEventAbsences({
       staffRequired: 2,

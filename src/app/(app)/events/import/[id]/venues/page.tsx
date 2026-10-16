@@ -8,7 +8,7 @@ import { ConfirmVenuesForm } from "@/components/events/confirm-venues-form";
 import { ImportStepper } from "@/components/events/import-stepper";
 import { formatVenueAddress } from "@/lib/events/display";
 import { EventAccessError } from "@/lib/events/errors";
-import { getImportForTenant } from "@/lib/events/import/queries";
+import { getImportForTenant, parseRowRaw } from "@/lib/events/import/queries";
 
 export const metadata = { title: "Confirm venues" };
 export const maxDuration = 120;
@@ -39,6 +39,19 @@ export default async function ImportVenuesPage({
     redirect(`/events/import/${id}`);
   }
 
+  const savedVenues = await prisma.venue.findMany({
+    where: { tenantId: user.tenantId },
+    select: {
+      id: true,
+      identifier: true,
+      name: true,
+      nameNormalized: true,
+      code: true,
+      active: true,
+    },
+    orderBy: [{ name: "asc" }],
+  });
+  const savedNames = new Set(savedVenues.map((venue) => venue.nameNormalized));
   const newVenues = record.venues.filter(
     (venue) => venue.outcome === EventImportVenueOutcome.NEW,
   );
@@ -46,6 +59,36 @@ export default async function ImportVenuesPage({
     (venue) => venue.outcome === EventImportVenueOutcome.MATCHED,
   );
   const hasNew = newVenues.length > 0;
+  const choiceRows = record.venues.map((venue) => {
+    const typed = [
+      ...new Set(
+        record.rows
+          .filter((row) => row.venueKey === venue.nameNormalized)
+          .map((row) => parseRowRaw(row.raw)["Venue Name"].trim())
+          .filter(Boolean),
+      ),
+    ];
+    const allowNew =
+      venue.outcome !== EventImportVenueOutcome.AMBIGUOUS &&
+      !savedNames.has(venue.nameNormalized);
+    return {
+      id: venue.id,
+      importedName: venue.importedName,
+      typed,
+      address: formatVenueAddress(venue.matchedVenue ?? venue),
+      count: venue.eventRowCount,
+      note:
+        venue.outcome === EventImportVenueOutcome.AMBIGUOUS
+          ? "These rows do not agree. Choose the saved venue to use."
+          : venue.inactiveMatch
+            ? "Currently inactive. Confirming will reuse and reactivate it."
+            : null,
+      defaultChoice: allowNew
+        ? venue.matchedVenueId ?? "new"
+        : venue.matchedVenueId ?? "",
+      allowNew,
+    };
+  });
 
   return (
       <div>
@@ -84,42 +127,14 @@ export default async function ImportVenuesPage({
           <SummaryCard label="Rows with errors" value={record.invalidRows} />
         </dl>
 
-        {hasNew ? (
-          <VenueTable
-            title="New venues to create"
-            empty="No new venues."
-            rows={newVenues.map((venue) => ({
-              id: venue.id,
-              name: venue.importedName,
-              kind: "New venue",
-              address: formatVenueAddress(venue),
-              note: null,
-              count: venue.eventRowCount,
-            }))}
-          />
-        ) : null}
-
-        <VenueTable
-          title="Existing venues matched"
-          empty="No existing venues were matched."
-          rows={matchedVenues.map((venue) => ({
-            id: venue.id,
-            name: venue.matchedVenue?.name ?? venue.importedName,
-            kind: "Existing venue matched",
-            address: formatVenueAddress(venue.matchedVenue ?? venue),
-            note: venue.inactiveMatch
-              ? "Currently inactive. Confirming will reuse and reactivate it."
-              : null,
-            count: venue.eventRowCount,
-          }))}
+        <ConfirmVenuesForm
+          importId={id}
+          rows={choiceRows}
+          venues={savedVenues}
+          newVenueCount={newVenues.length}
+          eventCount={record.validRows}
         />
-
-        <div className="mt-8 flex flex-wrap items-start gap-4">
-          <ConfirmVenuesForm
-            importId={id}
-            newVenueCount={newVenues.length}
-            eventCount={record.validRows}
-          />
+        <div className="mt-4">
           <CancelImportForm importId={id} />
         </div>
       </div>
@@ -137,56 +152,3 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function VenueTable({
-  title,
-  empty,
-  rows,
-}: {
-  title: string;
-  empty: string;
-  rows: {
-    id: string;
-    name: string;
-    kind: string;
-    address: string | null;
-    note: string | null;
-    count: number;
-  }[];
-}) {
-  return (
-    <section className="mt-8">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">{empty}</p>
-      ) : (
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-4 py-3 font-medium">Venue</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Location</th>
-                <th className="px-4 py-3 font-medium">Events</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100 align-top">
-                  <td className="px-4 py-3 text-slate-900">
-                    <div className="font-medium">{row.name}</div>
-                    {row.note ? (
-                      <div className="mt-1 text-xs text-amber-800">{row.note}</div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{row.kind}</td>
-                  <td className="px-4 py-3 text-slate-600">{row.address ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-700">{row.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}

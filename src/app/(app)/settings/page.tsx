@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, ClipboardList, ShieldCheck } from "lucide-react";
+import { Calendar, ClipboardList, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -51,6 +51,26 @@ export default function SettingsPage() {
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
                     Fit note day and chase timing.
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </Link>
+        <Link href="/settings/absence" className="group">
+          <Card className="h-full transition-colors group-hover:border-primary/40">
+            <CardBody>
+              <div className="flex items-start gap-3">
+                <span className="inline-flex size-9 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <SlidersHorizontal className="size-4" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Absence
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Cancellation and sickness reasons, short notice, the pay
+                    period, and the cancellation and AWOL thresholds.
                   </p>
                 </div>
               </div>

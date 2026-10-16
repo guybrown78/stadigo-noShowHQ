@@ -27,10 +27,10 @@ describe("shouldTouchLastActiveAt", () => {
 describe("formatDateTimeDisplay", () => {
   it("formats London wall time without locale-dependent month names", () => {
     expect(formatDateTimeDisplay(new Date("2026-09-06T15:52:00.000Z"))).toBe(
-      "6 Sept 2026, 16:52",
+      "06/09/2026, 16:52",
     );
     expect(formatDateTimeDisplay(new Date("2026-01-01T00:05:00.000Z"))).toBe(
-      "1 Jan 2026, 00:05",
+      "01/01/2026, 00:05",
     );
   });
 });

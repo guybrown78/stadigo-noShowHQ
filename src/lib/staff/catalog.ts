@@ -4,6 +4,7 @@ export const EMPLOYMENT_STATUSES = [
   "CONTACT_REQUIRED",
   "DISABLED",
   "INACTIVE",
+  "LONG_TERM_SICK",
 ] as const;
 
 export const PROBATION_STATUSES = [

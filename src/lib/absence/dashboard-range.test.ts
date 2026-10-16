@@ -96,11 +96,11 @@ describe("dashboard buckets", () => {
     const { grain, buckets } = buildDashboardBuckets("2026-09-01", "2026-09-30");
     expect(grain).toBe("week");
     expect(buckets.map((bucket) => [bucket.fromIso, bucket.toIso, bucket.label])).toEqual([
-      ["2026-09-01", "2026-09-06", "1–6 Sept"],
-      ["2026-09-07", "2026-09-13", "7–13 Sept"],
-      ["2026-09-14", "2026-09-20", "14–20 Sept"],
-      ["2026-09-21", "2026-09-27", "21–27 Sept"],
-      ["2026-09-28", "2026-09-30", "28–30 Sept"],
+      ["2026-09-01", "2026-09-06", "01–06/09"],
+      ["2026-09-07", "2026-09-13", "07–13/09"],
+      ["2026-09-14", "2026-09-20", "14–20/09"],
+      ["2026-09-21", "2026-09-27", "21–27/09"],
+      ["2026-09-28", "2026-09-30", "28–30/09"],
     ]);
   });
 
@@ -111,7 +111,7 @@ describe("dashboard buckets", () => {
       "2026-09-14",
       "2026-09-21",
     ]);
-    expect(buckets[2]?.label).toBe("21 Sept");
+    expect(buckets[2]?.label).toBe("21/09");
   });
 
   it("builds one bucket per day for a short range", () => {
@@ -121,7 +121,7 @@ describe("dashboard buckets", () => {
     expect(buckets[0]).toMatchObject({
       fromIso: "2026-10-01",
       toIso: "2026-10-01",
-      label: "1 Oct",
+      label: "01/10",
     });
   });
 
@@ -129,10 +129,10 @@ describe("dashboard buckets", () => {
     const { grain, buckets } = buildDashboardBuckets("2026-01-15", "2026-04-20");
     expect(grain).toBe("month");
     expect(buckets.map((bucket) => [bucket.fromIso, bucket.toIso, bucket.label])).toEqual([
-      ["2026-01-15", "2026-01-31", "Jan 2026"],
-      ["2026-02-01", "2026-02-28", "Feb 2026"],
-      ["2026-03-01", "2026-03-31", "Mar 2026"],
-      ["2026-04-01", "2026-04-20", "Apr 2026"],
+      ["2026-01-15", "2026-01-31", "01/2026"],
+      ["2026-02-01", "2026-02-28", "02/2026"],
+      ["2026-03-01", "2026-03-31", "03/2026"],
+      ["2026-04-01", "2026-04-20", "04/2026"],
     ]);
   });
 });
@@ -154,14 +154,14 @@ describe("dashboard links and labels", () => {
 
   it("formats a span with the shared calendar style", () => {
     expect(formatDashboardSpan("2026-09-01", "2026-09-30")).toBe(
-      "1 Sept 2026 – 30 Sept 2026",
+      "01/09/2026 – 30/09/2026",
     );
-    expect(formatDashboardSpan("2026-10-08", "2026-10-08")).toBe("8 Oct 2026");
+    expect(formatDashboardSpan("2026-10-08", "2026-10-08")).toBe("08/10/2026");
     expect(formatDashboardSpanCompact("2026-04-06", "2026-07-07")).toBe(
-      "6 Apr – 7 Jul 2026",
+      "06/04 – 07/07/2026",
     );
     expect(formatDashboardSpanCompact("2025-12-28", "2026-01-08")).toBe(
-      "28 Dec 2025 – 8 Jan 2026",
+      "28/12/2025 – 08/01/2026",
     );
   });
 

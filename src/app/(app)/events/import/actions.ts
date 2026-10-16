@@ -88,10 +88,18 @@ export async function confirmImportVenuesAction(
     notFound();
   }
 
+  const choices: Record<string, string> = {};
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("venueChoice-") && typeof value === "string" && value) {
+      choices[key.slice("venueChoice-".length)] = value;
+    }
+  }
+
   try {
     const result = await confirmImportVenues(prisma, {
       tenantId: user.tenantId,
       importId,
+      choices,
     });
     if (!result.ok) {
       return { error: result.error };

@@ -20,7 +20,9 @@ import {
   formatDurationMinutes,
   NOTICE_BASIS_LABELS,
 } from "@/lib/absence/display";
+import { CatalogReasonField } from "@/components/absence/catalog-reason-field";
 import { previewNotice } from "@/lib/absence/notice";
+import { DEFAULT_SHORT_NOTICE_HOURS } from "@/lib/absence/pay-period";
 import type { AbsenceEventOption, AbsenceStaffOption } from "@/lib/absence/queries";
 import {
   parseCancellationFormData,
@@ -110,6 +112,8 @@ export function CancellationForm({
   initialValues,
   hideTypeSelector = false,
   onStaffChange,
+  reasons = [],
+  shortNoticeHours = DEFAULT_SHORT_NOTICE_HOURS,
 }: {
   mode: "create" | "edit";
   absenceId?: string;
@@ -125,6 +129,8 @@ export function CancellationForm({
   };
   hideTypeSelector?: boolean;
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
+  reasons?: { label: string }[];
+  shortNoticeHours?: number;
 }) {
   const action =
     mode === "create" ? createCancellationAction : correctCancellationAction;
@@ -166,6 +172,7 @@ export function CancellationForm({
     eventStartTime: selectedEvent?.startTime,
     reportedDate,
     reportedTime: reportedTime || null,
+    shortNoticeMinutes: shortNoticeHours * 60,
   });
 
   function resetCreateForm() {
@@ -307,18 +314,18 @@ export function CancellationForm({
         <FieldLabel htmlFor={`${formId}-reason`} required>
           Reason for cancellation
         </FieldLabel>
-        <textarea
+        <CatalogReasonField
+          key={formKey}
           id={`${formId}-reason`}
           name="reason"
-          rows={3}
+          reasons={reasons}
           value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          maxLength={1000}
-          aria-invalid={Boolean(state.fieldErrors?.reason)}
-          aria-describedby={
+          onChange={setReason}
+          required
+          invalid={Boolean(state.fieldErrors?.reason)}
+          describedBy={
             state.fieldErrors?.reason ? `${formId}-reason-error` : undefined
           }
-          className={controlClassName("w-full")}
         />
         <FieldError
           id={`${formId}-reason-error`}

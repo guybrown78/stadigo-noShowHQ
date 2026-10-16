@@ -238,6 +238,31 @@ describe("EventForm rejected submission", () => {
     );
   });
 
+  it("submits when staff required is left blank and rejects zero", async () => {
+    renderCreate();
+    fireEvent.change(field(/Event name/), {
+      target: { value: "Sparse event" },
+    });
+    fireEvent.change(field(/Event type/), { target: { value: "type-other" } });
+    fireEvent.change(field(/Event subtype/), { target: { value: "sub-other" } });
+    fireEvent.change(field(/^Venue/), { target: { value: "venue-ap" } });
+    fireEvent.change(field(/Event date/), { target: { value: "2026-10-08" } });
+    fireEvent.change(field(/Staff required/), { target: { value: "0" } });
+    await submitForm();
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain(FORM_CHECK_MESSAGE);
+    });
+    expect(createEventAction).not.toHaveBeenCalled();
+
+    fireEvent.change(field(/Staff required/), { target: { value: "" } });
+    await submitForm();
+    await waitFor(() => {
+      expect(createEventAction).toHaveBeenCalledTimes(1);
+    });
+    const formData = createEventAction.mock.calls[0][1] as FormData;
+    expect(formData.get("staffRequired")).toBe("");
+  });
+
   it("submits the preserved draft once a subtype is selected", async () => {
     renderCreate();
     fillMinimalDraft();

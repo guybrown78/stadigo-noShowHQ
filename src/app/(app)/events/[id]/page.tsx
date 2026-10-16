@@ -11,8 +11,10 @@ import { prisma } from "@/lib/db";
 import {
   formatLocalDateDisplay,
   formatLocalDateIso,
+  formatLondonDateTime,
   formatTimeRange,
 } from "@/lib/events/dates";
+import { formatStaffRequired } from "@/lib/events/display";
 import { EventAccessError } from "@/lib/events/errors";
 import { getEventForTenant } from "@/lib/events/queries";
 
@@ -147,7 +149,7 @@ export default async function EventDetailPage({
         <Detail label="Start / end">
           {timeRange ?? "—"}
         </Detail>
-        <Detail label="Staff required">{event.staffRequired}</Detail>
+        <Detail label="Staff required">{formatStaffRequired(event.staffRequired)}</Detail>
         <Detail label="Fill-rate thresholds">
           Warning {event.warningFillRate}% · Critical {event.criticalFillRate}%
         </Detail>
@@ -158,10 +160,10 @@ export default async function EventDetailPage({
           </dd>
         </div>
         <Detail label="Created">
-          {event.createdAt.toLocaleString("en-GB")}
+          {formatLondonDateTime(event.createdAt)}
         </Detail>
         <Detail label="Last updated">
-          {event.updatedAt.toLocaleString("en-GB")}
+          {formatLondonDateTime(event.updatedAt)}
         </Detail>
       </dl>
 

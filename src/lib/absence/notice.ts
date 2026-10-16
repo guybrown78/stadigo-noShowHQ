@@ -106,6 +106,7 @@ export function calculateNotice(params: {
   eventStartTime: string | null | undefined;
   reportedDate: Date | string;
   reportedTime: string | null | undefined;
+  shortNoticeMinutes?: number;
 }): NoticeCalculation {
   const eventDateIso = dateIso(params.eventDate);
   const reportedDateIso = dateIso(params.reportedDate);
@@ -114,6 +115,7 @@ export function calculateNotice(params: {
     reportedDateIso,
     eventStartTime: params.eventStartTime,
     reportedTime: params.reportedTime,
+    shortNoticeMinutes: params.shortNoticeMinutes,
   });
 }
 
@@ -127,6 +129,7 @@ export function previewNotice(params: {
   eventStartTime: string | null | undefined;
   reportedDate: Date | string | null | undefined;
   reportedTime: string | null | undefined;
+  shortNoticeMinutes?: number;
 }): NoticeCalculation | null {
   if (params.eventDate == null || params.reportedDate == null) {
     return null;
@@ -144,6 +147,7 @@ export function previewNotice(params: {
     reportedDateIso,
     eventStartTime: params.eventStartTime,
     reportedTime: params.reportedTime,
+    shortNoticeMinutes: params.shortNoticeMinutes,
   });
 }
 
@@ -152,6 +156,7 @@ function calculateNoticeFromIso(params: {
   reportedDateIso: string;
   eventStartTime: string | null | undefined;
   reportedTime: string | null | undefined;
+  shortNoticeMinutes?: number;
 }): NoticeCalculation {
   const noticeCalendarDays = calendarDaysBetweenIso(
     params.reportedDateIso,
@@ -177,7 +182,8 @@ function calculateNoticeFromIso(params: {
       noticeCalendarDays,
       noticeMinutes,
       noticeBasis: "EXACT_TIME",
-      isShortNotice: noticeMinutes < SHORT_NOTICE_MINUTES,
+      isShortNotice:
+        noticeMinutes < (params.shortNoticeMinutes ?? SHORT_NOTICE_MINUTES),
       isRetrospective: noticeMinutes < 0,
     };
   }
