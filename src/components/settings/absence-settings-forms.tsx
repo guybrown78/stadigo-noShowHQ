@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { AbsenceReason, AbsenceReasonKind } from "@prisma/client";
 import {
   addAbsenceReasonAction,
+  deleteAbsenceReasonAction,
   moveAbsenceReasonAction,
   updateAbsenceReasonAction,
   updateAttendanceSettingsAction,
@@ -87,7 +88,7 @@ export function AbsenceSettingsForms({
         <CardHeader
           headingId="absence-reasons-heading"
           title="Reasons"
-          description="Cancellation reasons and sickness issues are separate. Other stays available on the forms. The lists start empty."
+          description="Cancellation reasons and sickness issues are separate. Other stays available on the forms. Delete removes a reason from these lists. Absences already saved keep the reason written on them."
         />
         <CardBody className="space-y-6">
           <form action={addAction} className="flex flex-wrap items-end gap-3">
@@ -112,6 +113,39 @@ export function AbsenceSettingsForms({
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+function DeleteReasonButton({ id, label }: { id: string; label: string }) {
+  const [confirming, setConfirming] = useState(false);
+  if (!confirming) {
+    return (
+      <Button
+        type="button"
+        variant="danger"
+        size="sm"
+        onClick={() => setConfirming(true)}
+      >
+        Delete
+      </Button>
+    );
+  }
+  return (
+    <form action={deleteAbsenceReasonAction} className="flex items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <span className="text-sm text-slate-600">Delete {label}?</span>
+      <Button type="submit" variant="danger" size="sm">
+        Delete
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        onClick={() => setConfirming(false)}
+      >
+        Cancel
+      </Button>
+    </form>
   );
 }
 
@@ -185,6 +219,7 @@ function ReasonList({
                   Down
                 </Button>
               </form>
+              <DeleteReasonButton id={reason.id} label={reason.label} />
             </li>
           ))}
         </ul>

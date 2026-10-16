@@ -139,6 +139,20 @@ export async function updateAbsenceReasonAction(
   revalidatePath("/settings/absence");
 }
 
+export async function deleteAbsenceReasonAction(formData: FormData) {
+  const user = await requireTenant();
+  const id = String(formData.get("id") ?? "");
+  if (!id) {
+    return;
+  }
+  await prisma.absenceReason.deleteMany({
+    where: { id, tenantId: user.tenantId },
+  });
+  revalidatePath("/settings/absence");
+  revalidatePath("/absence/new");
+  revalidatePath("/absence", "layout");
+}
+
 export async function moveAbsenceReasonAction(formData: FormData) {
   const user = await requireTenant();
   const id = String(formData.get("id") ?? "");
