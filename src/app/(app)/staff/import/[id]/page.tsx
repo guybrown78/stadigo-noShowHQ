@@ -1,3 +1,4 @@
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { notFound, redirect } from "next/navigation";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
@@ -18,6 +19,9 @@ export default async function ImportStatusPage({
     const record = await getImportSummaryForTenant(prisma, user.tenantId, id);
     redirect(importStatusPath(record.status, record.id));
   } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
     if (error instanceof StaffAccessError) {
       notFound();
     }

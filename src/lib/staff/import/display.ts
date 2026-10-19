@@ -9,6 +9,10 @@ import type {
   ProbationPreview,
 } from "@/lib/staff/import/types";
 
+export function omittedManagerLabel(submittedValue: string): string {
+  return `Not saved. ${submittedValue} could not be matched, so this manager will be empty.`;
+}
+
 export function managerMappingLabel(outcome: ManagerOutcome | null): string {
   if (!outcome || outcome.kind === "none") {
     return "None";

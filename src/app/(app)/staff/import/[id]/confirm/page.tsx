@@ -12,13 +12,16 @@ import {
   clearanceLabel,
   employmentLabel,
   managerMappingLabel,
+  omittedManagerLabel,
   probationSummaryLabel,
 } from "@/lib/staff/import/display";
 import {
   getImportForTenant,
+  importStatusPath,
   listValidImportPreview,
   parseManagerOutcome,
   parseRowNormalized,
+  parseRowRaw,
 } from "@/lib/staff/import/queries";
 import { buildProbationPreview } from "@/lib/staff/import/validate";
 import { importConfirmHref } from "@/lib/staff/url";
@@ -58,7 +61,7 @@ export default async function ImportConfirmPage({
     record.status !== StaffImportStatus.AWAITING_CONFIRMATION &&
     record.status !== StaffImportStatus.FAILED
   ) {
-    redirect(`/staff/import/${id}`);
+    redirect(importStatusPath(record.status, id));
   }
 
   const canRetryFailed =
@@ -86,6 +89,11 @@ export default async function ImportConfirmPage({
   let existingManagers = 0;
   let importedManagers = 0;
   let defaultActive = 0;
+  const omittedManagers: {
+    id: string;
+    staffLabel: string;
+    submittedValue: string;
+  }[] = [];
   const clearanceCounts = new Map<string, number>();
   const probationCounts = {
     TENANT_DEFAULT: 0,
@@ -111,6 +119,14 @@ export default async function ImportConfirmPage({
     const manager = parseManagerOutcome(row.managerOutcome);
     if (manager?.kind === "existing") existingManagers += 1;
     if (manager?.kind === "import") importedManagers += 1;
+    const suppliedManager = parseRowRaw(row.raw)["Manager Staff ID"].trim();
+    if (suppliedManager && (!manager || manager.kind === "none")) {
+      omittedManagers.push({
+        id: row.id,
+        staffLabel: `${normalized.staffIdNumber} ${normalized.firstName} ${normalized.lastName}`,
+        submittedValue: suppliedManager,
+      });
+    }
   }
 
   return (
@@ -135,6 +151,53 @@ export default async function ImportConfirmPage({
         or send communications.
       </p>
       <ImportStepper current="create" />
+
+      {omittedManagers.length > 0 ? (
+        <section
+          className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4"
+          role="alert"
+        >
+          <h2 className="text-sm font-semibold text-amber-950">
+            {omittedManagers.length === 1
+              ? "1 manager reference will not be saved"
+              : `${omittedManagers.length} manager references will not be saved`}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-amber-950">
+            Manager Staff ID is optional. The{" "}
+            {omittedManagers.length === 1 ? "value" : "values"} below could not
+            be matched, so {omittedManagers.length === 1 ? "that" : "those"}{" "}
+            manager {omittedManagers.length === 1 ? "field" : "fields"} will be
+            empty on the staff record. Create the staff without{" "}
+            {omittedManagers.length === 1 ? "it" : "them"}, or cancel and upload
+            a corrected file. You can also add the manager after the staff are
+            created.
+          </p>
+          <div className="mt-3 max-h-64 overflow-auto rounded-md border border-amber-200 bg-white">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-amber-100 bg-amber-50/60 text-amber-950">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Staff</th>
+                  <th className="px-3 py-2 font-medium">Field</th>
+                  <th className="px-3 py-2 font-medium">Submitted value</th>
+                  <th className="px-3 py-2 font-medium">What will be saved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {omittedManagers.map((item) => (
+                  <tr key={item.id} className="border-b border-amber-100">
+                    <td className="px-3 py-2 text-slate-900">{item.staffLabel}</td>
+                    <td className="px-3 py-2 text-slate-700">Manager Staff ID</td>
+                    <td className="px-3 py-2 text-slate-700">
+                      {item.submittedValue}
+                    </td>
+                    <td className="px-3 py-2 text-slate-700">Left blank</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       {repeat ? (
         <p
@@ -230,11 +293,20 @@ export default async function ImportConfirmPage({
             {preview.rows.map((row) => {
               const normalized = parseRowNormalized(row.normalized);
               const manager = parseManagerOutcome(row.managerOutcome);
+              const submittedManager = parseRowRaw(row.raw)["Manager Staff ID"].trim();
+              const managerOmitted = Boolean(
+                submittedManager && (!manager || manager.kind === "none"),
+              );
               const probation = normalized
                 ? buildProbationPreview(normalized, tenantDefaultDays)
                 : null;
               return (
-                <tr key={row.id} className="border-b border-slate-100 align-top">
+                <tr
+                  key={row.id}
+                  className={`border-b border-slate-100 align-top ${
+                    managerOmitted ? "bg-amber-50" : ""
+                  }`}
+                >
                   <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
                     {normalized?.staffIdNumber ?? "—"}
                   </td>
@@ -249,8 +321,16 @@ export default async function ImportConfirmPage({
                   <td className="px-4 py-3 text-slate-700">
                     {normalized?.department ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {managerMappingLabel(manager)}
+                  <td
+                    className={`px-4 py-3 ${
+                      managerOmitted
+                        ? "font-medium text-amber-950"
+                        : "text-slate-700"
+                    }`}
+                  >
+                    {managerOmitted
+                      ? omittedManagerLabel(submittedManager)
+                      : managerMappingLabel(manager)}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {normalized
