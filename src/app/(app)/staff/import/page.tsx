@@ -39,8 +39,9 @@ export default async function ImportStaffStartPage() {
               case-insensitive after extra spaces are removed.
             </li>
             <li>
-              Manager Staff ID must exactly match an existing Staff ID or an ID
-              in the same file. Names are not matched.
+              Manager Staff ID is optional. A matching active Staff ID is
+              linked. If it does not match, it is left blank and you can add
+              the manager after the staff are created. Names are not matched.
             </li>
             <li>
               No staff record is created until the entire file passes checks and

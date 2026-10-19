@@ -226,7 +226,7 @@ describe("staff import validation", () => {
     expect(result.existingManagerMatchCount).toBe(1);
   });
 
-  it("rejects inactive, unknown, self and cyclic managers", async () => {
+  it("leaves inactive, unknown, self and cyclic managers blank", async () => {
     const existing: ExistingStaffForImport[] = [
       {
         id: "mgr-inactive",
@@ -273,12 +273,148 @@ describe("staff import validation", () => {
       existingStaff: existing,
       tenantDefaultDays: 90,
     });
-    expect(result.hasBlockingErrors).toBe(true);
-    expect(result.rows[0]?.fieldErrors.managerStaffId?.[0]).toMatch(/own manager/i);
-    expect(result.rows[1]?.fieldErrors.managerStaffId?.[0]).toMatch(/cycle/i);
-    expect(result.rows[2]?.fieldErrors.managerStaffId?.[0]).toMatch(/cycle/i);
-    expect(result.rows[3]?.fieldErrors.managerStaffId?.[0]).toMatch(/not active/i);
-    expect(result.rows[4]?.fieldErrors.managerStaffId?.[0]).toMatch(/does not match/i);
+    expect(result.hasBlockingErrors).toBe(false);
+    expect(result.validRows).toBe(5);
+    for (const row of result.rows) {
+      expect(row.managerOutcome).toEqual({ kind: "none" });
+      expect(row.normalized?.managerStaffIdNumber).toBeNull();
+      expect(row.fieldErrors.managerStaffId).toBeUndefined();
+    }
+  });
+
+  it("does not cascade a missing manager onto people listed above or below them", async () => {
+    const parsed = await parseImportFile(
+      "staff.csv",
+      csvFromRows([
+        {
+          ...validRow,
+          "Staff ID": "95",
+          "First Name": "John",
+          "Last Name": "Little",
+          "Manager Staff ID": "208",
+        },
+        {
+          ...validRow,
+          "Staff ID": "208",
+          "First Name": "Stephen",
+          "Last Name": "Rowden",
+          "Manager Staff ID": "5821",
+        },
+        {
+          ...validRow,
+          "Staff ID": "899",
+          "First Name": "Johnson",
+          "Last Name": "Oyefuga",
+          "Manager Staff ID": "1457",
+        },
+        {
+          ...validRow,
+          "Staff ID": "1457",
+          "First Name": "Darren",
+          "Last Name": "Betts",
+          "Manager Staff ID": "208",
+        },
+        {
+          ...validRow,
+          "Staff ID": "1202",
+          "First Name": "Kim",
+          "Last Name": "Winchcombe",
+          "Manager Staff ID": "1457",
+        },
+        {
+          ...validRow,
+          "Staff ID": "LEAD",
+          "First Name": "Pat",
+          "Last Name": "Ng",
+          "Start Date": "2026-09-01",
+          "Apply Probation": "Yes",
+          "Probation End Date": "2026-01-01",
+        },
+        {
+          ...validRow,
+          "Staff ID": "REPORT",
+          "First Name": "Sam",
+          "Last Name": "Cole",
+          "Manager Staff ID": "LEAD",
+        },
+        {
+          ...validRow,
+          "Staff ID": "DUP",
+          "First Name": "Ada",
+          "Last Name": "One",
+        },
+        {
+          ...validRow,
+          "Staff ID": "DUP",
+          "First Name": "Ada",
+          "Last Name": "Two",
+        },
+        {
+          ...validRow,
+          "Staff ID": "DUP-REPORT",
+          "First Name": "Bea",
+          "Last Name": "Report",
+          "Manager Staff ID": "DUP",
+        },
+        {
+          ...validRow,
+          "Staff ID": "IDLE",
+          "First Name": "Inactive",
+          "Last Name": "Lead",
+          "Employment Status": "Inactive",
+        },
+        {
+          ...validRow,
+          "Staff ID": "IDLE-REPORT",
+          "First Name": "Casey",
+          "Last Name": "Report",
+          "Manager Staff ID": "IDLE",
+        },
+      ]),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const result = validateImportRows(parsed.rows, {
+      existingStaff: [],
+      tenantDefaultDays: 90,
+    });
+
+    const byId = new Map(
+      result.rows.map((row) => [row.normalized?.staffIdNumber, row]),
+    );
+    expect(byId.get("208")?.status).toBe("VALID");
+    expect(byId.get("208")?.managerOutcome).toEqual({ kind: "none" });
+    expect(byId.get("208")?.normalized?.managerStaffIdNumber).toBeNull();
+    expect(byId.get("208")?.fieldErrors.managerStaffId).toBeUndefined();
+    for (const staffId of ["95", "1457", "899", "1202", "REPORT"]) {
+      expect(byId.get(staffId)?.status).toBe("VALID");
+      expect(byId.get(staffId)?.fieldErrors.managerStaffId).toBeUndefined();
+    }
+    expect(byId.get("95")?.managerOutcome).toMatchObject({
+      kind: "import",
+      staffIdNumber: "208",
+    });
+    expect(byId.get("899")?.managerOutcome).toMatchObject({
+      kind: "import",
+      staffIdNumber: "1457",
+    });
+    expect(byId.get("1202")?.managerOutcome).toMatchObject({
+      kind: "import",
+      staffIdNumber: "1457",
+    });
+    expect(byId.get("LEAD")?.status).toBe("INVALID");
+    expect(byId.get("LEAD")?.fieldErrors.probationEndDate?.[0]).toMatch(
+      /before the start date/i,
+    );
+    expect(byId.get("LEAD")?.fieldErrors.managerStaffId).toBeUndefined();
+    expect(byId.get("REPORT")?.managerOutcome).toMatchObject({
+      kind: "import",
+      staffIdNumber: "LEAD",
+    });
+    expect(byId.get("DUP-REPORT")?.status).toBe("VALID");
+    expect(byId.get("DUP-REPORT")?.managerOutcome).toEqual({ kind: "none" });
+    expect(byId.get("IDLE-REPORT")?.status).toBe("VALID");
+    expect(byId.get("IDLE-REPORT")?.managerOutcome).toEqual({ kind: "none" });
   });
 
   it("requires clearance expiry for VALID and EXPIRED", async () => {

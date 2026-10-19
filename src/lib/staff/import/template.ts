@@ -71,7 +71,7 @@ function writeInstructions(sheet: ExcelJS.Worksheet) {
     "1. Do not rename the header row. Optional columns may be left blank, or left out. Required columns are Staff ID, First Name, Last Name, and Role.",
     "2. Enter one person per row. Leave the Staff sheet blank of examples — examples are on this sheet only.",
     "3. Use Staff IDs consistently. After trimming extra spaces, each ID must be unique in this file and among active staff in your organisation. Matching is case-insensitive.",
-    "4. Manager Staff ID must exactly match an active Staff ID already in NoShowHQ, or a Staff ID on another valid row in this file. Never match by name.",
+    "4. Manager Staff ID is optional. A match to an active Staff ID already in NoShowHQ, or another row in this file with Employment Status Active, is linked. If it does not match, that value is left blank and you can add the manager after the staff are created. Never match by name.",
     "5. Upload the file in NoShowHQ. The system checks every row before anything is created.",
     "6. No staff record is created until the entire file passes checks and you confirm the preview.",
     "",

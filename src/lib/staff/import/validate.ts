@@ -184,7 +184,7 @@ export function validateImportRows(
     }
   }
 
-  resolveManagers(rows, existingByKey);
+  resolveManagers(rows, existingByKey, fileIds);
   detectManagerCycles(rows);
 
   for (const row of rows) {
@@ -383,6 +383,7 @@ function toNormalized(
 function resolveManagers(
   rows: ValidatedImportRow[],
   existingByKey: Map<string, ExistingStaffForImport>,
+  fileIds: Map<string, number[]>,
 ) {
   const importByKey = new Map<
     string,
@@ -411,24 +412,14 @@ function resolveManagers(
     }
     const managerKey = normalizeStaffIdKey(managerId);
     if (managerKey === row.normalized.staffIdNormalized) {
-      addError(
-        row,
-        "managerStaffId",
-        "A staff member cannot be their own manager. Remove the Manager Staff ID or use a different person.",
-      );
-      row.managerOutcome = null;
+      omitManagerReference(row);
       continue;
     }
 
     const existing = existingByKey.get(managerKey);
     if (existing) {
       if (existing.employmentStatus !== "ACTIVE") {
-        addError(
-          row,
-          "managerStaffId",
-          "This Manager Staff ID belongs to a staff member who is not active. Choose an active staff member or a valid row in this file.",
-        );
-        row.managerOutcome = null;
+        omitManagerReference(row);
         continue;
       }
       row.managerOutcome = {
@@ -440,24 +431,15 @@ function resolveManagers(
       continue;
     }
 
+    if ((fileIds.get(managerKey)?.length ?? 0) > 1) {
+      omitManagerReference(row);
+      continue;
+    }
+
     const imported = importByKey.get(managerKey);
     if (imported) {
-      if (imported.row.status !== "VALID") {
-        addError(
-          row,
-          "managerStaffId",
-          "Manager Staff ID must match an active staff member in your organisation or another valid row in this file.",
-        );
-        row.managerOutcome = null;
-        continue;
-      }
       if (imported.normalized.employmentStatus !== "ACTIVE") {
-        addError(
-          row,
-          "managerStaffId",
-          "The manager in this file must have Employment Status ACTIVE.",
-        );
-        row.managerOutcome = null;
+        omitManagerReference(row);
         continue;
       }
       row.managerOutcome = {
@@ -469,13 +451,15 @@ function resolveManagers(
       continue;
     }
 
-    addError(
-      row,
-      "managerStaffId",
-      "No staff member with this Staff ID is active in your organisation, and it does not match another row in this file.",
-    );
-    row.managerOutcome = null;
+    omitManagerReference(row);
   }
+}
+
+function omitManagerReference(row: ValidatedImportRow) {
+  if (row.normalized) {
+    row.normalized.managerStaffIdNumber = null;
+  }
+  row.managerOutcome = { kind: "none" };
 }
 
 function detectManagerCycles(rows: ValidatedImportRow[]) {
@@ -536,11 +520,7 @@ function detectManagerCycles(rows: ValidatedImportRow[]) {
     if (!row || row.status === "IGNORED") {
       continue;
     }
-    addError(
-      row,
-      "managerStaffId",
-      "This Manager Staff ID would create a reporting cycle. Change the manager so nobody reports in a loop.",
-    );
+    omitManagerReference(row);
   }
 }
 
