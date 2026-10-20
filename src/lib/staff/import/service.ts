@@ -8,14 +8,17 @@ import {
 import { DEFAULT_PROBATION_DAYS } from "@/lib/staff/catalog";
 import { StaffAccessError } from "@/lib/staff/errors";
 import {
-  IMPORT_STAFF_BATCH_SIZE,
-  IMPORT_TRANSACTION_TIMEOUT_MS,
+  IMPORT_CREATE_BATCH_SIZE,
+  IMPORT_LINK_BATCH_SIZE,
+  IMPORT_STEP_TIMEOUT_MS,
 } from "@/lib/staff/import/constants";
 import { sanitiseImportFileName, validateImportFileBytes } from "@/lib/staff/import/file";
 import { parseImportFile } from "@/lib/staff/import/parse";
 import {
   getImportForTenant,
   importStatusPath,
+  parseManagerOutcome,
+  parseRowNormalized,
   parseRowRaw,
 } from "@/lib/staff/import/queries";
 import type {
@@ -34,6 +37,32 @@ type DbClient = PrismaClient;
 export type ImportMutationResult =
   | { ok: true; importId: string; href: string; repeatWarning?: boolean }
   | { ok: false; error: string };
+
+export type ImportStepPhase = "create" | "link";
+
+export type ImportStepResult =
+  | {
+      ok: true;
+      done: false;
+      phase: ImportStepPhase;
+      completed: number;
+      total: number;
+    }
+  | { ok: true; done: true; href: string }
+  | {
+      ok: false;
+      error: string;
+      phase: ImportStepPhase;
+      completed: number;
+      total: number;
+    };
+
+export type ImportCreateProgress = {
+  started: boolean;
+  phase: ImportStepPhase;
+  completed: number;
+  total: number;
+};
 
 export async function createImportFromUpload(
   db: DbClient,
@@ -142,12 +171,65 @@ export async function confirmStaffImport(
   db: DbClient,
   params: { tenantId: string; userId: string; importId: string },
 ): Promise<ImportMutationResult> {
+  for (;;) {
+    const step = await advanceStaffImport(db, params);
+    if (!step.ok) {
+      return { ok: false, error: step.error };
+    }
+    if (step.done) {
+      return { ok: true, importId: params.importId, href: step.href };
+    }
+  }
+}
+
+export async function getImportCreateProgress(
+  db: DbClient,
+  tenantId: string,
+  importId: string,
+): Promise<ImportCreateProgress> {
+  const record = await getImportForTenant(db, tenantId, importId);
+  const created = await countCreatedRows(db, tenantId, record.id);
+  if (created < record.validRows) {
+    return {
+      started: created > 0,
+      phase: "create",
+      completed: created,
+      total: record.validRows,
+    };
+  }
+
+  const links = managerLinkProgress(
+    await loadCreatedRowsForLinking(db, tenantId, record.id),
+  );
+  if (links.total === 0 || links.completed >= links.total) {
+    return {
+      started: created > 0,
+      phase: "create",
+      completed: created,
+      total: record.validRows,
+    };
+  }
+  return {
+    started: true,
+    phase: "link",
+    completed: links.completed,
+    total: links.total,
+  };
+}
+
+export async function advanceStaffImport(
+  db: DbClient,
+  params: { tenantId: string; userId: string; importId: string },
+  options?: { createBatchSize?: number; linkBatchSize?: number },
+): Promise<ImportStepResult> {
   const record = await getImportForTenant(db, params.tenantId, params.importId);
+  const createBatchSize = options?.createBatchSize ?? IMPORT_CREATE_BATCH_SIZE;
+  const linkBatchSize = options?.linkBatchSize ?? IMPORT_LINK_BATCH_SIZE;
 
   if (record.status === StaffImportStatus.COMPLETED) {
     return {
       ok: true,
-      importId: record.id,
+      done: true,
       href: `/staff/import/${record.id}/complete`,
     };
   }
@@ -158,124 +240,165 @@ export async function confirmStaffImport(
     return {
       ok: false,
       error: "This import is not ready to create staff.",
-    };
-  }
-  if (
-    record.status === StaffImportStatus.FAILED &&
-    record.createdStaffCount > 0
-  ) {
-    return {
-      ok: false,
-      error:
-        "This import already failed after creating data and cannot be retried safely.",
+      phase: "create",
+      completed: 0,
+      total: record.validRows,
     };
   }
 
-  try {
-    await db.$transaction(
-      async (tx) => {
-        const locked = await lockImport(tx, params.tenantId, params.importId);
-        if (locked.status === StaffImportStatus.COMPLETED) {
-          return;
-        }
-        if (
-          locked.status !== StaffImportStatus.AWAITING_CONFIRMATION &&
-          locked.status !== StaffImportStatus.FAILED
-        ) {
-          throw new Error("Import is not ready to create staff");
-        }
+  const created = await countCreatedRows(db, params.tenantId, record.id);
+  if (created < record.validRows) {
+    if (created === 0) {
+      const previewError = await ensurePreviewStillValid(
+        db,
+        params.tenantId,
+        record.id,
+      );
+      if (previewError) {
+        return {
+          ok: false,
+          error: previewError,
+          phase: "create",
+          completed: 0,
+          total: record.validRows,
+        };
+      }
+    }
 
-        const rows = await tx.staffImportRow.findMany({
-          where: {
-            importId: record.id,
-            tenantId: params.tenantId,
-            status: StaffImportRowStatus.VALID,
-          },
-          orderBy: { sourceRowNumber: "asc" },
-        });
-
-        const existingStaff = await loadExistingStaff(tx, params.tenantId);
-        const tenant = await tx.tenant.findUnique({
-          where: { id: params.tenantId },
-          select: { defaultProbationDays: true },
-        });
-        const tenantDefaultDays =
-          tenant?.defaultProbationDays && tenant.defaultProbationDays > 0
-            ? tenant.defaultProbationDays
-            : DEFAULT_PROBATION_DAYS;
-
-        const parsedRows = rows.map((row) => ({
-          sourceRowNumber: row.sourceRowNumber,
-          raw: parseRowRaw(row.raw),
-          empty: false,
-        }));
-        const revalidated = validateImportRows(parsedRows, {
-          existingStaff,
-          tenantDefaultDays,
-        });
-        if (revalidated.hasBlockingErrors || revalidated.validRows !== rows.length) {
-          throw new Error(
-            "Staff data changed after the preview. Upload a corrected file and check it again.",
-          );
-        }
-
-        const revalidatedByRow = new Map(
-          revalidated.rows
-            .filter((row) => row.status === "VALID")
-            .map((row) => [row.sourceRowNumber, row]),
-        );
-
-        const createdByRowId = new Map<string, string>();
-        const createdByStaffKey = new Map<string, string>();
-        let createdProbationCount = 0;
-
-        for (let index = 0; index < rows.length; index += IMPORT_STAFF_BATCH_SIZE) {
-          const chunk = rows.slice(index, index + IMPORT_STAFF_BATCH_SIZE);
-          for (const row of chunk) {
-            const fresh = revalidatedByRow.get(row.sourceRowNumber);
-            const normalized = fresh?.normalized ?? null;
+    try {
+      await db.$transaction(
+        async (tx) => {
+          const state = await assertImportOpen(tx, params.tenantId, record.id);
+          if (state === "completed") {
+            return;
+          }
+          const batch = await tx.staffImportRow.findMany({
+            where: {
+              importId: record.id,
+              tenantId: params.tenantId,
+              status: StaffImportRowStatus.VALID,
+              createdStaffId: null,
+            },
+            orderBy: { sourceRowNumber: "asc" },
+            take: createBatchSize,
+          });
+          let probationAdded = 0;
+          for (const row of batch) {
+            const normalized = parseRowNormalized(row.normalized);
             if (!normalized) {
               throw new Error("Import row is missing mapping data");
             }
-            const created = await createStaff(tx, {
+            const saved = await createStaff(tx, {
               tenantId: params.tenantId,
               userId: params.userId,
               input: staffInputFromNormalized(normalized),
             });
-            if (!created.ok) {
-              throw new Error(
-                created.fieldErrors
-                  ? Object.values(created.fieldErrors).flat()[0] ?? created.error
-                  : created.error,
-              );
+            if (!saved.ok) {
+              throw new Error(mutationMessage(saved));
             }
-            createdByRowId.set(row.id, created.id);
-            createdByStaffKey.set(normalized.staffIdNormalized, created.id);
+            await tx.staffImportRow.update({
+              where: { id: row.id },
+              data: { createdStaffId: saved.id },
+            });
             if (normalized.applyProbation) {
-              createdProbationCount += 1;
+              probationAdded += 1;
             }
+          }
+          if (batch.length === 0) {
+            return;
+          }
+          await tx.staffImport.update({
+            where: { id: record.id },
+            data: {
+              status: StaffImportStatus.AWAITING_CONFIRMATION,
+              ...(created === 0 ? { confirmedAt: new Date() } : {}),
+              failedAt: null,
+              failureReason: null,
+              createdStaffCount: { increment: batch.length },
+              createdProbationCount: { increment: probationAdded },
+            },
+          });
+        },
+        { timeout: IMPORT_STEP_TIMEOUT_MS },
+      );
+    } catch (error) {
+      return stepFailure(error, "create", created, record.validRows);
+    }
+
+    const completed = await countCreatedRows(db, params.tenantId, record.id);
+    if (completed === created) {
+      return {
+        ok: false,
+        error:
+          "Staff could not be created. You can continue from the people already saved.",
+        phase: "create",
+        completed,
+        total: record.validRows,
+      };
+    }
+    return {
+      ok: true,
+      done: false,
+      phase: "create",
+      completed,
+      total: record.validRows,
+    };
+  }
+
+  const beforeLinks = managerLinkProgress(
+    await loadCreatedRowsForLinking(db, params.tenantId, record.id),
+  );
+
+  try {
+    const finished = await db.$transaction(
+      async (tx) => {
+        const state = await assertImportOpen(tx, params.tenantId, record.id);
+        if (state === "completed") {
+          return true;
+        }
+        const rows = await loadCreatedRowsForLinking(
+          tx,
+          params.tenantId,
+          record.id,
+        );
+        const createdByStaffKey = new Map<string, string>();
+        for (const row of rows) {
+          const normalized = parseRowNormalized(row.normalized);
+          if (normalized && row.createdStaffId) {
+            createdByStaffKey.set(normalized.staffIdNormalized, row.createdStaffId);
           }
         }
+        const pending = rows.filter((row) => {
+          const outcome = parseManagerOutcome(row.managerOutcome);
+          return (
+            outcome &&
+            outcome.kind !== "none" &&
+            !row.createdStaff?.managerStaffId
+          );
+        });
+        if (pending.length === 0) {
+          const now = new Date();
+          await tx.staffImport.update({
+            where: { id: record.id },
+            data: {
+              status: StaffImportStatus.COMPLETED,
+              confirmedAt: record.confirmedAt ?? now,
+              completedAt: now,
+              failedAt: null,
+              failureReason: null,
+              createdStaffCount: created,
+            },
+          });
+          return true;
+        }
 
-        for (const row of rows) {
-          const fresh = revalidatedByRow.get(row.sourceRowNumber);
-          const outcome = (fresh?.managerOutcome ??
-            row.managerOutcome) as ManagerOutcome | null;
-          const createdId = createdByRowId.get(row.id);
-          if (!createdId || !outcome || outcome.kind === "none") {
+        for (const row of pending.slice(0, linkBatchSize)) {
+          const outcome = parseManagerOutcome(row.managerOutcome);
+          const createdId = row.createdStaffId;
+          if (!outcome || outcome.kind === "none" || !createdId) {
             continue;
           }
-          let managerStaffId: string | null = null;
-          if (outcome.kind === "existing") {
-            managerStaffId = outcome.managerStaffId;
-          } else if (outcome.kind === "import") {
-            const managerKey = fresh?.normalized?.managerStaffIdNumber
-              ? normalizeStaffIdKey(fresh.normalized.managerStaffIdNumber)
-              : null;
-            managerStaffId = managerKey
-              ? createdByStaffKey.get(managerKey) ?? null
-              : null;
-          }
+          const managerStaffId = managerIdForOutcome(outcome, createdByStaffKey);
           if (!managerStaffId) {
             throw new Error("A manager mapping is missing after create");
           }
@@ -286,71 +409,47 @@ export async function confirmStaffImport(
             managerStaffId,
           });
           if (!linked.ok) {
-            throw new Error(
-              linked.fieldErrors
-                ? Object.values(linked.fieldErrors).flat()[0] ?? linked.error
-                : linked.error,
-            );
+            throw new Error(mutationMessage(linked));
           }
         }
-
-        const now = new Date();
-        for (const row of rows) {
-          const createdId = createdByRowId.get(row.id);
-          if (!createdId) {
-            throw new Error("A staff row was not created");
-          }
-          await tx.staffImportRow.update({
-            where: { id: row.id },
-            data: { createdStaffId: createdId },
-          });
-        }
-
-        await tx.staffImport.update({
-          where: { id: record.id },
-          data: {
-            status: StaffImportStatus.COMPLETED,
-            confirmedAt: now,
-            completedAt: now,
-            failedAt: null,
-            failureReason: null,
-            createdStaffCount: createdByRowId.size,
-            createdProbationCount,
-          },
-        });
+        return false;
       },
-      { timeout: IMPORT_TRANSACTION_TIMEOUT_MS },
+      { timeout: IMPORT_STEP_TIMEOUT_MS },
     );
-  } catch (error) {
-    if (error instanceof StaffAccessError) {
-      throw error;
+
+    if (finished) {
+      return {
+        ok: true,
+        done: true,
+        href: `/staff/import/${record.id}/complete`,
+      };
     }
-    await db.staffImport.updateMany({
-      where: {
-        id: record.id,
-        tenantId: params.tenantId,
-        status: { not: StaffImportStatus.COMPLETED },
-      },
-      data: {
-        status: StaffImportStatus.FAILED,
-        failedAt: new Date(),
-        failureReason:
-          error instanceof Error
-            ? error.message
-            : "Could not create staff. No staff were kept from this import.",
-      },
-    });
+  } catch (error) {
+    const links = managerLinkProgress(
+      await loadCreatedRowsForLinking(db, params.tenantId, record.id),
+    );
+    return stepFailure(error, "link", links.completed, links.total);
+  }
+
+  const links = managerLinkProgress(
+    await loadCreatedRowsForLinking(db, params.tenantId, record.id),
+  );
+  if (links.completed === beforeLinks.completed) {
     return {
       ok: false,
       error:
-        "Staff could not be created. No imported staff were kept. You can try creating them again, or upload a corrected file.",
+        "Managers could not be added. You can continue from the people already saved.",
+      phase: "link",
+      completed: links.completed,
+      total: links.total,
     };
   }
-
   return {
     ok: true,
-    importId: record.id,
-    href: `/staff/import/${record.id}/complete`,
+    done: false,
+    phase: "link",
+    completed: links.completed,
+    total: links.total,
   };
 }
 
@@ -397,6 +496,164 @@ async function loadExistingStaff(
       employmentStatus: true,
     },
   });
+}
+
+async function countCreatedRows(
+  db: PrismaClient | Prisma.TransactionClient,
+  tenantId: string,
+  importId: string,
+) {
+  return db.staffImportRow.count({
+    where: {
+      importId,
+      tenantId,
+      status: StaffImportRowStatus.VALID,
+      createdStaffId: { not: null },
+    },
+  });
+}
+
+async function loadCreatedRowsForLinking(
+  db: PrismaClient | Prisma.TransactionClient,
+  tenantId: string,
+  importId: string,
+) {
+  return db.staffImportRow.findMany({
+    where: {
+      importId,
+      tenantId,
+      status: StaffImportRowStatus.VALID,
+      createdStaffId: { not: null },
+    },
+    select: {
+      createdStaffId: true,
+      normalized: true,
+      managerOutcome: true,
+      createdStaff: { select: { managerStaffId: true } },
+    },
+  });
+}
+
+function managerLinkProgress(
+  rows: Array<{
+    managerOutcome: Prisma.JsonValue | null;
+    createdStaff: { managerStaffId: string | null } | null;
+  }>,
+) {
+  let total = 0;
+  let completed = 0;
+  for (const row of rows) {
+    const outcome = parseManagerOutcome(row.managerOutcome);
+    if (!outcome || outcome.kind === "none") {
+      continue;
+    }
+    total += 1;
+    if (row.createdStaff?.managerStaffId) {
+      completed += 1;
+    }
+  }
+  return { total, completed };
+}
+
+function managerIdForOutcome(
+  outcome: ManagerOutcome,
+  createdByStaffKey: Map<string, string>,
+) {
+  if (outcome.kind === "existing") {
+    return outcome.managerStaffId;
+  }
+  if (outcome.kind === "import") {
+    return createdByStaffKey.get(normalizeStaffIdKey(outcome.staffIdNumber)) ?? null;
+  }
+  return null;
+}
+
+function mutationMessage(result: {
+  error: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+}) {
+  const fieldMessage = result.fieldErrors
+    ? Object.values(result.fieldErrors).flat().find(Boolean)
+    : undefined;
+  return fieldMessage ?? result.error;
+}
+
+function stepFailure(
+  error: unknown,
+  phase: ImportStepPhase,
+  completed: number,
+  total: number,
+): ImportStepResult {
+  if (error instanceof StaffAccessError) {
+    throw error;
+  }
+  return {
+    ok: false,
+    error:
+      error instanceof Error
+        ? error.message
+        : "Staff could not be created. You can continue from the people already saved.",
+    phase,
+    completed,
+    total,
+  };
+}
+
+async function ensurePreviewStillValid(
+  db: DbClient,
+  tenantId: string,
+  importId: string,
+) {
+  const rows = await db.staffImportRow.findMany({
+    where: {
+      importId,
+      tenantId,
+      status: StaffImportRowStatus.VALID,
+    },
+    orderBy: { sourceRowNumber: "asc" },
+    select: { sourceRowNumber: true, raw: true },
+  });
+  const [existingStaff, tenant] = await Promise.all([
+    loadExistingStaff(db, tenantId),
+    db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { defaultProbationDays: true },
+    }),
+  ]);
+  const tenantDefaultDays =
+    tenant?.defaultProbationDays && tenant.defaultProbationDays > 0
+      ? tenant.defaultProbationDays
+      : DEFAULT_PROBATION_DAYS;
+  const revalidated = validateImportRows(
+    rows.map((row) => ({
+      sourceRowNumber: row.sourceRowNumber,
+      raw: parseRowRaw(row.raw),
+      empty: false,
+    })),
+    { existingStaff, tenantDefaultDays },
+  );
+  if (revalidated.hasBlockingErrors || revalidated.validRows !== rows.length) {
+    return "Staff data changed after the preview. Upload a corrected file and check it again.";
+  }
+  return null;
+}
+
+async function assertImportOpen(
+  db: Prisma.TransactionClient,
+  tenantId: string,
+  importId: string,
+): Promise<"open" | "completed"> {
+  const locked = await lockImport(db, tenantId, importId);
+  if (locked.status === StaffImportStatus.COMPLETED) {
+    return "completed";
+  }
+  if (
+    locked.status !== StaffImportStatus.AWAITING_CONFIRMATION &&
+    locked.status !== StaffImportStatus.FAILED
+  ) {
+    throw new Error("This import is not ready to create staff.");
+  }
+  return "open";
 }
 
 async function lockImport(

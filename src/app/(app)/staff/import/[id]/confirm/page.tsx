@@ -23,6 +23,7 @@ import {
   parseRowNormalized,
   parseRowRaw,
 } from "@/lib/staff/import/queries";
+import { getImportCreateProgress } from "@/lib/staff/import/service";
 import { buildProbationPreview } from "@/lib/staff/import/validate";
 import { importConfirmHref } from "@/lib/staff/url";
 
@@ -64,11 +65,12 @@ export default async function ImportConfirmPage({
     redirect(importStatusPath(record.status, id));
   }
 
-  const canRetryFailed =
-    record.status === StaffImportStatus.FAILED &&
-    record.createdStaffCount === 0;
   const confirmable =
-    record.status === StaffImportStatus.AWAITING_CONFIRMATION || canRetryFailed;
+    record.status === StaffImportStatus.AWAITING_CONFIRMATION ||
+    record.status === StaffImportStatus.FAILED;
+  const progress = confirmable
+    ? await getImportCreateProgress(prisma, user.tenantId, id)
+    : null;
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: user.tenantId },
@@ -209,7 +211,8 @@ export default async function ImportConfirmPage({
         </p>
       ) : null}
 
-      {record.status === StaffImportStatus.FAILED && canRetryFailed ? (
+      {record.status === StaffImportStatus.FAILED &&
+      record.createdStaffCount === 0 ? (
         <p
           className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
           role="alert"
@@ -219,14 +222,14 @@ export default async function ImportConfirmPage({
         </p>
       ) : null}
 
-      {record.status === StaffImportStatus.FAILED && !canRetryFailed ? (
-        <p
-          className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          This import cannot be retried safely. Cancel it and start a new
-          import if you still need to add these staff.
-        </p>
+      {confirmable && progress ? (
+        <div className="sticky top-0 z-10 mt-6 bg-white py-2">
+          <ConfirmStaffImportForm
+            importId={id}
+            staffCount={record.validRows}
+            progress={progress}
+          />
+        </div>
       ) : null}
 
       <dl className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -373,10 +376,7 @@ export default async function ImportConfirmPage({
         </div>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap items-start gap-4">
-        {confirmable ? (
-          <ConfirmStaffImportForm importId={id} staffCount={record.validRows} />
-        ) : null}
+      <div className="mt-8">
         <CancelStaffImportForm importId={id} />
       </div>
     </div>

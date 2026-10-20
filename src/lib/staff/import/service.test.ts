@@ -8,6 +8,7 @@ import {
   getImportSummaryForTenant,
 } from "@/lib/staff/import/queries";
 import {
+  advanceStaffImport,
   confirmStaffImport,
   createImportFromUpload,
 } from "@/lib/staff/import/service";
@@ -435,5 +436,88 @@ describe("staff import service", () => {
         },
       }),
     ).toBe(0);
+  });
+
+  it("resumes a later batch without creating the same staff twice", async () => {
+    const bytes = csvFromRows([
+      validRow(`${prefix}-STEP1`, {
+        "First Name": "Pat",
+        "Last Name": "Ng",
+        Role: "Supervisor",
+      }),
+      validRow(`${prefix}-STEP2`, {
+        "First Name": "Sam",
+        "Last Name": "Cole",
+        "Manager Staff ID": `${prefix}-STEP1`,
+      }),
+    ]);
+    const uploaded = await createImportFromUpload(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      fileName: "steps.csv",
+      bytes,
+    });
+    expect(uploaded.ok).toBe(true);
+    if (!uploaded.ok) return;
+
+    const first = await advanceStaffImport(
+      prisma,
+      {
+        tenantId: tenantA.tenant.id,
+        userId: tenantA.user.id,
+        importId: uploaded.importId,
+      },
+      { createBatchSize: 1 },
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok || first.done) return;
+    expect(first.phase).toBe("create");
+    expect(first.completed).toBe(1);
+    expect(first.total).toBe(2);
+
+    const second = await advanceStaffImport(
+      prisma,
+      {
+        tenantId: tenantA.tenant.id,
+        userId: tenantA.user.id,
+        importId: uploaded.importId,
+      },
+      { createBatchSize: 1 },
+    );
+    expect(second.ok).toBe(true);
+    if (!second.ok || second.done) return;
+    expect(second.phase).toBe("create");
+    expect(second.completed).toBe(2);
+
+    const staffWhere = {
+      tenantId: tenantA.tenant.id,
+      staffIdNormalized: {
+        in: [`${prefix}-step1`.toLowerCase(), `${prefix}-step2`.toLowerCase()],
+      },
+    };
+    expect(await prisma.staff.count({ where: staffWhere })).toBe(2);
+
+    const finished = await confirmStaffImport(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      importId: uploaded.importId,
+    });
+    expect(finished.ok).toBe(true);
+    expect(await prisma.staff.count({ where: staffWhere })).toBe(2);
+
+    const report = await prisma.staff.findFirst({
+      where: {
+        tenantId: tenantA.tenant.id,
+        staffIdNormalized: `${prefix}-step2`.toLowerCase(),
+      },
+      include: { manager: true },
+    });
+    expect(report?.manager?.staffIdNumber).toBe(`${prefix}-STEP1`);
+    const summary = await getImportSummaryForTenant(
+      prisma,
+      tenantA.tenant.id,
+      uploaded.importId,
+    );
+    expect(summary.status).toBe(StaffImportStatus.COMPLETED);
   });
 });

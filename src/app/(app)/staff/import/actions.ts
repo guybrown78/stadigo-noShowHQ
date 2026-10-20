@@ -7,9 +7,10 @@ import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { StaffAccessError } from "@/lib/staff/errors";
 import {
+  advanceStaffImport,
   cancelImport,
-  confirmStaffImport,
   createImportFromUpload,
+  type ImportStepResult,
 } from "@/lib/staff/import/service";
 import { parseImportUploadFormData } from "@/lib/staff/import/upload";
 import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
@@ -77,27 +78,24 @@ export async function uploadImportAction(
   }
 }
 
-export async function confirmImportAction(
-  _prev: ImportActionState,
-  formData: FormData,
-): Promise<ImportActionState> {
+export async function advanceImportAction(
+  importId: string,
+): Promise<ImportStepResult> {
   const user = await requireTenant();
-  const importId = String(formData.get("importId") ?? "");
   if (!importId) {
     notFound();
   }
 
   try {
-    const result = await confirmStaffImport(prisma, {
+    const result = await advanceStaffImport(prisma, {
       tenantId: user.tenantId,
       userId: user.id,
       importId,
     });
-    if (!result.ok) {
-      return { error: result.error };
+    if (result.ok && result.done) {
+      revalidatePath("/staff");
     }
-    revalidatePath("/staff");
-    redirect(result.href);
+    return result;
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -105,7 +103,15 @@ export async function confirmImportAction(
     if (error instanceof StaffAccessError) {
       notFound();
     }
-    throw error;
+    console.error("Staff import step failed", error);
+    return {
+      ok: false,
+      error:
+        "Staff could not be created. You can continue from the people already saved.",
+      phase: "create",
+      completed: 0,
+      total: 0,
+    };
   }
 }
 
