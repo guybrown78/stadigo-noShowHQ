@@ -1,8 +1,9 @@
 export const MAX_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMPORT_DATA_ROWS = 5000;
 export const IMPORT_PREVIEW_PAGE_SIZE = 20;
-export const IMPORT_STAFF_BATCH_SIZE = 100;
-export const IMPORT_TRANSACTION_TIMEOUT_MS = 120_000;
+export const IMPORT_CREATE_BATCH_SIZE = 25;
+export const IMPORT_LINK_BATCH_SIZE = 50;
+export const IMPORT_STEP_TIMEOUT_MS = 30_000;
 
 export const STAFF_SHEET_NAME = "Staff";
 export const INSTRUCTIONS_SHEET_NAME = "Instructions";
