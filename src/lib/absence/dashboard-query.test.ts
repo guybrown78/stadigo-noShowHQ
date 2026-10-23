@@ -289,11 +289,15 @@ beforeAll(async () => {
     venueId: tenantA.northId,
   });
   northCupId = northCup.id;
-  await cancel(tenantA, {
+  const northCupCancellationId = await cancel(tenantA, {
     staffId: tenantA.alexId,
     eventId: northCup.id,
     reportedDate: "2026-07-01",
     reason: "Secret cancellation reason",
+  });
+  await prisma.cancellationDetail.update({
+    where: { absenceId: northCupCancellationId },
+    data: { unauthorised: true },
   });
 
   const northNight = await addEvent(tenantA, {
@@ -364,6 +368,10 @@ beforeAll(async () => {
     },
   });
   if (!archived.ok) throw new Error(archived.error);
+  await prisma.cancellationDetail.update({
+    where: { absenceId: archivedId },
+    data: { unauthorised: true },
+  });
 
   const prevStart = await addEvent(tenantA, {
     name: "Prev Start",
@@ -384,11 +392,15 @@ beforeAll(async () => {
     eventDate: "2026-08-31",
     venueId: tenantA.southId,
   });
-  await cancel(tenantA, {
+  const previousEndId = await cancel(tenantA, {
     staffId: tenantA.jamieId,
     eventId: prevEnd.id,
     reportedDate: "2026-08-31",
     reason: "Previous end",
+  });
+  await prisma.cancellationDetail.update({
+    where: { absenceId: previousEndId },
+    data: { unauthorised: true },
   });
 
   const beforeWindow = await addEvent(tenantA, {
@@ -478,19 +490,22 @@ describe("getAbsenceDashboard", () => {
       CANCELLATION: 2,
       AWOL: 1,
       SICKNESS: 3,
+      UNAUTHORISED: 1,
     });
     expect(overview.previous).toEqual({
       CANCELLATION: 2,
       AWOL: 0,
       SICKNESS: 0,
+      UNAUTHORISED: 1,
     });
     const trend = overview.trend.reduce(
       (totals, bucket) => ({
         CANCELLATION: totals.CANCELLATION + bucket.CANCELLATION,
         AWOL: totals.AWOL + bucket.AWOL,
         SICKNESS: totals.SICKNESS + bucket.SICKNESS,
+        UNAUTHORISED: totals.UNAUTHORISED + bucket.UNAUTHORISED,
       }),
-      { CANCELLATION: 0, AWOL: 0, SICKNESS: 0 },
+      { CANCELLATION: 0, AWOL: 0, SICKNESS: 0, UNAUTHORISED: 0 },
     );
     expect(trend).toEqual(overview.current);
   });
@@ -560,8 +575,10 @@ describe("getAbsenceDashboard", () => {
       CANCELLATION: 1,
       AWOL: 1,
       SICKNESS: 3,
+      UNAUTHORISED: 1,
     });
     expect(north.previous.CANCELLATION).toBe(1);
+    expect(north.previous.UNAUTHORISED).toBe(0);
     expect(north.venues.map((venue) => venue.name)).toEqual(["North Stand"]);
     expect(north.repeats.map((row) => row.lastName)).toEqual(["Patel", "Reed"]);
 
@@ -570,8 +587,10 @@ describe("getAbsenceDashboard", () => {
       CANCELLATION: 1,
       AWOL: 0,
       SICKNESS: 3,
+      UNAUTHORISED: 0,
     });
     expect(south.previous.CANCELLATION).toBe(1);
+    expect(south.previous.UNAUTHORISED).toBe(1);
     expect(south.repeats.map((row) => row.lastName)).toEqual(["Reed"]);
 
     const event = await load({ eventId: northCupId });
@@ -579,6 +598,7 @@ describe("getAbsenceDashboard", () => {
       CANCELLATION: 1,
       AWOL: 0,
       SICKNESS: 3,
+      UNAUTHORISED: 1,
     });
     expect(event.venues).toEqual([]);
     expect(event.events.map((row) => row.name)).toEqual(["North Cup"]);
@@ -639,6 +659,7 @@ describe("getAbsenceDashboard", () => {
       CANCELLATION: 1,
       AWOL: 0,
       SICKNESS: 0,
+      UNAUTHORISED: 0,
     });
     expect(other.repeats).toEqual([]);
   });

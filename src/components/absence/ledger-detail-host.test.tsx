@@ -34,6 +34,7 @@ vi.mock("@/app/(app)/absence/actions", () => ({
   archiveSicknessAction: vi.fn(),
   archiveAwolAction: vi.fn(),
   archiveCancellationAction: vi.fn(),
+  setCancellationUnauthorisedAction: vi.fn(),
   updateSicknessEpisodeAction: vi.fn(),
 }));
 
@@ -152,6 +153,7 @@ function absence(type: AbsenceDetail["type"], text: string): AbsenceDetail {
             noticeCalendarDays: 3,
             noticeBasis: "CALENDAR_DATE",
             isShortNotice: false,
+            unauthorised: false,
           }
         : null,
     awol:

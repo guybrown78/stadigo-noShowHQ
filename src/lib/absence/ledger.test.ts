@@ -1,10 +1,15 @@
 import { Role } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { archiveCancellation, createCancellation } from "@/lib/absence/service";
+import {
+  archiveCancellation,
+  createCancellation,
+  setCancellationUnauthorised,
+} from "@/lib/absence/service";
 import {
   getStaffOptionForAbsence,
   listActiveCancellationsForLedger,
 } from "@/lib/absence/queries";
+import { listAbsencesForLedger } from "@/lib/absence/ledger-query";
 import {
   defaultLedgerListQuery,
   type CancellationInput,
@@ -413,6 +418,46 @@ describe("listActiveCancellationsForLedger", () => {
     );
     expect(other.rows.every((row) => !ids.includes(row.id))).toBe(true);
     expect(other.total).toBe(1);
+  });
+
+  it("returns only cancellations marked unauthorised", async () => {
+    const marked = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: alphaId,
+      unauthorised: true,
+    });
+    expect(marked.ok).toBe(true);
+
+    const list = await listActiveCancellationsForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ unauthorised: true }),
+    );
+    expect(list.rows.map((row) => row.id)).toEqual([alphaId]);
+    expect(list.rows[0]?.type).toBe("CANCELLATION");
+    expect(list.rows[0]?.cancellation?.unauthorised).toBe(true);
+    expect(list.total).toBe(1);
+
+    const all = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "all" }),
+    );
+    const allWithFlag = await listAbsencesForLedger(
+      prisma,
+      tenantA.tenant.id,
+      query({ view: "all", unauthorised: true }),
+    );
+    expect(allWithFlag.total).toBe(all.total);
+
+    const cleared = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: alphaId,
+      unauthorised: false,
+    });
+    expect(cleared.ok).toBe(true);
   });
 
   it("searches staff name, staff ID, event name and reference, not reason", async () => {

@@ -667,6 +667,7 @@ enum AbsenceHistoryAction {
   EVIDENCE_CORRECTED
   RETURN_TO_WORK_RECORDED
   RETURN_TO_WORK_CORRECTED
+  UNAUTHORISED_UPDATED
 }
 
 enum SicknessSelfCertificationStatus {
@@ -788,6 +789,7 @@ model CancellationDetail {
   noticeCalendarDays     Int
   noticeBasis            AbsenceNoticeBasis
   isShortNotice          Boolean
+  unauthorised           Boolean            @default(false)
 
   @@unique([absenceId, tenantId])
   @@index([tenantId])

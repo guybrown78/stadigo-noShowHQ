@@ -8,6 +8,7 @@ export type DashboardTypeCounts = {
   CANCELLATION: number;
   AWOL: number;
   SICKNESS: number;
+  UNAUTHORISED: number;
 };
 
 export type DashboardRepeatRow = {
@@ -67,6 +68,7 @@ type AbsenceFact = {
   venueId: string | null;
   venueName: string | null;
   eventName: string | null;
+  unauthorised: boolean;
 };
 
 type FactRow = {
@@ -80,6 +82,7 @@ type FactRow = {
   venueId: string | null;
   venueName: string | null;
   eventName: string | null;
+  unauthorised: boolean | null;
 };
 
 const NO_VENUE_LABEL = "No venue recorded";
@@ -114,7 +117,8 @@ export async function getAbsenceDashboard(
       ) AS "affectedDate",
       COALESCE(c."venueIdSnapshot", w."venueIdSnapshot") AS "venueId",
       COALESCE(c."venueNameSnapshot", w."venueNameSnapshot") AS "venueName",
-      COALESCE(c."eventNameSnapshot", w."eventNameSnapshot") AS "eventName"
+      COALESCE(c."eventNameSnapshot", w."eventNameSnapshot") AS "eventName",
+      c."unauthorised" AS "unauthorised"
     FROM "Absence" a
     INNER JOIN "Staff" st
       ON st.id = a."staffId"
@@ -242,9 +246,17 @@ function included(
 }
 
 function countTypes(facts: AbsenceFact[]): DashboardTypeCounts {
-  const counts: DashboardTypeCounts = { CANCELLATION: 0, AWOL: 0, SICKNESS: 0 };
+  const counts: DashboardTypeCounts = {
+    CANCELLATION: 0,
+    AWOL: 0,
+    SICKNESS: 0,
+    UNAUTHORISED: 0,
+  };
   for (const fact of facts) {
     counts[fact.type] += 1;
+    if (fact.type === "CANCELLATION" && fact.unauthorised) {
+      counts.UNAUTHORISED += 1;
+    }
   }
   return counts;
 }
@@ -352,6 +364,7 @@ function toFact(row: FactRow): AbsenceFact | null {
     venueId: row.venueId,
     venueName: row.venueName,
     eventName: row.eventName,
+    unauthorised: row.unauthorised === true,
   };
 }
 

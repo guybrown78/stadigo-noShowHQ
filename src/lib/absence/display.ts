@@ -183,6 +183,7 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   EVIDENCE_CORRECTED: "Evidence corrected",
   RETURN_TO_WORK_RECORDED: "Return to work recorded",
   RETURN_TO_WORK_CORRECTED: "Return to work corrected",
+  UNAUTHORISED_UPDATED: "Unauthorised mark updated",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -199,6 +200,7 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     EVIDENCE_CORRECTED: "Evidence corrected",
     RETURN_TO_WORK_RECORDED: "Return to work recorded",
     RETURN_TO_WORK_CORRECTED: "Return to work corrected",
+    UNAUTHORISED_UPDATED: "Unauthorised mark updated",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -212,6 +214,7 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   noticeMinutes: "Notice (minutes)",
   noticeBasis: "Notice basis",
   isShortNotice: "Short notice",
+  unauthorised: "Unauthorised",
   eventNameSnapshot: "Event name snapshot",
   eventDateSnapshot: "Event date snapshot",
   eventStartTimeSnapshot: "Event start time snapshot",
@@ -361,7 +364,11 @@ export function formatHistoryValue(field: string, value: string | null): string 
       return formatLocalDateDisplay(date);
     }
   }
-  if (field === "isShortNotice" || field === "sameDayStartUnknownConfirmed") {
+  if (
+    field === "isShortNotice" ||
+    field === "sameDayStartUnknownConfirmed" ||
+    field === "unauthorised"
+  ) {
     return value === "true" ? "Yes" : "No";
   }
   if (field === "noticeBasis") {

@@ -10,6 +10,15 @@ const TYPES = [
     view: "cancellations" as const,
     bar: "bg-cancel",
     filtered: true,
+    unauthorised: false,
+  },
+  {
+    key: "UNAUTHORISED" as const,
+    label: "Unauthorised",
+    view: "cancellations" as const,
+    bar: "bg-slate-800",
+    filtered: true,
+    unauthorised: true,
   },
   {
     key: "AWOL" as const,
@@ -17,6 +26,7 @@ const TYPES = [
     view: "awol" as const,
     bar: "bg-awol",
     filtered: true,
+    unauthorised: false,
   },
   {
     key: "SICKNESS" as const,
@@ -24,6 +34,7 @@ const TYPES = [
     view: "sickness" as const,
     bar: "bg-sickness",
     filtered: false,
+    unauthorised: false,
   },
 ];
 
@@ -58,7 +69,7 @@ export function AbsenceTotals({
       <h2 id="absence-totals-heading" className="sr-only">
         Absence totals
       </h2>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {TYPES.map((type) => (
           <li key={type.key}>
             <Link
@@ -67,6 +78,7 @@ export function AbsenceTotals({
                 affectedFrom: fromIso,
                 affectedTo: toIso,
                 venue: type.filtered ? venueId : "",
+                unauthorised: type.unauthorised,
               })}
               className="group block h-full"
             >
@@ -86,6 +98,11 @@ export function AbsenceTotals({
                     </span>
                     <span className="mt-0.5 block text-slate-500">{previousLabel}</span>
                   </p>
+                  {type.key === "UNAUTHORISED" ? (
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Cancellations marked unauthorised.
+                    </p>
+                  ) : null}
                   {type.key === "SICKNESS" && selectionActive ? (
                     <p className="mt-2 text-xs leading-5 text-slate-500">
                       Sickness is not recorded against a venue or event, so

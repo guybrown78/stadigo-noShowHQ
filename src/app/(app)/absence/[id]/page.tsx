@@ -41,6 +41,7 @@ export default async function AbsenceDetailPage({
     followUp?: string;
     evidence?: string;
     returnToWork?: string;
+    unauthorised?: string;
   }>;
 }) {
   const user = await requireTenant();

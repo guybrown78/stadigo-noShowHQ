@@ -915,6 +915,13 @@ function optionalLedgerPage(value: unknown): number {
   return raw;
 }
 
+function optionalUnauthorised(view: LedgerView, value: unknown): boolean {
+  if (view !== "cancellations") {
+    return false;
+  }
+  return value === "1" || value === 1 || value === true;
+}
+
 function optionalEvidenceStatus(view: LedgerView, value: unknown): string {
   if (view !== "sickness" || typeof value !== "string") {
     return "";
@@ -954,6 +961,7 @@ export const ledgerListQuerySchema = z.object({
   view: z.enum(LEDGER_VIEWS),
   detail: z.string(),
   evidenceStatus: z.string(),
+  unauthorised: z.boolean(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -979,6 +987,7 @@ export const defaultLedgerListQuery = (
   view,
   detail: "",
   evidenceStatus: "",
+  unauthorised: false,
 });
 
 export function parseLedgerListQuery(raw: {
@@ -1000,6 +1009,7 @@ export function parseLedgerListQuery(raw: {
   view?: string;
   detail?: string;
   evidenceStatus?: string;
+  unauthorised?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
   const eventFiltersApply = ledgerShowsEventFilters(view);
@@ -1031,6 +1041,7 @@ export function parseLedgerListQuery(raw: {
     view,
     detail: optionalLedgerDetail(raw.detail),
     evidenceStatus: optionalEvidenceStatus(view, raw.evidenceStatus),
+    unauthorised: optionalUnauthorised(view, raw.unauthorised),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
@@ -1085,7 +1096,8 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
         (query.reportedFrom || query.reportedTo)) ||
       (!isLedgerAffectedDateRangeInvalid(query) &&
         (affectedFrom || affectedTo)) ||
-      (query.view === "sickness" && Boolean(query.evidenceStatus)),
+      (query.view === "sickness" && Boolean(query.evidenceStatus)) ||
+      (query.view === "cancellations" && query.unauthorised),
   );
 }
 
