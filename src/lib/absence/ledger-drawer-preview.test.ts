@@ -94,6 +94,7 @@ describe("toLedgerDrawerPreview", () => {
           noticeCalendarDays: 3,
           noticeBasis: "CALENDAR_DATE",
           isShortNotice: false,
+          unauthorised: false,
         },
       }),
     );

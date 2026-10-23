@@ -57,6 +57,9 @@ export function ledgerListHref(
   if (view === "sickness" && merged.evidenceStatus) {
     params.set("evidenceStatus", merged.evidenceStatus);
   }
+  if (view === "cancellations" && merged.unauthorised) {
+    params.set("unauthorised", "1");
+  }
 
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";

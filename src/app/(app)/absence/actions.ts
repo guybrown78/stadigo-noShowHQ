@@ -28,6 +28,7 @@ import {
   archiveAwol,
   archiveCancellation,
   archiveSickness,
+  setCancellationUnauthorised,
   correctAwol,
   correctCancellation,
   correctSickness,
@@ -105,6 +106,17 @@ function redirectAfterEpisodeUpdate(
   redirect(`/absence/${absenceId}?episodeUpdated=1`);
 }
 
+function redirectAfterUnauthorised(
+  absenceId: string,
+  formData: FormData,
+): never {
+  const returnTo = safeLedgerReturnTo(formData.get("returnTo"));
+  if (returnTo) {
+    redirect(returnTo);
+  }
+  redirect(`/absence/${absenceId}?unauthorised=1`);
+}
+
 export async function createCancellationAction(
   _prev: AbsenceActionState,
   formData: FormData,
@@ -172,6 +184,51 @@ export async function correctCancellationAction(
 
     revalidateAbsence(result.id, parsed.data.staffId);
     redirect(`/absence/${result.id}?updated=1`);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function setCancellationUnauthorisedAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const absenceId = String(formData.get("absenceId") ?? "");
+  if (!absenceId) {
+    notFound();
+  }
+  const requested = formData.get("unauthorised");
+  if (requested !== "0" && requested !== "1") {
+    return { error: FORM_CHECK_MESSAGE };
+  }
+
+  try {
+    const existing = await prisma.absence.findFirst({
+      where: { id: absenceId, tenantId: user.tenantId },
+      select: { staffId: true },
+    });
+    const result = await setCancellationUnauthorised(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId,
+      unauthorised: requested === "1",
+    });
+
+    if (!result.ok) {
+      return { error: result.error };
+    }
+
+    revalidatePath(`/absence/${result.id}`);
+    revalidatePath("/ledger");
+    revalidatePath("/dashboard");
+    if (existing?.staffId) {
+      revalidatePath(`/staff/${existing.staffId}`);
+    }
+    redirectAfterUnauthorised(result.id, formData);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();

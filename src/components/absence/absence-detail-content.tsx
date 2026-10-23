@@ -5,6 +5,7 @@ import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dia
 import { EvidenceSection } from "@/components/absence/evidence-section";
 import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
+import { UnauthorisedCancellationBox } from "@/components/absence/unauthorised-cancellation-box";
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { Banner } from "@/components/ui/banner";
@@ -53,6 +54,7 @@ export type AbsenceDetailFlash = {
   followUp?: string;
   evidence?: string;
   returnToWork?: string;
+  unauthorised?: string;
 };
 
 function Detail({
@@ -317,6 +319,11 @@ function FlashBanners({
           Return to work saved.
         </Banner>
       ) : null}
+      {flash.unauthorised === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Unauthorised mark updated.
+        </Banner>
+      ) : null}
       {flash.archived === "1" ? (
         <Banner tone="success" className="mt-4">
           {archivedFlash}
@@ -458,11 +465,24 @@ function EventOutcomeNote({ event }: { event: AbsenceDetail["event"] }) {
   return null;
 }
 
-function CancellationFields({ absence }: { absence: AbsenceDetail }) {
+function CancellationFields({
+  absence,
+  returnTo,
+}: {
+  absence: AbsenceDetail;
+  returnTo?: string;
+}) {
   const detail = absence.cancellation!;
   const archived = absence.recordStatus === "ARCHIVED";
   return (
-    <dl className="grid gap-6 sm:grid-cols-2">
+    <div>
+      <UnauthorisedCancellationBox
+        absenceId={absence.id}
+        unauthorised={detail.unauthorised}
+        archived={archived}
+        returnTo={returnTo}
+      />
+      <dl className="mt-6 grid gap-6 sm:grid-cols-2">
       <StaffEventHeader
         absence={absence}
         eventName={detail.eventNameSnapshot}
@@ -509,7 +529,8 @@ function CancellationFields({ absence }: { absence: AbsenceDetail }) {
       </div>
       <InternalNotesDetail notes={absence.notes} />
       <MetaDetails absence={absence} archived={archived} />
-    </dl>
+      </dl>
+    </div>
   );
 }
 
@@ -689,14 +710,25 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
   );
 }
 
-function TypeFields({ absence }: { absence: AbsenceDetail }) {
+function TypeFields({
+  absence,
+  unauthorisedReturnTo,
+}: {
+  absence: AbsenceDetail;
+  unauthorisedReturnTo?: string;
+}) {
   if (absence.type === "AWOL" && absence.awol) {
     return <AwolFields absence={absence} />;
   }
   if (absence.type === "SICKNESS" && absence.sickness) {
     return <SicknessFields absence={absence} />;
   }
-  return <CancellationFields absence={absence} />;
+  return (
+    <CancellationFields
+      absence={absence}
+      returnTo={unauthorisedReturnTo}
+    />
+  );
 }
 
 function DrawerHeader({
@@ -759,6 +791,7 @@ export function AbsenceDetailContent({
   followUpReturnTo,
   evidenceReturnTo,
   returnToWorkReturnTo,
+  unauthorisedReturnTo,
   timeZone,
   todayIso,
 }: {
@@ -771,6 +804,7 @@ export function AbsenceDetailContent({
   followUpReturnTo?: string;
   evidenceReturnTo?: string;
   returnToWorkReturnTo?: string;
+  unauthorisedReturnTo?: string;
   timeZone?: string;
   todayIso?: string;
 }) {
@@ -791,7 +825,10 @@ export function AbsenceDetailContent({
         />
         <FlashBanners type={absence.type} flash={flash} archived={archived} />
         <div className="mt-4">
-          <TypeFields absence={absence} />
+          <TypeFields
+            absence={absence}
+            unauthorisedReturnTo={unauthorisedReturnTo}
+          />
         </div>
         <EvidenceSection
           absence={absence}
@@ -890,7 +927,10 @@ export function AbsenceDetailContent({
       />
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
       <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <TypeFields absence={absence} />
+        <TypeFields
+          absence={absence}
+          unauthorisedReturnTo={unauthorisedReturnTo}
+        />
       </div>
       <EvidenceSection
         absence={absence}

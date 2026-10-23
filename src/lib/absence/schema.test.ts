@@ -180,6 +180,22 @@ describe("ledgerListQuerySchema", () => {
     expect(cancellations.view).toBe("cancellations");
     expect(cancellations.sort).toBe("reported");
 
+    const unauthorised = parseLedgerListQuery({
+      view: "cancellations",
+      unauthorised: "1",
+    });
+    expect(unauthorised.unauthorised).toBe(true);
+    expect(ledgerHasActiveFilters(unauthorised)).toBe(true);
+    expect(ledgerListHref(unauthorised)).toBe(
+      "/ledger?view=cancellations&unauthorised=1",
+    );
+    expect(
+      parseLedgerListQuery({ view: "all", unauthorised: "1" }).unauthorised,
+    ).toBe(false);
+    expect(
+      parseLedgerListQuery({ view: "awol", unauthorised: "1" }).unauthorised,
+    ).toBe(false);
+
     const awol = parseLedgerListQuery({ view: "awol" });
     expect(awol.view).toBe("awol");
     expect(awol.sort).toBe("eventDate");

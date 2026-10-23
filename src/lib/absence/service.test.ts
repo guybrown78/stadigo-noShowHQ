@@ -3,7 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   archiveCancellation,
   correctCancellation,
+  createAwol,
   createCancellation,
+  createSickness,
+  setCancellationUnauthorised,
 } from "@/lib/absence/service";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
@@ -12,7 +15,7 @@ import {
   searchEventsForAbsence,
   searchStaffForAbsence,
 } from "@/lib/absence/queries";
-import type { CancellationInput } from "@/lib/absence/schema";
+import type { AwolInput, CancellationInput, SicknessInput } from "@/lib/absence/schema";
 import { prisma } from "@/lib/db";
 import { provisionTenantEventCatalog } from "@/lib/events/provision";
 import type { EventInput } from "@/lib/events/schema";
@@ -695,5 +698,253 @@ describe("absence cancellation service", () => {
     if (!staff.ok) return;
     const hits = await searchStaffForAbsence(prisma, tenantA.tenant.id, "Inactive");
     expect(hits.some((row) => row.id === staff.id)).toBe(true);
+  });
+
+  it("marks and clears an active cancellation without changing its type", async () => {
+    const event = await createEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        name: "Unauthorised event",
+        reference: "UA-1",
+        eventTypeId: tenantA.typeId,
+        eventSubtypeId: tenantA.subtypeId,
+        venueId: tenantA.venueId,
+        newVenueName: null,
+        newVenueAddressLine1: null,
+        newVenueTownCity: null,
+        newVenuePostcode: null,
+        eventDate: "2026-11-04",
+        briefingTime: null,
+        startTime: "14:00",
+        endTime: null,
+        endsNextDay: false,
+        staffRequired: 4,
+        warningFillRate: 90,
+        criticalFillRate: 85,
+        status: "PLANNED",
+        notes: null,
+      },
+    });
+    expect(event.ok).toBe(true);
+    if (!event.ok) return;
+    const created = await createCancellation(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor(tenantA, { eventId: event.id, reportedDate: "2026-11-02" }),
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const marked = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      unauthorised: true,
+    });
+    expect(marked.ok).toBe(true);
+
+    const afterMark = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(afterMark.type).toBe("CANCELLATION");
+    expect(afterMark.cancellation?.unauthorised).toBe(true);
+    expect(afterMark.updatedById).toBe(tenantA.user.id);
+    const markedHistory = afterMark.history.filter(
+      (entry) => entry.action === "UNAUTHORISED_UPDATED",
+    );
+    expect(markedHistory).toHaveLength(1);
+    expect(markedHistory[0]?.changes).toEqual([
+      { field: "unauthorised", previous: "false", next: "true" },
+    ]);
+
+    const repeated = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      unauthorised: true,
+    });
+    expect(repeated.ok).toBe(true);
+    const stillMarked = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(
+      stillMarked.history.filter((entry) => entry.action === "UNAUTHORISED_UPDATED"),
+    ).toHaveLength(1);
+
+    const cleared = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: created.id,
+      unauthorised: false,
+    });
+    expect(cleared.ok).toBe(true);
+    const afterClear = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      created.id,
+    );
+    expect(afterClear.type).toBe("CANCELLATION");
+    expect(afterClear.cancellation?.unauthorised).toBe(false);
+    expect(
+      afterClear.history.filter((entry) => entry.action === "UNAUTHORISED_UPDATED"),
+    ).toHaveLength(2);
+  });
+
+  it("rejects an unauthorised mark on archived, AWOL, sickness, and other-tenant records", async () => {
+    const event = await createEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        name: "Reject unauthorised event",
+        reference: "UA-2",
+        eventTypeId: tenantA.typeId,
+        eventSubtypeId: tenantA.subtypeId,
+        venueId: tenantA.venueId,
+        newVenueName: null,
+        newVenueAddressLine1: null,
+        newVenueTownCity: null,
+        newVenuePostcode: null,
+        eventDate: "2026-11-06",
+        briefingTime: null,
+        startTime: "14:00",
+        endTime: null,
+        endsNextDay: false,
+        staffRequired: 4,
+        warningFillRate: 90,
+        criticalFillRate: 85,
+        status: "PLANNED",
+        notes: null,
+      },
+    });
+    expect(event.ok).toBe(true);
+    if (!event.ok) return;
+
+    const archivedCancellation = await createCancellation(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: inputFor(tenantA, { eventId: event.id, reportedDate: "2026-11-04" }),
+    });
+    expect(archivedCancellation.ok).toBe(true);
+    if (!archivedCancellation.ok) return;
+    const archived = await archiveCancellation(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: archivedCancellation.id,
+      input: {
+        archiveReason: "Logged against the wrong event",
+        confirmArchive: true,
+      },
+    });
+    expect(archived.ok).toBe(true);
+    const archivedMark = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: archivedCancellation.id,
+      unauthorised: true,
+    });
+    expect(archivedMark).toEqual({
+      ok: false,
+      error: "Archived cancellations cannot be marked unauthorised.",
+    });
+
+    const awolEvent = await createEvent(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        name: "Reject AWOL event",
+        reference: "UA-3",
+        eventTypeId: tenantA.typeId,
+        eventSubtypeId: tenantA.subtypeId,
+        venueId: tenantA.venueId,
+        newVenueName: null,
+        newVenueAddressLine1: null,
+        newVenueTownCity: null,
+        newVenuePostcode: null,
+        eventDate: "2026-11-08",
+        briefingTime: null,
+        startTime: "14:00",
+        endTime: null,
+        endsNextDay: false,
+        staffRequired: 4,
+        warningFillRate: 90,
+        criticalFillRate: 85,
+        status: "PLANNED",
+        notes: null,
+      },
+    });
+    expect(awolEvent.ok).toBe(true);
+    if (!awolEvent.ok) return;
+    const awolInput: AwolInput = {
+      type: "AWOL",
+      staffId: tenantA.staffId,
+      eventId: awolEvent.id,
+      reportedDate: "2026-11-08",
+      notes: null,
+      sameDayStartUnknownConfirmed: false,
+      idempotencyKey: "unauth-awol-key",
+    };
+    const awol = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: awolInput,
+      now: new Date("2026-11-09T12:00:00.000Z"),
+    });
+    expect(awol.ok).toBe(true);
+    if (!awol.ok) return;
+    const awolMark = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: awol.id,
+      unauthorised: true,
+    });
+    expect(awolMark).toEqual({
+      ok: false,
+      error: "Only a cancellation can be marked unauthorised.",
+    });
+
+    const sicknessInput: SicknessInput = {
+      type: "SICKNESS",
+      staffId: tenantA.staffId,
+      reportedDate: "2026-06-02",
+      firstWorkingDaySick: "2026-06-02",
+      sicknessStartedDate: null,
+      issueSummary: null,
+      futureFirstWorkingDayConfirmed: false,
+      episodeState: "NOT_CONFIRMED",
+      sicknessEndedDate: null,
+      idempotencyKey: "unauth-sick-key",
+    };
+    const sickness = await createSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: sicknessInput,
+      now: new Date("2026-11-09T12:00:00.000Z"),
+    });
+    expect(sickness.ok).toBe(true);
+    if (!sickness.ok) return;
+    const sicknessMark = await setCancellationUnauthorised(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: sickness.id,
+      unauthorised: true,
+    });
+    expect(sicknessMark).toEqual({
+      ok: false,
+      error: "Only a cancellation can be marked unauthorised.",
+    });
+
+    await expect(
+      setCancellationUnauthorised(prisma, {
+        tenantId: tenantB.tenant.id,
+        userId: tenantB.user.id,
+        absenceId: archivedCancellation.id,
+        unauthorised: true,
+      }),
+    ).rejects.toBeInstanceOf(AbsenceAccessError);
   });
 });

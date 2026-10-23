@@ -202,6 +202,11 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
           {formatNoticeSummary(detail)}
         </p>
         <NoticeWarningBadges detail={detail} />
+        {detail.unauthorised ? (
+          <span className="mt-1 flex flex-wrap gap-1">
+            <Badge tone="warning">Unauthorised</Badge>
+          </span>
+        ) : null}
       </div>
     );
   }
@@ -335,6 +340,7 @@ export default async function LedgerPage({
     view: first(raw.view),
     detail: first(raw.detail),
     evidenceStatus: first(raw.evidenceStatus),
+    unauthorised: first(raw.unauthorised),
   });
 
   if (
@@ -421,6 +427,7 @@ export default async function LedgerPage({
         followUp: first(raw.followUp),
         evidence: first(raw.evidence),
         returnToWork: first(raw.returnToWork),
+        unauthorised: first(raw.unauthorised),
       }}
     >
       <div>
@@ -627,6 +634,24 @@ export default async function LedgerPage({
               Show archived
             </label>
           </div>
+          {query.view === "cancellations" ? (
+            <div className="flex min-w-[9.5rem] flex-1 items-end pb-1">
+              <label
+                htmlFor="ledger-unauthorised"
+                className="flex items-center gap-2 text-sm text-slate-700"
+              >
+                <input
+                  id="ledger-unauthorised"
+                  name="unauthorised"
+                  type="checkbox"
+                  value="1"
+                  defaultChecked={query.unauthorised}
+                  className="size-4 rounded border-slate-300"
+                />
+                Unauthorised only
+              </label>
+            </div>
+          ) : null}
         </FilterBar>
         {query.view === "all" && showEventFilters ? (
           <p className="mt-2 max-w-3xl text-xs text-slate-500">

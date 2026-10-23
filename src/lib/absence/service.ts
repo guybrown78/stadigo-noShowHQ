@@ -750,6 +750,66 @@ export async function archiveCancellation(
   });
 }
 
+const ARCHIVED_CANNOT_MARK_UNAUTHORISED =
+  "Archived cancellations cannot be marked unauthorised.";
+const ONLY_CANCELLATION_CAN_BE_UNAUTHORISED =
+  "Only a cancellation can be marked unauthorised.";
+
+export async function setCancellationUnauthorised(
+  db: PrismaClient,
+  params: {
+    tenantId: string;
+    userId: string;
+    absenceId: string;
+    unauthorised: boolean;
+  },
+): Promise<AbsenceMutationResult> {
+  return db.$transaction(async (tx) => {
+    const existing = await tx.absence.findFirst({
+      where: { id: params.absenceId, tenantId: params.tenantId },
+      include: { cancellation: true },
+    });
+    if (!existing) {
+      throw new AbsenceAccessError();
+    }
+    if (existing.recordStatus === "ARCHIVED") {
+      return { ok: false, error: ARCHIVED_CANNOT_MARK_UNAUTHORISED };
+    }
+    if (existing.type !== "CANCELLATION" || !existing.cancellation) {
+      return { ok: false, error: ONLY_CANCELLATION_CAN_BE_UNAUTHORISED };
+    }
+    if (existing.cancellation.unauthorised === params.unauthorised) {
+      return { ok: true, id: existing.id };
+    }
+
+    await tx.absence.update({
+      where: { id: existing.id },
+      data: {
+        updatedById: params.userId,
+        cancellation: {
+          update: { unauthorised: params.unauthorised },
+        },
+      },
+    });
+
+    await writeAbsenceHistory(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
+      action: "UNAUTHORISED_UPDATED",
+      actedById: params.userId,
+      changes: [
+        {
+          field: "unauthorised",
+          previous: String(existing.cancellation.unauthorised),
+          next: String(params.unauthorised),
+        },
+      ],
+    });
+
+    return { ok: true, id: existing.id };
+  });
+}
+
 function awolSnapshot(
   event: LoadedEvent,
   sameDayStartUnknownConfirmed: boolean,

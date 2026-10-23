@@ -371,6 +371,11 @@ export function LedgerDetailHost({
             "returnToWork",
             "1",
           )}
+          unauthorisedReturnTo={withParam(
+            detailHref(listHref, shownId),
+            "unauthorised",
+            "1",
+          )}
           timeZone={loadedForShown.timeZone}
           todayIso={loadedForShown.todayIso}
         />

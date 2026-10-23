@@ -63,6 +63,7 @@ const ledgerListSelect = {
       noticeCalendarDays: true,
       noticeBasis: true,
       isShortNotice: true,
+      unauthorised: true,
     },
   },
   awol: {
@@ -346,6 +347,11 @@ function ledgerWhereSql(
       ${
         applyFilters
           ? ledgerEvidenceSql(query, options.today ?? null)
+          : Prisma.empty
+      }
+      ${
+        applyFilters && query.view === "cancellations" && query.unauthorised
+          ? Prisma.sql`AND c."unauthorised" = true`
           : Prisma.empty
       }
   `;
