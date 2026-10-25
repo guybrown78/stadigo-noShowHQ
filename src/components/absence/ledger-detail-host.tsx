@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { SquareArrowOutUpRight } from "lucide-react";
@@ -253,6 +254,7 @@ export function LedgerDetailHost({
   const [displayId, setDisplayId] = useState(initialDetailId);
   const [loaded, setLoaded] = useState<LedgerAbsenceDetailResult | null>(null);
   const [error, setError] = useState(false);
+  const detailIdRef = useRef(detailId);
   const shownId = detailId || displayId;
   const preview = previews.find((item) => item.id === shownId) ?? null;
   const loadedForShown =
@@ -296,6 +298,28 @@ export function LedgerDetailHost({
     input.value = detailId;
     input.disabled = detailId.length === 0;
   }, [detailId]);
+
+  useEffect(() => {
+    detailIdRef.current = detailId;
+  }, [detailId]);
+
+  const reloadDetail = useCallback(() => {
+    const requestedId = detailIdRef.current;
+    if (!requestedId) {
+      return;
+    }
+    void loadLedgerAbsenceDetail(requestedId)
+      .then((result) => {
+        if (
+          result.ok &&
+          result.absence.id === requestedId &&
+          result.absence.id === detailIdRef.current
+        ) {
+          setLoaded(result);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!detailId) {
@@ -371,11 +395,7 @@ export function LedgerDetailHost({
             "returnToWork",
             "1",
           )}
-          unauthorisedReturnTo={withParam(
-            detailHref(listHref, shownId),
-            "unauthorised",
-            "1",
-          )}
+          onUnauthorisedSaved={reloadDetail}
           timeZone={loadedForShown.timeZone}
           todayIso={loadedForShown.todayIso}
         />

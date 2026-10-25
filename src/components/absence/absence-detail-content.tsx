@@ -54,7 +54,6 @@ export type AbsenceDetailFlash = {
   followUp?: string;
   evidence?: string;
   returnToWork?: string;
-  unauthorised?: string;
 };
 
 function Detail({
@@ -319,11 +318,6 @@ function FlashBanners({
           Return to work saved.
         </Banner>
       ) : null}
-      {flash.unauthorised === "1" ? (
-        <Banner tone="success" className="mt-4">
-          Unauthorised mark updated.
-        </Banner>
-      ) : null}
       {flash.archived === "1" ? (
         <Banner tone="success" className="mt-4">
           {archivedFlash}
@@ -467,10 +461,10 @@ function EventOutcomeNote({ event }: { event: AbsenceDetail["event"] }) {
 
 function CancellationFields({
   absence,
-  returnTo,
+  onUnauthorisedSaved,
 }: {
   absence: AbsenceDetail;
-  returnTo?: string;
+  onUnauthorisedSaved?: () => void;
 }) {
   const detail = absence.cancellation!;
   const archived = absence.recordStatus === "ARCHIVED";
@@ -480,7 +474,7 @@ function CancellationFields({
         absenceId={absence.id}
         unauthorised={detail.unauthorised}
         archived={archived}
-        returnTo={returnTo}
+        onSaved={onUnauthorisedSaved}
       />
       <dl className="mt-6 grid gap-6 sm:grid-cols-2">
       <StaffEventHeader
@@ -712,10 +706,10 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
 
 function TypeFields({
   absence,
-  unauthorisedReturnTo,
+  onUnauthorisedSaved,
 }: {
   absence: AbsenceDetail;
-  unauthorisedReturnTo?: string;
+  onUnauthorisedSaved?: () => void;
 }) {
   if (absence.type === "AWOL" && absence.awol) {
     return <AwolFields absence={absence} />;
@@ -726,7 +720,7 @@ function TypeFields({
   return (
     <CancellationFields
       absence={absence}
-      returnTo={unauthorisedReturnTo}
+      onUnauthorisedSaved={onUnauthorisedSaved}
     />
   );
 }
@@ -791,7 +785,7 @@ export function AbsenceDetailContent({
   followUpReturnTo,
   evidenceReturnTo,
   returnToWorkReturnTo,
-  unauthorisedReturnTo,
+  onUnauthorisedSaved,
   timeZone,
   todayIso,
 }: {
@@ -804,7 +798,7 @@ export function AbsenceDetailContent({
   followUpReturnTo?: string;
   evidenceReturnTo?: string;
   returnToWorkReturnTo?: string;
-  unauthorisedReturnTo?: string;
+  onUnauthorisedSaved?: () => void;
   timeZone?: string;
   todayIso?: string;
 }) {
@@ -827,7 +821,7 @@ export function AbsenceDetailContent({
         <div className="mt-4">
           <TypeFields
             absence={absence}
-            unauthorisedReturnTo={unauthorisedReturnTo}
+            onUnauthorisedSaved={onUnauthorisedSaved}
           />
         </div>
         <EvidenceSection
@@ -929,7 +923,7 @@ export function AbsenceDetailContent({
       <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <TypeFields
           absence={absence}
-          unauthorisedReturnTo={unauthorisedReturnTo}
+          onUnauthorisedSaved={onUnauthorisedSaved}
         />
       </div>
       <EvidenceSection
