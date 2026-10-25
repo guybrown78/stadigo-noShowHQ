@@ -47,6 +47,7 @@ export type AbsenceActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   existingAbsenceId?: string;
+  unauthorised?: boolean;
 };
 
 export async function searchAbsenceStaffAction(
@@ -104,17 +105,6 @@ function redirectAfterEpisodeUpdate(
     redirect(returnTo);
   }
   redirect(`/absence/${absenceId}?episodeUpdated=1`);
-}
-
-function redirectAfterUnauthorised(
-  absenceId: string,
-  formData: FormData,
-): never {
-  const returnTo = safeLedgerReturnTo(formData.get("returnTo"));
-  if (returnTo) {
-    redirect(returnTo);
-  }
-  redirect(`/absence/${absenceId}?unauthorised=1`);
 }
 
 export async function createCancellationAction(
@@ -228,7 +218,7 @@ export async function setCancellationUnauthorisedAction(
     if (existing?.staffId) {
       revalidatePath(`/staff/${existing.staffId}`);
     }
-    redirectAfterUnauthorised(result.id, formData);
+    return { unauthorised: requested === "1" };
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();
