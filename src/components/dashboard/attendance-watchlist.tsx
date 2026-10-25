@@ -13,6 +13,7 @@ export function AttendanceWatchlist({
   toIso,
   type,
   dateField = "reported",
+  periodId,
 }: {
   title: string;
   description: string;
@@ -22,6 +23,7 @@ export function AttendanceWatchlist({
   toIso?: string;
   type: "cancellations" | "awol";
   dateField?: "reported" | "affected";
+  periodId?: string;
 }) {
   const headingId = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
@@ -39,9 +41,11 @@ export function AttendanceWatchlist({
                     href={ledgerListHref({
                       view: type,
                       q: row.staffIdNumber,
-                      ...(dateField === "affected"
-                        ? { affectedFrom: fromIso, affectedTo: toIso }
-                        : { reportedFrom: fromIso, reportedTo: toIso }),
+                      ...(periodId
+                        ? { period: periodId }
+                        : dateField === "affected"
+                          ? { affectedFrom: fromIso, affectedTo: toIso }
+                          : { reportedFrom: fromIso, reportedTo: toIso }),
                     })}
                     className="font-medium text-slate-900 hover:underline"
                   >

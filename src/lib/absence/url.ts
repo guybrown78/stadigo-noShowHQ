@@ -60,6 +60,7 @@ export function ledgerListHref(
   if (view === "cancellations" && merged.unauthorised) {
     params.set("unauthorised", "1");
   }
+  if (merged.period) params.set("period", merged.period);
 
   const qs = params.toString();
   return qs ? `/ledger?${qs}` : "/ledger";

@@ -4,6 +4,7 @@ import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { AbsenceAccessError } from "@/lib/absence/errors";
 import { getAbsenceForTenant, getTenantTimezone } from "@/lib/absence/queries";
+import { listPayPeriods } from "@/lib/absence/pay-periods";
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 
 export async function generateMetadata({
@@ -67,6 +68,8 @@ export default async function AbsenceDetailPage({
     todayIso = undefined;
   }
 
+  const periods = await listPayPeriods(prisma, user.tenantId);
+
   return (
     <AbsenceDetailContent
       absence={absence}
@@ -74,6 +77,13 @@ export default async function AbsenceDetailPage({
       layout="page"
       timeZone={timeZone}
       todayIso={todayIso}
+      payPeriods={periods.map((period) => ({
+        id: period.id,
+        number: period.number,
+        label: period.label,
+        startsOn: period.startsOn,
+        status: period.status,
+      }))}
     />
   );
 }

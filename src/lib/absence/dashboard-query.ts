@@ -154,6 +154,86 @@ export async function getAbsenceDashboard(
   );
 }
 
+export async function getPayPeriodDashboard(
+  db: DbClient,
+  tenantId: string,
+  input: {
+    periodId: string;
+    previousPeriodId: string | null;
+    buckets: DashboardBucket[];
+    venueId: string | null;
+    eventId: string | null;
+  },
+): Promise<AbsenceDashboard> {
+  const periodIds = input.previousPeriodId
+    ? [input.periodId, input.previousPeriodId]
+    : [input.periodId];
+  const rows = await db.$queryRaw<Array<FactRow & { payPeriodId: string }>>`
+    SELECT
+      a.type::text AS type,
+      a."staffId" AS "staffId",
+      a."eventId" AS "eventId",
+      a."payPeriodId" AS "payPeriodId",
+      st."firstName" AS "firstName",
+      st."lastName" AS "lastName",
+      st."roleTitle" AS "roleTitle",
+      COALESCE(
+        c."eventDateSnapshot",
+        w."eventDateSnapshot",
+        s."firstWorkingDaySick"
+      ) AS "affectedDate",
+      COALESCE(c."venueIdSnapshot", w."venueIdSnapshot") AS "venueId",
+      COALESCE(c."venueNameSnapshot", w."venueNameSnapshot") AS "venueName",
+      COALESCE(c."eventNameSnapshot", w."eventNameSnapshot") AS "eventName",
+      c."unauthorised" AS "unauthorised"
+    FROM "Absence" a
+    INNER JOIN "Staff" st
+      ON st.id = a."staffId"
+      AND st."tenantId" = a."tenantId"
+    LEFT JOIN "CancellationDetail" c ON c."absenceId" = a.id
+    LEFT JOIN "AwolDetail" w ON w."absenceId" = a.id
+    LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id
+    WHERE a."tenantId" = ${tenantId}
+      AND a."recordStatus" = 'ACTIVE'
+      AND a."payPeriodId" IN (${Prisma.join(periodIds)})
+      AND (
+        (a.type = 'CANCELLATION' AND c."absenceId" IS NOT NULL)
+        OR (a.type = 'AWOL' AND w."absenceId" IS NOT NULL)
+        OR (a.type = 'SICKNESS' AND s."absenceId" IS NOT NULL)
+      )
+  `;
+  const facts = rows.flatMap((row) => {
+    const fact = toFact(row);
+    return fact ? [{ ...fact, payPeriodId: row.payPeriodId }] : [];
+  });
+  const currentFacts = facts.filter(
+    (fact) =>
+      fact.payPeriodId === input.periodId &&
+      matchesSelection(fact, input.venueId, input.eventId),
+  );
+  const previousFacts = facts.filter(
+    (fact) =>
+      input.previousPeriodId !== null &&
+      fact.payPeriodId === input.previousPeriodId &&
+      matchesSelection(fact, input.venueId, input.eventId),
+  );
+  return {
+    current: countTypes(currentFacts),
+    previous: countTypes(previousFacts),
+    repeats: repeatRows(currentFacts),
+    trend: input.buckets.map((bucket) => ({
+      ...bucket,
+      ...countTypes(
+        currentFacts.filter(
+          (fact) => fact.affectedIso >= bucket.fromIso && fact.affectedIso <= bucket.toIso,
+        ),
+      ),
+    })),
+    venues: input.eventId ? [] : venueRows(currentFacts),
+    events: eventRows(currentFacts),
+  };
+}
+
 export async function listDashboardEventOptions(
   db: DbClient,
   tenantId: string,
@@ -223,16 +303,11 @@ export function summariseAbsenceFacts(
   };
 }
 
-function included(
+function matchesSelection(
   fact: AbsenceFact,
-  fromIso: string,
-  toIso: string,
   venueId: string | null,
   eventId: string | null,
 ): boolean {
-  if (fact.affectedIso < fromIso || fact.affectedIso > toIso) {
-    return false;
-  }
   if (fact.type === "SICKNESS") {
     return true;
   }
@@ -243,6 +318,19 @@ function included(
     return false;
   }
   return true;
+}
+
+function included(
+  fact: AbsenceFact,
+  fromIso: string,
+  toIso: string,
+  venueId: string | null,
+  eventId: string | null,
+): boolean {
+  if (fact.affectedIso < fromIso || fact.affectedIso > toIso) {
+    return false;
+  }
+  return matchesSelection(fact, venueId, eventId);
 }
 
 function countTypes(facts: AbsenceFact[]): DashboardTypeCounts {

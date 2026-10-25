@@ -9,6 +9,7 @@ import {
   parseAbsenceReturnOrigin,
 } from "@/lib/absence/url";
 import { listActiveReasonLabels } from "@/lib/absence/reasons";
+import { listPayPeriods } from "@/lib/absence/pay-periods";
 import { formatStaffName } from "@/lib/staff/display";
 
 export const metadata = { title: "Log Absence" };
@@ -37,13 +38,14 @@ export default async function LogAbsencePage({
         ? "SICKNESS"
         : "CANCELLATION";
   const defaultReportedDate = todayIsoInTimeZone(user.tenantTimezone);
-  const [cancellationReasons, sicknessReasons, tenant] = await Promise.all([
+  const [cancellationReasons, sicknessReasons, tenant, periods] = await Promise.all([
     listActiveReasonLabels(prisma, user.tenantId, "CANCELLATION"),
     listActiveReasonLabels(prisma, user.tenantId, "SICKNESS"),
     prisma.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
       select: { shortNoticeHours: true },
     }),
+    listPayPeriods(prisma, user.tenantId),
   ]);
 
   return (
@@ -73,6 +75,13 @@ export default async function LogAbsencePage({
           cancellationReasons={cancellationReasons}
           sicknessReasons={sicknessReasons}
           shortNoticeHours={tenant.shortNoticeHours}
+          payPeriods={periods.map((period) => ({
+            id: period.id,
+            number: period.number,
+            label: period.label,
+            startsOn: period.startsOn,
+            status: period.status,
+          }))}
         />
       </div>
     </div>

@@ -41,6 +41,8 @@ import { timeHHmmInTimeZone, todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
+import { parseChangePayPeriodFormData } from "@/lib/absence/pay-period-schema";
+import { changeAbsencePayPeriod } from "@/lib/absence/pay-periods";
 import { safeLedgerReturnTo } from "@/lib/absence/url";
 
 export type AbsenceActionState = {
@@ -86,6 +88,7 @@ function revalidateAbsence(resultId: string, staffId: string) {
   revalidatePath(`/absence/${resultId}`);
   revalidatePath(`/staff/${staffId}`);
   revalidatePath("/ledger");
+  revalidatePath("/dashboard");
 }
 
 function redirectAfterArchive(absenceId: string, formData: FormData): never {
@@ -572,6 +575,43 @@ export async function updateSicknessEpisodeAction(
       revalidatePath("/ledger");
     }
     redirectAfterEpisodeUpdate(result.id, formData);
+  } catch (error) {
+    if (error instanceof AbsenceAccessError) {
+      notFound();
+    }
+    throw error;
+  }
+}
+
+export async function changeAbsencePayPeriodAction(
+  _prev: AbsenceActionState,
+  formData: FormData,
+): Promise<AbsenceActionState> {
+  const user = await requireTenant();
+  const parsed = parseChangePayPeriodFormData(formData);
+  if (!parsed.success) {
+    return {
+      error: FORM_CHECK_MESSAGE,
+      fieldErrors: flattenFieldErrors(parsed.error),
+    };
+  }
+  try {
+    const result = await changeAbsencePayPeriod(prisma, {
+      tenantId: user.tenantId,
+      userId: user.id,
+      absenceId: parsed.data.absenceId,
+      payPeriodId: parsed.data.payPeriodId,
+    });
+    if (!result.ok) {
+      return { error: result.error, fieldErrors: result.fieldErrors };
+    }
+    if (result.unchanged) {
+      return {};
+    }
+    revalidatePath(`/absence/${result.id}`);
+    revalidatePath("/ledger");
+    revalidatePath("/dashboard");
+    redirect(`/absence/${result.id}?updated=1`);
   } catch (error) {
     if (error instanceof AbsenceAccessError) {
       notFound();

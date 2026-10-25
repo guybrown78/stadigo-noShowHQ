@@ -23,7 +23,6 @@ export function AbsenceSettingsForms({
 }: {
   tenant: {
     shortNoticeHours: number;
-    payPeriodStartDay: number;
     cancellationThreshold: number;
     awolThresholdCount: number;
     awolWindowDays: number;
@@ -40,7 +39,7 @@ export function AbsenceSettingsForms({
         <CardHeader
           headingId="attendance-thresholds-heading"
           title="Thresholds"
-          description="Defaults are a calendar month, 3 cancellations, 24 hours’ short notice, and 3 AWOLs in 30 days. Each organisation can change these."
+          description="Defaults are 3 cancellations, 24 hours’ short notice, and 3 AWOLs in 30 days. Each organisation can change these."
         />
         <CardBody>
           <form action={settingsAction} className="grid max-w-xl gap-4">
@@ -52,11 +51,6 @@ export function AbsenceSettingsForms({
               name="shortNoticeHours"
               label="Short notice, in hours"
               defaultValue={tenant.shortNoticeHours}
-            />
-            <NumberField
-              name="payPeriodStartDay"
-              label="Pay period starts on this day of the month (1–28)"
-              defaultValue={tenant.payPeriodStartDay}
             />
             <NumberField
               name="cancellationThreshold"
