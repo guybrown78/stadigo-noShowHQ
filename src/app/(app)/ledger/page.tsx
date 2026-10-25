@@ -427,7 +427,6 @@ export default async function LedgerPage({
         followUp: first(raw.followUp),
         evidence: first(raw.evidence),
         returnToWork: first(raw.returnToWork),
-        unauthorised: first(raw.unauthorised),
       }}
     >
       <div>
