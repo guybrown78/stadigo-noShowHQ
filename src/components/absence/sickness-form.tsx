@@ -9,6 +9,10 @@ import {
 } from "@/app/(app)/absence/actions";
 import { AbsenceTypeSelector } from "@/components/absence/absence-type-selector";
 import { CatalogReasonField } from "@/components/absence/catalog-reason-field";
+import {
+  PayPeriodField,
+  type PayPeriodChoice,
+} from "@/components/absence/pay-period-field";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import {
   FieldError,
@@ -50,6 +54,7 @@ export function SicknessForm({
   onStaffChange,
   expectedUpdatedAt,
   reasons = [],
+  payPeriods = [],
 }: {
   mode: "create" | "edit";
   absenceId?: string;
@@ -67,6 +72,7 @@ export function SicknessForm({
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
   expectedUpdatedAt?: string;
   reasons?: { label: string }[];
+  payPeriods?: PayPeriodChoice[];
 }) {
   void timeZone;
   const action = mode === "create" ? createSicknessAction : correctSicknessAction;
@@ -417,6 +423,13 @@ export function SicknessForm({
       <input type="hidden" name="type" value="SICKNESS" />
       <input type="hidden" name="todayIso" value={defaultReportedDate} />
       <FormAlert>{state.error}</FormAlert>
+      {mode === "create" ? (
+        <PayPeriodField
+          id={`${formId}-pay-period`}
+          periods={payPeriods}
+          messages={state.fieldErrors?.payPeriodId}
+        />
+      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink

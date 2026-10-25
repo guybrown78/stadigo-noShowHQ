@@ -19,6 +19,8 @@ import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { filterControlClassName } from "@/components/form";
+import { formatPayPeriodName, payPeriodStatusSuffix } from "@/lib/absence/pay-period";
+import { listPayPeriods } from "@/lib/absence/pay-periods";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import {
@@ -341,6 +343,7 @@ export default async function LedgerPage({
     detail: first(raw.detail),
     evidenceStatus: first(raw.evidenceStatus),
     unauthorised: first(raw.unauthorised),
+    period: first(raw.period),
   });
 
   if (
@@ -371,9 +374,10 @@ export default async function LedgerPage({
     }
   }
 
-  const [options, list]: [
+  const [options, list, periods]: [
     LedgerFilterOptions,
     Awaited<ReturnType<typeof listAbsencesForLedger>>,
+    Awaited<ReturnType<typeof listPayPeriods>>,
   ] = await Promise.all([
     showEventFilters
       ? query.view === "awol"
@@ -390,6 +394,7 @@ export default async function LedgerPage({
       query,
       todayIso || undefined,
     ),
+    listPayPeriods(prisma, user.tenantId),
   ]);
 
   const {
@@ -413,6 +418,15 @@ export default async function LedgerPage({
   const empty = emptyState(query, hasFilters);
   const affectedFrom = resolvedLedgerAffectedFrom(query);
   const affectedTo = resolvedLedgerAffectedTo(query);
+  const selectedPeriod = periods.find((period) => period.id === query.period);
+  const periodLabel =
+    query.period === "none"
+      ? "No period"
+      : selectedPeriod
+        ? formatPayPeriodName(selectedPeriod)
+        : query.period
+          ? "the selected pay period"
+          : "";
 
   return (
     <LedgerDetailHost
@@ -517,6 +531,23 @@ export default async function LedgerPage({
               </select>
             </FilterField>
           ) : null}
+          <FilterField label="Pay period" htmlFor="ledger-period" className="min-w-[16rem]">
+            <select
+              id="ledger-period"
+              name="period"
+              defaultValue={query.period}
+              className={filterControlClassName()}
+            >
+              <option value="">All periods</option>
+              <option value="none">No period</option>
+              {periods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {formatPayPeriodName(period)}
+                  {payPeriodStatusSuffix(period, periods)}
+                </option>
+              ))}
+            </select>
+          </FilterField>
           <FilterField
             label="Search"
             htmlFor="ledger-q"
@@ -679,6 +710,7 @@ export default async function LedgerPage({
           <p className="mt-2 text-xs text-slate-500" aria-live="polite">
             Active filters:
             {query.q ? ` search “${query.q}”` : ""}
+            {periodLabel ? ` · Pay period ${periodLabel}` : ""}
             {showEventFilters && selectedVenue
               ? ` · Venue ${selectedVenue.name}`
               : ""}
@@ -732,6 +764,7 @@ export default async function LedgerPage({
               includeArchived: query.includeArchived,
               page,
               pageCount,
+              periodLabel: periodLabel || undefined,
             }).map((line) => (
               <p key={line}>{line}</p>
             ))}

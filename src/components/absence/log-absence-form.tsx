@@ -6,6 +6,7 @@ import { AwolForm } from "@/components/absence/awol-form";
 import { CancellationForm } from "@/components/absence/cancellation-form";
 import { SicknessForm } from "@/components/absence/sickness-form";
 import { Card, CardBody } from "@/components/ui/card";
+import type { PayPeriodChoice } from "@/components/absence/pay-period-field";
 import type { AbsenceStaffOption } from "@/lib/absence/queries";
 
 export function LogAbsenceForm({
@@ -17,6 +18,7 @@ export function LogAbsenceForm({
   cancellationReasons = [],
   sicknessReasons = [],
   shortNoticeHours,
+  payPeriods = [],
 }: {
   initialType?: LogAbsenceType;
   defaultReportedDate: string;
@@ -26,6 +28,7 @@ export function LogAbsenceForm({
   cancellationReasons?: { label: string }[];
   sicknessReasons?: { label: string }[];
   shortNoticeHours?: number;
+  payPeriods?: PayPeriodChoice[];
 }) {
   const [type, setType] = useState<LogAbsenceType>(initialType);
   const [staff, setStaff] = useState<AbsenceStaffOption | null>(
@@ -52,6 +55,7 @@ export function LogAbsenceForm({
           initialStaff={staff}
           cancelHref={cancelHref}
           onStaffChange={setStaff}
+          payPeriods={payPeriods}
         />
       ) : type === "SICKNESS" ? (
         <SicknessForm
@@ -64,6 +68,7 @@ export function LogAbsenceForm({
           cancelHref={cancelHref}
           onStaffChange={setStaff}
           reasons={sicknessReasons}
+          payPeriods={payPeriods}
         />
       ) : (
         <CancellationForm
@@ -76,6 +81,7 @@ export function LogAbsenceForm({
           onStaffChange={setStaff}
           reasons={cancellationReasons}
           shortNoticeHours={shortNoticeHours}
+          payPeriods={payPeriods}
         />
       )}
     </div>

@@ -17,6 +17,7 @@ import {
   loadSicknessEvidenceCounts,
 } from "@/lib/absence/evidence-evaluation";
 import { diffValues, writeAbsenceHistory } from "@/lib/absence/history";
+import { resolvePayPeriodForCreate } from "@/lib/absence/pay-periods";
 import { calculateNotice } from "@/lib/absence/notice";
 import {
   evaluateAwolEventEligibility,
@@ -69,6 +70,13 @@ export type AbsenceMutationResult =
     };
 
 type DbClient = PrismaClient | Prisma.TransactionClient;
+
+function payPeriodHistoryChange(label: string | null) {
+  if (!label) {
+    return [];
+  }
+  return [{ field: "payPeriod", previous: null, next: label }];
+}
 
 const DUPLICATE_CANCELLATION_MESSAGE =
   "An active Cancellation already exists for this staff member and event.";
@@ -437,12 +445,21 @@ export async function createCancellation(
     }
 
     const snapshot = cancellationSnapshot(resolved.event, resolved.notice);
+    const period = await resolvePayPeriodForCreate(
+      tx,
+      params.tenantId,
+      params.input.payPeriodId ?? "",
+    );
+    if (!period.ok) {
+      return period;
+    }
 
     const absence = await tx.absence.create({
         data: {
           tenantId: params.tenantId,
           staffId: resolved.staff.id,
           eventId: resolved.event.id,
+          payPeriodId: period.payPeriodId,
           type: "CANCELLATION",
           reportedDate: resolved.reportedDate,
           reportedTime: params.input.reportedTime,
@@ -492,6 +509,7 @@ export async function createCancellation(
             previous: null,
             next: resolved.notice.noticeBasis,
           },
+          ...payPeriodHistoryChange(period.label),
         ],
       });
 
@@ -1058,6 +1076,14 @@ export async function createAwol(
       resolved.event,
       resolved.sameDayStartUnknownConfirmed,
     );
+    const period = await resolvePayPeriodForCreate(
+      tx,
+      params.tenantId,
+      params.input.payPeriodId ?? "",
+    );
+    if (!period.ok) {
+      return period;
+    }
 
     try {
       const absence = await tx.absence.create({
@@ -1065,6 +1091,7 @@ export async function createAwol(
           tenantId: params.tenantId,
           staffId: resolved.staff.id,
           eventId: resolved.event.id,
+          payPeriodId: period.payPeriodId,
           type: "AWOL",
           reportedDate: resolved.reportedDate,
           reportedTime: null,
@@ -1104,6 +1131,7 @@ export async function createAwol(
             previous: null,
             next: params.input.notes,
           },
+          ...payPeriodHistoryChange(period.label),
         ],
       });
 
@@ -1690,12 +1718,22 @@ export async function createSickness(
           return resolved;
         }
 
+        const period = await resolvePayPeriodForCreate(
+          tx,
+          params.tenantId,
+          params.input.payPeriodId ?? "",
+        );
+        if (!period.ok) {
+          return period;
+        }
+
         try {
           const absence = await tx.absence.create({
             data: {
               tenantId: params.tenantId,
               staffId: resolved.staff.id,
               eventId: null,
+              payPeriodId: period.payPeriodId,
               type: "SICKNESS",
               reportedDate: resolved.reportedDate,
               reportedTime: null,
@@ -1795,6 +1833,7 @@ export async function createSickness(
                 previous: null,
                 next: dateString(evidencePolicy.evidenceRequirementDate),
               },
+              ...payPeriodHistoryChange(period.label),
             ],
           });
 

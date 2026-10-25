@@ -47,6 +47,8 @@ export function AbsenceTotals({
   previousToIso,
   venueId,
   eventFiltered,
+  periodId,
+  comparisonLabel,
 }: {
   current: DashboardTypeCounts;
   previous: DashboardTypeCounts;
@@ -56,8 +58,14 @@ export function AbsenceTotals({
   previousToIso: string;
   venueId: string;
   eventFiltered: boolean;
+  periodId?: string;
+  comparisonLabel?: string;
 }) {
-  const previousLabel = formatDashboardSpanCompact(previousFromIso, previousToIso);
+  const previousLabel =
+    comparisonLabel ?? formatDashboardSpanCompact(previousFromIso, previousToIso);
+  const ledgerDates = periodId
+    ? { period: periodId }
+    : { affectedFrom: fromIso, affectedTo: toIso };
   const selectionActive = Boolean(venueId) || eventFiltered;
   const totalCurrent =
     current.CANCELLATION + current.AWOL + current.SICKNESS;
@@ -75,8 +83,7 @@ export function AbsenceTotals({
             <Link
               href={ledgerListHref({
                 view: type.view,
-                affectedFrom: fromIso,
-                affectedTo: toIso,
+                ...ledgerDates,
                 venue: type.filtered ? venueId : "",
                 unauthorised: type.unauthorised,
               })}
@@ -130,8 +137,7 @@ export function AbsenceTotals({
                 ? undefined
                 : ledgerListHref({
                     view: "all",
-                    affectedFrom: fromIso,
-                    affectedTo: toIso,
+                    ...ledgerDates,
                   })
             }
             total={totalCurrent}

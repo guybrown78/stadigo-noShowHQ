@@ -45,6 +45,9 @@ export const absenceDetailInclude = {
   cancellation: true,
   awol: true,
   sickness: true,
+  payPeriod: {
+    select: { id: true, number: true, label: true, status: true },
+  },
   selfCertification: {
     include: {
       updatedBy: { select: { firstName: true, lastName: true } },

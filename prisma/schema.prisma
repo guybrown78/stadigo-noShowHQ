@@ -36,11 +36,11 @@ model Tenant {
   sicknessEvidenceUpdatedBy    User?                   @relation("TenantSicknessEvidenceUpdatedBy", fields: [sicknessEvidenceUpdatedById], references: [id], onDelete: Restrict)
   timezone                     String                  @default("Europe/London")
   shortNoticeHours             Int                     @default(24)
-  payPeriodStartDay            Int                     @default(1)
   cancellationThreshold        Int                     @default(3)
   awolThresholdCount           Int                     @default(3)
   awolWindowDays               Int                     @default(30)
   venueSeq                     Int                     @default(0)
+  payPeriodSeq                 Int                     @default(0)
   createdAt                    DateTime                @default(now())
   updatedAt                    DateTime                @updatedAt
   users                        User[]
@@ -55,6 +55,7 @@ model Tenant {
   staffProbationHistory        StaffProbationHistory[]
   staffProbationTasks          StaffProbationTask[]
   absences                     Absence[]
+  payPeriods                   PayPeriod[]
   cancellationDetails          CancellationDetail[]
   awolDetails                  AwolDetail[]
   sicknessDetails              SicknessDetail[]
@@ -109,6 +110,8 @@ model User {
   absencesCreated              Absence[]                 @relation("AbsenceCreatedBy")
   absencesUpdated              Absence[]                 @relation("AbsenceUpdatedBy")
   absencesArchived             Absence[]                 @relation("AbsenceArchivedBy")
+  payPeriodsOpened             PayPeriod[]               @relation("PayPeriodOpenedBy")
+  payPeriodsClosed             PayPeriod[]               @relation("PayPeriodClosedBy")
   absenceHistoryActions        AbsenceHistory[]          @relation("AbsenceHistoryActedBy")
   absenceIdempotencyKeys       AbsenceIdempotencyKey[]   @relation("AbsenceIdempotencyActor")
   absenceFollowUpsCreated      AbsenceFollowUp[]         @relation("AbsenceFollowUpCreatedBy")
@@ -668,6 +671,13 @@ enum AbsenceHistoryAction {
   RETURN_TO_WORK_RECORDED
   RETURN_TO_WORK_CORRECTED
   UNAUTHORISED_UPDATED
+  PERIOD_CHANGED
+}
+
+enum PayPeriodStatus {
+  OPEN
+  SCHEDULED
+  CLOSED
 }
 
 enum SicknessSelfCertificationStatus {
@@ -719,10 +729,38 @@ enum SicknessEvidenceEvaluationStatus {
   FAILED
 }
 
+// One OPEN row per tenant is enforced by PayPeriod_one_open_per_tenant
+// (tenantId) WHERE status = OPEN. Several SCHEDULED rows are allowed.
+// Periods are never deleted.
+model PayPeriod {
+  id         String          @id @default(cuid())
+  tenantId   String
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  number     Int
+  label      String
+  startsOn   DateTime        @db.Date
+  endsOn     DateTime        @db.Date
+  status     PayPeriodStatus
+  openedById String
+  openedBy   User            @relation("PayPeriodOpenedBy", fields: [openedById], references: [id], onDelete: Restrict)
+  closedAt   DateTime?
+  closedById String?
+  closedBy   User?           @relation("PayPeriodClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  absences   Absence[]
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+}
+
 model Absence {
   id             String                @id @default(cuid())
   tenantId       String
   tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  payPeriodId    String?
+  payPeriod      PayPeriod?            @relation(fields: [payPeriodId, tenantId], references: [id, tenantId], onDelete: Restrict)
   staffId        String
   staff          Staff                 @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Restrict)
   eventId        String?
@@ -765,6 +803,7 @@ model Absence {
   // AND firstWorkingDaySick IS NOT NULL.
   // Type-aware Event check: Absence_event_required_by_type
   // (CANCELLATION/AWOL require eventId; SICKNESS forbids eventId).
+  @@index([tenantId, payPeriodId])
   @@index([tenantId, staffId, recordStatus])
   @@index([tenantId, eventId])
   @@index([tenantId, type, recordStatus, reportedDate])

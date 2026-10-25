@@ -354,6 +354,16 @@ function ledgerWhereSql(
           ? Prisma.sql`AND c."unauthorised" = true`
           : Prisma.empty
       }
+      ${
+        applyFilters && query.period === "none"
+          ? Prisma.sql`AND a."payPeriodId" IS NULL`
+          : Prisma.empty
+      }
+      ${
+        applyFilters && query.period && query.period !== "none"
+          ? Prisma.sql`AND a."payPeriodId" = ${query.period}`
+          : Prisma.empty
+      }
   `;
 }
 

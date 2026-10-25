@@ -1,10 +1,6 @@
 import type { EmploymentStatus, PrismaClient } from "@prisma/client";
 import { formatLocalDateIso, parseLocalDate } from "@/lib/events/dates";
 import { addCalendarDays } from "@/lib/staff/probation";
-import {
-  payPeriodContaining,
-  previousPayPeriod,
-} from "@/lib/absence/pay-period";
 import { EMPLOYMENT_STATUSES } from "@/lib/staff/catalog";
 
 type Db = PrismaClient;
@@ -50,24 +46,26 @@ export type WatchStaff = {
   count: number;
 };
 
-async function cancellationCounts(
+export type WatchPeriod = {
+  id: string;
+  number: number;
+  label: string;
+  fromIso: string;
+  toIso: string;
+};
+
+async function cancellationCountsForPeriod(
   db: Db,
   tenantId: string,
-  fromIso: string,
-  toIso: string,
+  payPeriodId: string,
 ): Promise<Map<string, number>> {
-  const from = parseLocalDate(fromIso);
-  const to = parseLocalDate(toIso);
-  if (!from || !to) {
-    return new Map();
-  }
   const rows = await db.absence.groupBy({
     by: ["staffId"],
     where: {
       tenantId,
       type: "CANCELLATION",
       recordStatus: "ACTIVE",
-      reportedDate: { gte: from, lte: to },
+      payPeriodId,
     },
     _count: { _all: true },
   });
@@ -105,19 +103,35 @@ async function nameRows(
 export async function cancellationWatchlists(
   db: Db,
   tenantId: string,
-  todayIso: string,
-  settings: { payPeriodStartDay: number; cancellationThreshold: number },
+  settings: { cancellationThreshold: number },
 ): Promise<{
   current: WatchStaff[];
   repeated: WatchStaff[];
-  currentPeriod: { fromIso: string; toIso: string };
-  previousPeriod: { fromIso: string; toIso: string };
+  openPeriod: WatchPeriod | null;
+  previousPeriod: WatchPeriod | null;
 }> {
-  const currentPeriod = payPeriodContaining(todayIso, settings.payPeriodStartDay);
-  const previous = previousPayPeriod(todayIso, settings.payPeriodStartDay);
+  const periods = await db.payPeriod.findMany({
+    where: { tenantId },
+    orderBy: { number: "desc" },
+  });
+  const open = periods.find((period) => period.status === "OPEN") ?? null;
+  if (!open) {
+    return {
+      current: [],
+      repeated: [],
+      openPeriod: null,
+      previousPeriod: null,
+    };
+  }
+  const previous =
+    periods
+      .filter((period) => period.status === "CLOSED" && period.number < open.number)
+      .sort((left, right) => right.number - left.number)[0] ?? null;
   const [currentCounts, previousCounts] = await Promise.all([
-    cancellationCounts(db, tenantId, currentPeriod.fromIso, currentPeriod.toIso),
-    cancellationCounts(db, tenantId, previous.fromIso, previous.toIso),
+    cancellationCountsForPeriod(db, tenantId, open.id),
+    previous
+      ? cancellationCountsForPeriod(db, tenantId, previous.id)
+      : Promise.resolve(new Map<string, number>()),
   ]);
   const threshold = settings.cancellationThreshold;
   const currentIds = new Map(
@@ -130,7 +144,28 @@ export async function cancellationWatchlists(
     nameRows(db, tenantId, currentIds),
     nameRows(db, tenantId, repeatedIds),
   ]);
-  return { current, repeated, currentPeriod, previousPeriod: previous };
+  return {
+    current,
+    repeated,
+    openPeriod: toWatchPeriod(open),
+    previousPeriod: previous ? toWatchPeriod(previous) : null,
+  };
+}
+
+function toWatchPeriod(period: {
+  id: string;
+  number: number;
+  label: string;
+  startsOn: Date;
+  endsOn: Date;
+}): WatchPeriod {
+  return {
+    id: period.id,
+    number: period.number,
+    label: period.label,
+    fromIso: formatLocalDateIso(period.startsOn),
+    toIso: formatLocalDateIso(period.endsOn),
+  };
 }
 
 export async function awolWatchlist(

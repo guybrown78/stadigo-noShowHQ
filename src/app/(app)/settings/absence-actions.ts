@@ -9,9 +9,7 @@ import {
   DEFAULT_AWOL_THRESHOLD_COUNT,
   DEFAULT_AWOL_WINDOW_DAYS,
   DEFAULT_CANCELLATION_THRESHOLD,
-  DEFAULT_PAY_PERIOD_START_DAY,
   DEFAULT_SHORT_NOTICE_HOURS,
-  clampPayPeriodStartDay,
 } from "@/lib/absence/pay-period";
 
 export type SettingsActionState = {
@@ -33,10 +31,6 @@ export async function updateAttendanceSettingsAction(
     formData.get("shortNoticeHours"),
     DEFAULT_SHORT_NOTICE_HOURS,
   );
-  const payPeriodStartDay = wholeNumber(
-    formData.get("payPeriodStartDay"),
-    DEFAULT_PAY_PERIOD_START_DAY,
-  );
   const cancellationThreshold = wholeNumber(
     formData.get("cancellationThreshold"),
     DEFAULT_CANCELLATION_THRESHOLD,
@@ -52,8 +46,6 @@ export async function updateAttendanceSettingsAction(
   if (
     shortNoticeHours < 1 ||
     shortNoticeHours > 24 * 14 ||
-    payPeriodStartDay < 1 ||
-    payPeriodStartDay > 28 ||
     cancellationThreshold < 1 ||
     cancellationThreshold > 100 ||
     awolThresholdCount < 1 ||
@@ -67,7 +59,6 @@ export async function updateAttendanceSettingsAction(
     where: { id: user.tenantId },
     data: {
       shortNoticeHours,
-      payPeriodStartDay: clampPayPeriodStartDay(payPeriodStartDay),
       cancellationThreshold,
       awolThresholdCount,
       awolWindowDays,

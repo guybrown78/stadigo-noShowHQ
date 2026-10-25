@@ -161,8 +161,13 @@ function refineRetrospective(
   }
 }
 
+const optionalPayPeriodId = z.string().trim().max(64).optional().default("");
+
 export const cancellationInputSchema = z
-  .object(cancellationFields)
+  .object({
+    ...cancellationFields,
+    payPeriodId: optionalPayPeriodId,
+  })
   .superRefine(refineRetrospective);
 
 export const correctCancellationInputSchema = z
@@ -189,8 +194,8 @@ export const archiveCancellationInputSchema = z.object({
 
 export type CancellationInput = Omit<
   z.infer<typeof cancellationInputSchema>,
-  "eventDate" | "eventStartTime"
->;
+  "eventDate" | "eventStartTime" | "payPeriodId"
+> & { payPeriodId?: string };
 
 export type CorrectCancellationInput = Omit<
   z.infer<typeof correctCancellationInputSchema>,
@@ -246,6 +251,7 @@ export const awolInputSchema = z
   .object({
     ...awolFields,
     idempotencyKey: idempotencyKeySchema,
+    payPeriodId: optionalPayPeriodId,
   })
   .superRefine(refineAwolDates);
 
@@ -275,8 +281,8 @@ export const archiveAwolInputSchema = z.object({
 
 export type AwolInput = Omit<
   z.infer<typeof awolInputSchema>,
-  "eventDate" | "eventStartTime" | "todayIso"
->;
+  "eventDate" | "eventStartTime" | "todayIso" | "payPeriodId"
+> & { payPeriodId?: string };
 
 export type CorrectAwolInput = Omit<
   z.infer<typeof correctAwolInputSchema>,
@@ -496,6 +502,7 @@ export const sicknessInputSchema = z
     }),
     sicknessEndedDate: optionalSicknessEndedSchema,
     idempotencyKey: idempotencyKeySchema,
+    payPeriodId: optionalPayPeriodId,
   })
   .superRefine((value, ctx) => {
     refineSicknessDates(value, ctx, "create");
@@ -528,8 +535,8 @@ export const archiveSicknessInputSchema = z.object({
 
 export type SicknessInput = Omit<
   z.infer<typeof sicknessInputSchema>,
-  "todayIso" | "previousFirstWorkingDaySick"
->;
+  "todayIso" | "previousFirstWorkingDaySick" | "payPeriodId"
+> & { payPeriodId?: string };
 
 export type CorrectSicknessInput = Omit<
   z.infer<typeof correctSicknessInputSchema>,
@@ -670,6 +677,7 @@ function sicknessFormObject(formData: FormData) {
     previousFirstWorkingDaySick: String(
       formData.get("previousFirstWorkingDaySick") ?? "",
     ),
+    payPeriodId: String(formData.get("payPeriodId") ?? ""),
   };
 }
 
@@ -798,6 +806,7 @@ function formObject(formData: FormData) {
     retrospectiveConfirmed: formData.get("retrospectiveConfirmed") === "on",
     eventDate: String(formData.get("eventDate") ?? ""),
     eventStartTime: String(formData.get("eventStartTime") ?? ""),
+    payPeriodId: String(formData.get("payPeriodId") ?? ""),
   };
 }
 
@@ -831,6 +840,7 @@ function awolFormObject(formData: FormData) {
     eventDate: String(formData.get("eventDate") ?? ""),
     eventStartTime: String(formData.get("eventStartTime") ?? ""),
     todayIso: String(formData.get("todayIso") ?? ""),
+    payPeriodId: String(formData.get("payPeriodId") ?? ""),
   };
 }
 
@@ -931,6 +941,20 @@ function optionalEvidenceStatus(view: LedgerView, value: unknown): string {
     : "";
 }
 
+function optionalLedgerPeriod(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (trimmed === "none") {
+    return "none";
+  }
+  if (/^[a-zA-Z0-9_-]{8,64}$/.test(trimmed)) {
+    return trimmed;
+  }
+  return "";
+}
+
 function optionalLedgerDetail(value: unknown): string {
   if (typeof value !== "string") {
     return "";
@@ -962,6 +986,7 @@ export const ledgerListQuerySchema = z.object({
   detail: z.string(),
   evidenceStatus: z.string(),
   unauthorised: z.boolean(),
+  period: z.string(),
 });
 
 export type LedgerListQuery = z.infer<typeof ledgerListQuerySchema>;
@@ -988,6 +1013,7 @@ export const defaultLedgerListQuery = (
   detail: "",
   evidenceStatus: "",
   unauthorised: false,
+  period: "",
 });
 
 export function parseLedgerListQuery(raw: {
@@ -1010,6 +1036,7 @@ export function parseLedgerListQuery(raw: {
   detail?: string;
   evidenceStatus?: string;
   unauthorised?: string;
+  period?: string;
 }): LedgerListQuery {
   const view = optionalLedgerView(raw.view);
   const eventFiltersApply = ledgerShowsEventFilters(view);
@@ -1042,6 +1069,7 @@ export function parseLedgerListQuery(raw: {
     detail: optionalLedgerDetail(raw.detail),
     evidenceStatus: optionalEvidenceStatus(view, raw.evidenceStatus),
     unauthorised: optionalUnauthorised(view, raw.unauthorised),
+    period: optionalLedgerPeriod(raw.period),
   });
   return parsed.success ? parsed.data : defaultLedgerListQuery(view);
 }
@@ -1097,7 +1125,8 @@ export function ledgerHasActiveFilters(query: LedgerListQuery): boolean {
       (!isLedgerAffectedDateRangeInvalid(query) &&
         (affectedFrom || affectedTo)) ||
       (query.view === "sickness" && Boolean(query.evidenceStatus)) ||
-      (query.view === "cancellations" && query.unauthorised),
+      (query.view === "cancellations" && query.unauthorised) ||
+      Boolean(query.period),
   );
 }
 

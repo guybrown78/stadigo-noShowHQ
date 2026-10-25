@@ -12,7 +12,6 @@ export default async function AbsenceSettingsPage() {
       where: { id: user.tenantId },
       select: {
         shortNoticeHours: true,
-        payPeriodStartDay: true,
         cancellationThreshold: true,
         awolThresholdCount: true,
         awolWindowDays: true,

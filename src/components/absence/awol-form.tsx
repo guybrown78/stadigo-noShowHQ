@@ -8,6 +8,10 @@ import {
   type AbsenceActionState,
 } from "@/app/(app)/absence/actions";
 import { AbsenceTypeSelector } from "@/components/absence/absence-type-selector";
+import {
+  PayPeriodField,
+  type PayPeriodChoice,
+} from "@/components/absence/pay-period-field";
 import { EventSearchPicker } from "@/components/absence/event-search-picker";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
@@ -43,6 +47,7 @@ export function AwolForm({
   hideTypeSelector = false,
   onStaffChange,
   expectedUpdatedAt,
+  payPeriods = [],
 }: {
   mode: "create" | "edit";
   absenceId?: string;
@@ -59,6 +64,7 @@ export function AwolForm({
   hideTypeSelector?: boolean;
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
   expectedUpdatedAt?: string;
+  payPeriods?: PayPeriodChoice[];
 }) {
   const action = mode === "create" ? createAwolAction : correctAwolAction;
   const parse = mode === "create" ? parseAwolFormData : parseCorrectAwolFormData;
@@ -307,6 +313,13 @@ export function AwolForm({
         value={selectedEvent?.startTime ?? ""}
       />
       <FormAlert>{state.error}</FormAlert>
+      {mode === "create" ? (
+        <PayPeriodField
+          id={`${formId}-pay-period`}
+          periods={payPeriods}
+          messages={state.fieldErrors?.payPeriodId}
+        />
+      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink

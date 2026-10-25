@@ -10,12 +10,16 @@ import { PageHeader } from "@/components/ui/page-header";
 import { countFollowUpsByDueState } from "@/lib/absence/follow-up-service";
 import {
   getAbsenceDashboard,
+  getPayPeriodDashboard,
   listDashboardEventOptions,
 } from "@/lib/absence/dashboard-query";
 import {
+  buildDashboardBuckets,
   formatDashboardSpan,
   resolveDashboardQuery,
 } from "@/lib/absence/dashboard-range";
+import { formatPayPeriodName } from "@/lib/absence/pay-period";
+import { listPayPeriods } from "@/lib/absence/pay-periods";
 import { listLedgerFilterOptions, getTenantTimezone } from "@/lib/absence/queries";
 import { todayIsoInTimeZone } from "@/lib/absence/timezone";
 import { requireTenant } from "@/lib/authz";
@@ -76,16 +80,37 @@ export default async function DashboardPage({
     todayIso,
   );
 
-  const venues = (await listLedgerFilterOptions(prisma, user.tenantId)).venues;
+  const [venues, periods] = await Promise.all([
+    listLedgerFilterOptions(prisma, user.tenantId).then((options) => options.venues),
+    listPayPeriods(prisma, user.tenantId),
+  ]);
+  const selectedPeriod =
+    periods.find((period) => period.id === first(raw.period)) ?? null;
+  const previousNumberedPeriod = selectedPeriod
+    ? (periods
+        .filter(
+          (period) =>
+            period.status === "CLOSED" && period.number < selectedPeriod.number,
+        )
+        .sort((left, right) => right.number - left.number)[0] ?? null)
+    : null;
   const venueId = venues.some((venue) => venue.id === resolved.filters.venueId)
     ? resolved.filters.venueId
     : "";
-  const events = resolved.ok
+  const eventWindow = selectedPeriod
+    ? {
+        from: parseLocalDate(selectedPeriod.startsOn),
+        to: parseLocalDate(selectedPeriod.endsOn),
+      }
+    : resolved.ok
+      ? { from: resolved.range.from, to: resolved.range.to }
+      : null;
+  const events = eventWindow?.from && eventWindow.to
     ? await listDashboardEventOptions(
         prisma,
         user.tenantId,
-        resolved.range.from,
-        resolved.range.to,
+        eventWindow.from,
+        eventWindow.to,
         resolved.filters.eventId,
       )
     : [];
@@ -93,22 +118,32 @@ export default async function DashboardPage({
     ? resolved.filters.eventId
     : "";
 
-  const overview = resolved.ok
-    ? await getAbsenceDashboard(prisma, user.tenantId, {
-        from: resolved.range.from,
-        to: resolved.range.to,
-        previousFrom: resolved.range.previousFrom,
-        previousTo: resolved.range.previousTo,
-        buckets: resolved.buckets,
+  const periodBuckets = selectedPeriod
+    ? buildDashboardBuckets(selectedPeriod.startsOn, selectedPeriod.endsOn)
+    : null;
+  const overview = selectedPeriod
+    ? await getPayPeriodDashboard(prisma, user.tenantId, {
+        periodId: selectedPeriod.id,
+        previousPeriodId: previousNumberedPeriod?.id ?? null,
+        buckets: periodBuckets?.buckets ?? [],
         venueId: venueId || null,
         eventId: eventId || null,
       })
-    : null;
+    : resolved.ok
+      ? await getAbsenceDashboard(prisma, user.tenantId, {
+          from: resolved.range.from,
+          to: resolved.range.to,
+          previousFrom: resolved.range.previousFrom,
+          previousTo: resolved.range.previousTo,
+          buckets: resolved.buckets,
+          venueId: venueId || null,
+          eventId: eventId || null,
+        })
+      : null;
 
   const attendance = await prisma.tenant.findUniqueOrThrow({
     where: { id: user.tenantId },
     select: {
-      payPeriodStartDay: true,
       cancellationThreshold: true,
       awolThresholdCount: true,
       awolWindowDays: true,
@@ -116,7 +151,7 @@ export default async function DashboardPage({
   });
   const [workforce, cancellations, awol] = await Promise.all([
     countWorkforceStatuses(prisma, user.tenantId),
-    cancellationWatchlists(prisma, user.tenantId, todayIso, attendance),
+    cancellationWatchlists(prisma, user.tenantId, attendance),
     awolWatchlist(prisma, user.tenantId, todayIso, attendance),
   ]);
 
@@ -131,6 +166,26 @@ export default async function DashboardPage({
     followUps = null;
   }
 
+  const overviewBounds = selectedPeriod
+    ? {
+        fromIso: selectedPeriod.startsOn,
+        toIso: selectedPeriod.endsOn,
+        previousFromIso: previousNumberedPeriod?.startsOn ?? selectedPeriod.startsOn,
+        previousToIso: previousNumberedPeriod?.endsOn ?? selectedPeriod.endsOn,
+        grain: periodBuckets?.grain ?? "day",
+        label: formatPayPeriodName(selectedPeriod),
+      }
+    : resolved.ok
+      ? {
+          fromIso: resolved.range.fromIso,
+          toIso: resolved.range.toIso,
+          previousFromIso: resolved.range.previousFromIso,
+          previousToIso: resolved.range.previousToIso,
+          grain: resolved.range.grain,
+          label: formatDashboardSpan(resolved.range.fromIso, resolved.range.toIso),
+        }
+      : null;
+
   return (
     <div>
       <PageHeader
@@ -143,18 +198,28 @@ export default async function DashboardPage({
         eventId={eventId}
         venues={venues}
         events={events}
+        periods={periods}
+        selectedPeriodId={selectedPeriod?.id ?? ""}
       />
-      {resolved.ok && overview ? (
+      {overview && overviewBounds ? (
         <>
           <AbsenceTotals
             current={overview.current}
             previous={overview.previous}
-            fromIso={resolved.range.fromIso}
-            toIso={resolved.range.toIso}
-            previousFromIso={resolved.range.previousFromIso}
-            previousToIso={resolved.range.previousToIso}
+            fromIso={overviewBounds.fromIso}
+            toIso={overviewBounds.toIso}
+            previousFromIso={overviewBounds.previousFromIso}
+            previousToIso={overviewBounds.previousToIso}
             venueId={venueId}
             eventFiltered={Boolean(eventId)}
+            periodId={selectedPeriod?.id}
+            comparisonLabel={
+              selectedPeriod
+                ? previousNumberedPeriod
+                  ? formatPayPeriodName(previousNumberedPeriod)
+                  : "No previous pay period"
+                : undefined
+            }
           />
           {followUps ? <FollowUpDueSummary counts={followUps} /> : null}
           <RepeatAbsences
@@ -163,19 +228,16 @@ export default async function DashboardPage({
           />
           <AbsenceTrend
             buckets={overview.trend}
-            grain={resolved.range.grain}
-            periodLabel={formatDashboardSpan(
-              resolved.range.fromIso,
-              resolved.range.toIso,
-            )}
+            grain={overviewBounds.grain}
+            periodLabel={overviewBounds.label}
             sicknessUnfiltered={Boolean(venueId || eventId)}
           />
           <AbsenceContext
             venues={overview.venues}
             events={overview.events}
             showVenues={!eventId}
-            fromIso={resolved.range.fromIso}
-            toIso={resolved.range.toIso}
+            fromIso={overviewBounds.fromIso}
+            toIso={overviewBounds.toIso}
           />
         </>
       ) : followUps ? (
@@ -184,20 +246,34 @@ export default async function DashboardPage({
       <WorkforceStatus counts={workforce} />
       <AttendanceWatchlist
         title="Cancellations this pay period"
-        description={`${attendance.cancellationThreshold} or more cancellations reported from ${periodLabel(cancellations.currentPeriod.fromIso, cancellations.currentPeriod.toIso)}.`}
+        description={
+          cancellations.openPeriod
+            ? `${attendance.cancellationThreshold} or more cancellations filed in period ${cancellations.openPeriod.number}, ${cancellations.openPeriod.label}.`
+            : "Open a pay period in Settings to count cancellations for the current period."
+        }
         rows={cancellations.current}
-        empty="Nobody has reached the cancellation threshold this pay period."
-        fromIso={cancellations.currentPeriod.fromIso}
-        toIso={cancellations.currentPeriod.toIso}
+        empty={
+          cancellations.openPeriod
+            ? "Nobody has reached the cancellation threshold this pay period."
+            : "No pay period is open."
+        }
+        periodId={cancellations.openPeriod?.id}
         type="cancellations"
       />
       <AttendanceWatchlist
         title="Repeated cancellations"
-        description={`Also reached ${attendance.cancellationThreshold} or more in the previous pay period, ${periodLabel(cancellations.previousPeriod.fromIso, cancellations.previousPeriod.toIso)}.`}
+        description={
+          cancellations.previousPeriod
+            ? `Also reached ${attendance.cancellationThreshold} or more in period ${cancellations.previousPeriod.number}, ${cancellations.previousPeriod.label}.`
+            : "There is no previous pay period yet."
+        }
         rows={cancellations.repeated}
-        empty="Nobody reached the threshold in both this pay period and the previous one."
-        fromIso={cancellations.previousPeriod.fromIso}
-        toIso={cancellations.previousPeriod.toIso}
+        empty={
+          cancellations.previousPeriod
+            ? "Nobody reached the threshold in both this pay period and the previous one."
+            : "A previous pay period is needed before this can be shown."
+        }
+        periodId={cancellations.previousPeriod?.id}
         type="cancellations"
       />
       <AttendanceWatchlist

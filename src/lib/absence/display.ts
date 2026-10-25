@@ -184,6 +184,7 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   RETURN_TO_WORK_RECORDED: "Return to work recorded",
   RETURN_TO_WORK_CORRECTED: "Return to work corrected",
   UNAUTHORISED_UPDATED: "Unauthorised mark updated",
+  PERIOD_CHANGED: "Pay period changed",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -201,6 +202,7 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     RETURN_TO_WORK_RECORDED: "Return to work recorded",
     RETURN_TO_WORK_CORRECTED: "Return to work corrected",
     UNAUTHORISED_UPDATED: "Unauthorised mark updated",
+    PERIOD_CHANGED: "Pay period changed",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -253,6 +255,7 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   returnToWorkStatus: "Return to work",
   returnToWorkCompletedOn: "Completion date",
   returnToWorkNote: "Return to work note",
+  payPeriod: "Pay period",
 };
 
 export const AWOL_HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -521,6 +524,7 @@ export function formatLedgerResultsSummary(input: {
   includeArchived: boolean;
   page: number;
   pageCount: number;
+  periodLabel?: string;
 }): string[] {
   const pageSuffix =
     input.pageCount > 1 ? ` · Page ${input.page} of ${input.pageCount}` : "";
@@ -540,8 +544,9 @@ export function formatLedgerResultsSummary(input: {
       ? ledgerSingularNoun(input.view)
       : ledgerItemLabel(input.view);
   const archived = input.includeArchived ? ", including archived" : "";
+  const period = input.periodLabel ? ` in ${input.periodLabel}` : "";
   const lines = [
-    `Showing ${input.total} matching ${matchingNoun}${archived}${pageSuffix}`,
+    `Showing ${input.total} matching ${matchingNoun}${period}${archived}${pageSuffix}`,
   ];
   if (input.view === "all") {
     lines.push(

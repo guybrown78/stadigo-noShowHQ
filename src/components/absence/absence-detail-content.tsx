@@ -5,6 +5,8 @@ import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dia
 import { EvidenceSection } from "@/components/absence/evidence-section";
 import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
+import { PayPeriodAssignment } from "@/components/absence/pay-period-assignment";
+import type { PayPeriodChoice } from "@/components/absence/pay-period-field";
 import { UnauthorisedCancellationBox } from "@/components/absence/unauthorised-cancellation-box";
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
@@ -788,6 +790,7 @@ export function AbsenceDetailContent({
   onUnauthorisedSaved,
   timeZone,
   todayIso,
+  payPeriods,
 }: {
   absence: AbsenceDetail;
   flash?: AbsenceDetailFlash;
@@ -801,6 +804,7 @@ export function AbsenceDetailContent({
   onUnauthorisedSaved?: () => void;
   timeZone?: string;
   todayIso?: string;
+  payPeriods?: PayPeriodChoice[];
 }) {
   const archived = absence.recordStatus === "ARCHIVED";
   const staffName = formatStaffName(absence.staff);
@@ -819,6 +823,11 @@ export function AbsenceDetailContent({
         />
         <FlashBanners type={absence.type} flash={flash} archived={archived} />
         <div className="mt-4">
+          <PayPeriodAssignment
+            absenceId={absence.id}
+            current={absence.payPeriod}
+            periods={payPeriods}
+          />
           <TypeFields
             absence={absence}
             onUnauthorisedSaved={onUnauthorisedSaved}
@@ -921,6 +930,11 @@ export function AbsenceDetailContent({
       />
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
       <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
+        <PayPeriodAssignment
+          absenceId={absence.id}
+          current={absence.payPeriod}
+          periods={payPeriods}
+        />
         <TypeFields
           absence={absence}
           onUnauthorisedSaved={onUnauthorisedSaved}

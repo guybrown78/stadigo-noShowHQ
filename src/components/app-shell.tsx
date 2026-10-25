@@ -80,7 +80,7 @@ export function AppShell({
           label: "Settings",
           icon: Settings,
           exact: true,
-          alsoMatch: ["/settings/probation"],
+          alsoMatch: ["/settings/probation", "/settings/pay-periods"],
         },
       ],
     },

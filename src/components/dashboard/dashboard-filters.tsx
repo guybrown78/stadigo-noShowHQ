@@ -9,6 +9,11 @@ import {
   formatDashboardSpan,
   type DashboardQueryResult,
 } from "@/lib/absence/dashboard-range";
+import {
+  formatPayPeriodName,
+  payPeriodStatusSuffix,
+  type PayPeriodLifecycle,
+} from "@/lib/absence/pay-period";
 import { formatLocalDateDisplay, parseLocalDate } from "@/lib/events/dates";
 
 export function DashboardFilters({
@@ -17,19 +22,32 @@ export function DashboardFilters({
   eventId,
   venues,
   events,
+  periods,
+  selectedPeriodId,
 }: {
   result: DashboardQueryResult;
   venueId: string;
   eventId: string;
   venues: { id: string; name: string }[];
   events: DashboardEventOption[];
+  periods: {
+    id: string;
+    number: number;
+    label: string;
+    startsOn?: string;
+    status?: PayPeriodLifecycle;
+  }[];
+  selectedPeriodId: string;
 }) {
   const rangeKey = result.ok ? result.filters.range : "custom";
   const datesInvalid = !result.ok;
   const venue = venues.find((item) => item.id === venueId);
   const event = events.find((item) => item.id === eventId);
+  const selectedPeriod = periods.find((period) => period.id === selectedPeriodId);
   const filtersActive =
-    Boolean(venueId || eventId) || rangeKey !== "last30" || datesInvalid;
+    Boolean(venueId || eventId || selectedPeriod) ||
+    rangeKey !== "last30" ||
+    datesInvalid;
   const eventLabel = event ? eventOptionLabel(event) : "All events";
 
   return (
@@ -65,6 +83,27 @@ export function DashboardFilters({
             </>
           }
         >
+          <FilterField label="Pay period" htmlFor="dashboard-period" className="min-w-[16rem]">
+            <select
+              id="dashboard-period"
+              name="period"
+              defaultValue={selectedPeriod ? selectedPeriod.id : ""}
+              className={filterControlClassName()}
+            >
+              <option value="">Use the date range</option>
+              {periods.map((period) => (
+                <option key={period.id} value={period.id}>
+                  {formatPayPeriodName(period)}
+                  {period.status
+                    ? payPeriodStatusSuffix(
+                        { ...period, status: period.status },
+                        periods,
+                      )
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </FilterField>
           <FilterField label="From" htmlFor="dashboard-from">
             <input
               id="dashboard-from"
@@ -120,7 +159,23 @@ export function DashboardFilters({
         </FilterBar>
       </form>
 
-      {result.ok ? (
+      {selectedPeriod ? (
+        <div className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
+          <p className="text-sm text-slate-800">
+            <span className="font-medium">
+              Pay period {formatPayPeriodName(selectedPeriod)}
+            </span>
+            <span className="text-slate-600">
+              . The date range is not applied. Counts are the absences filed
+              in this pay period.
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            {venue?.name ?? "All venues"}. {eventLabel}. Archived records are
+            excluded.
+          </p>
+        </div>
+      ) : result.ok ? (
         <div className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
           <p className="text-sm text-slate-800">
             <span className="font-medium">

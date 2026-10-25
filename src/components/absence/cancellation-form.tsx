@@ -21,6 +21,10 @@ import {
   NOTICE_BASIS_LABELS,
 } from "@/lib/absence/display";
 import { CatalogReasonField } from "@/components/absence/catalog-reason-field";
+import {
+  PayPeriodField,
+  type PayPeriodChoice,
+} from "@/components/absence/pay-period-field";
 import { previewNotice } from "@/lib/absence/notice";
 import { DEFAULT_SHORT_NOTICE_HOURS } from "@/lib/absence/pay-period";
 import type { AbsenceEventOption, AbsenceStaffOption } from "@/lib/absence/queries";
@@ -114,6 +118,7 @@ export function CancellationForm({
   onStaffChange,
   reasons = [],
   shortNoticeHours = DEFAULT_SHORT_NOTICE_HOURS,
+  payPeriods = [],
 }: {
   mode: "create" | "edit";
   absenceId?: string;
@@ -131,6 +136,7 @@ export function CancellationForm({
   onStaffChange?: (staff: AbsenceStaffOption | null) => void;
   reasons?: { label: string }[];
   shortNoticeHours?: number;
+  payPeriods?: PayPeriodChoice[];
 }) {
   const action =
     mode === "create" ? createCancellationAction : correctCancellationAction;
@@ -396,6 +402,13 @@ export function CancellationForm({
       <input type="hidden" name="type" value="CANCELLATION" />
       <input type="hidden" name="reportedTime" value={reportedTime} />
       <FormAlert>{state.error}</FormAlert>
+      {mode === "create" ? (
+        <PayPeriodField
+          id={`${formId}-pay-period`}
+          periods={payPeriods}
+          messages={state.fieldErrors?.payPeriodId}
+        />
+      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink
