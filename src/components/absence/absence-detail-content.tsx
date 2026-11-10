@@ -5,6 +5,10 @@ import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dia
 import { EvidenceSection } from "@/components/absence/evidence-section";
 import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
+import {
+  AbsenceRecord,
+  LogNewAbsenceLink,
+} from "@/components/absence/log-new-absence-link";
 import { PayPeriodAssignment } from "@/components/absence/pay-period-assignment";
 import type { PayPeriodChoice } from "@/components/absence/pay-period-field";
 import { UnauthorisedCancellationBox } from "@/components/absence/unauthorised-cancellation-box";
@@ -761,8 +765,8 @@ function DrawerHeader({
       <p className="mt-1 text-sm text-slate-600">
         {staffName} · {absence.staff.staffIdNumber}
       </p>
-      {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
-        <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
+        {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
           <AbsenceActions
             absence={absence}
             archiveReturnTo={archiveReturnTo}
@@ -771,8 +775,9 @@ function DrawerHeader({
             todayIso={todayIso}
             compact
           />
-        </div>
-      ) : null}
+        ) : null}
+        <LogNewAbsenceLink size="sm" />
+      </div>
     </header>
   );
 }
@@ -812,6 +817,7 @@ export function AbsenceDetailContent({
 
   if (layout === "drawer") {
     return (
+      <AbsenceRecord>
       <div>
         <DrawerHeader
           absence={absence}
@@ -855,6 +861,7 @@ export function AbsenceDetailContent({
         />
         <HistorySection absence={absence} compact />
       </div>
+      </AbsenceRecord>
     );
   }
 
@@ -908,6 +915,7 @@ export function AbsenceDetailContent({
         : "Cancellation";
 
   return (
+    <AbsenceRecord>
     <div>
       <PageHeader
         breadcrumbs={[
@@ -917,15 +925,18 @@ export function AbsenceDetailContent({
         title={title}
         description={description}
         actions={
-          absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
-            <AbsenceActions
-              absence={absence}
-              archiveReturnTo={archiveReturnTo}
-              episodeUpdateReturnTo={episodeUpdateReturnTo}
-              timeZone={timeZone}
-              todayIso={todayIso}
-            />
-          ) : undefined
+          <>
+            {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
+              <AbsenceActions
+                absence={absence}
+                archiveReturnTo={archiveReturnTo}
+                episodeUpdateReturnTo={episodeUpdateReturnTo}
+                timeZone={timeZone}
+                todayIso={todayIso}
+              />
+            ) : null}
+            <LogNewAbsenceLink size="md" />
+          </>
         }
       />
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
@@ -959,5 +970,6 @@ export function AbsenceDetailContent({
       />
       <HistorySection absence={absence} compact={compact} />
     </div>
+    </AbsenceRecord>
   );
 }
