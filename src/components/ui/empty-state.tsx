@@ -13,15 +13,10 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <Card
-      className={cn(
-        "border-dashed px-6 py-12 text-center shadow-none",
-        className,
-      )}
-    >
-      <p className="text-sm font-medium text-slate-800">{title}</p>
+    <Card className={cn("px-6 py-10", className)}>
+      <p className="text-base font-medium text-foreground">{title}</p>
       {description ? (
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
+        <p className="mt-1 max-w-md text-sm leading-6 text-muted">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </Card>

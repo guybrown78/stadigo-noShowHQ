@@ -18,6 +18,7 @@ declare module "next-auth" {
     lastName: string;
     role: Role;
     tenantId: string | null;
+    colorScheme: "LIGHT" | "DARK";
   }
 }
 

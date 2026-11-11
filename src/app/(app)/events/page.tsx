@@ -272,7 +272,7 @@ export default async function EventsPage({
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               {total} {total === 1 ? "event" : "events"}
               {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
             </p>
@@ -296,9 +296,9 @@ export default async function EventsPage({
               <tbody>
                 {events.map((event) => (
                   <EventClickRow key={event.id} href={`/events/${event.id}`}>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                    <td className="whitespace-nowrap px-4 py-3 text-foreground">
                       <div>{formatLocalDateDisplay(event.eventDate)}</div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-muted">
                         {formatTimeRange(
                           event.startTime,
                           event.endTime,
@@ -309,24 +309,24 @@ export default async function EventsPage({
                     <td className="px-4 py-3">
                       <Link
                         href={`/events/${event.id}`}
-                        className="font-medium text-slate-900 hover:underline"
+                        className="font-medium text-foreground hover:underline"
                       >
                         {event.name}
                       </Link>
                       {event.reference ? (
-                        <div className="text-xs text-slate-500">
+                        <div className="text-xs text-muted">
                           {event.reference}
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{event.venue.name}</td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">{event.venue.name}</td>
+                    <td className="px-4 py-3 text-foreground">
                       {event.eventType.name}
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-muted">
                         {event.eventSubtype.name}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {formatStaffRequired(event.staffRequired)}
                     </td>
                     <td className="px-4 py-3">
@@ -351,25 +351,25 @@ export default async function EventsPage({
                 <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs font-medium text-slate-500">
+                    <p className="text-xs font-medium text-muted">
                       {formatLocalDateDisplay(event.eventDate)}
                     </p>
                     <Link
                       href={`/events/${event.id}`}
-                      className="mt-1 block font-semibold text-slate-900"
+                      className="mt-1 block font-semibold text-foreground"
                     >
                       {event.name}
                     </Link>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {event.venue.name}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-sm text-muted">
                       {event.eventType.name} · {event.eventSubtype.name}
                     </p>
                   </div>
                   <EventStatusBadge status={event.status} />
                 </div>
-                <p className="mt-3 text-sm text-slate-600">
+                <p className="mt-3 text-sm text-muted">
                   Staff required: {formatStaffRequired(event.staffRequired)}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2" data-event-separate>

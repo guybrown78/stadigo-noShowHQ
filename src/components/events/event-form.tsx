@@ -79,7 +79,7 @@ function HourMinuteFields({
   const hours = hourOptions();
   const minutes = minuteOptions(value);
   const selectClass = controlClassName(
-    "min-w-[4.5rem] bg-white disabled:bg-slate-50 disabled:text-slate-500",
+    "min-w-[4.5rem] bg-surface disabled:bg-wash disabled:text-muted",
   );
 
   function commit(nextHour: string, nextMinute: string) {
@@ -119,7 +119,7 @@ function HourMinuteFields({
           })}
         </select>
       </div>
-      <span aria-hidden="true" className="text-slate-500">
+      <span aria-hidden="true" className="text-muted">
         :
       </span>
       <div>
@@ -132,7 +132,7 @@ function HourMinuteFields({
           disabled={!hour}
           aria-invalid={invalid}
           onChange={(event) => commit(hour, event.target.value)}
-          className={`${selectClass} disabled:bg-slate-50 disabled:text-slate-500`}
+          className={`${selectClass} disabled:bg-wash disabled:text-muted`}
         >
           <option value="">Mins</option>
           {minutes.map((option) => (
@@ -260,12 +260,12 @@ export function EventForm({
       {state.error ? <FormAlert>{state.error}</FormAlert> : null}
 
       <fieldset className="space-y-4">
-        <legend className="text-base font-semibold text-slate-900">
+        <legend className="text-base font-semibold text-foreground">
           Event details
         </legend>
 
         <div>
-          <label htmlFor={`${formId}-name`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-name`} className="mb-1 block text-sm font-medium text-foreground">
             Event name <span className="text-red-700">*</span>
           </label>
           <input
@@ -284,7 +284,7 @@ export function EventForm({
         </div>
 
         <div>
-          <label htmlFor={`${formId}-reference`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-reference`} className="mb-1 block text-sm font-medium text-foreground">
             Reference / booking number
           </label>
           <input
@@ -301,7 +301,7 @@ export function EventForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor={`${formId}-type`} className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor={`${formId}-type`} className="mb-1 block text-sm font-medium text-foreground">
               Event type <span className="text-red-700">*</span>
             </label>
             <select
@@ -323,7 +323,7 @@ export function EventForm({
                     : "",
                 );
               }}
-              className={controlClassName("w-full bg-white")}
+              className={controlClassName("w-full bg-surface")}
             >
               <option value="">Select type</option>
               {types.map((type) => (
@@ -336,7 +336,7 @@ export function EventForm({
           </div>
 
           <div>
-            <label htmlFor={`${formId}-subtype`} className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor={`${formId}-subtype`} className="mb-1 block text-sm font-medium text-foreground">
               Event subtype <span className="text-red-700">*</span>
             </label>
             <select
@@ -350,7 +350,7 @@ export function EventForm({
               aria-describedby={state.fieldErrors?.eventSubtypeId ? errorId("subtype") : undefined}
               onChange={(event) => setEventSubtypeId(event.target.value)}
               className={controlClassName(
-                "w-full bg-white disabled:bg-slate-50 disabled:text-slate-500",
+                "w-full bg-surface disabled:bg-wash disabled:text-muted",
               )}
             >
               <option value="">
@@ -367,7 +367,7 @@ export function EventForm({
         </div>
 
         <div>
-          <label htmlFor={`${formId}-status`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-status`} className="mb-1 block text-sm font-medium text-foreground">
             Status <span className="text-red-700">*</span>
           </label>
           <select
@@ -380,7 +380,7 @@ export function EventForm({
             aria-describedby={
               state.fieldErrors?.status ? errorId("status") : undefined
             }
-            className={controlClassName("w-full bg-white sm:max-w-xs")}
+            className={controlClassName("w-full bg-surface sm:max-w-xs")}
           >
             {EVENT_STATUSES.map((status) => (
               <option key={status} value={status}>
@@ -392,13 +392,13 @@ export function EventForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">
           Venue and timing
         </legend>
 
         <div>
-          <label htmlFor={`${formId}-venue-search`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-venue-search`} className="mb-1 block text-sm font-medium text-foreground">
             Search venues
           </label>
           <input
@@ -412,15 +412,15 @@ export function EventForm({
         </div>
 
         {addingVenue ? (
-          <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+          <div className="space-y-4 rounded-md border border-border bg-wash p-4">
             <input type="hidden" name="venueId" value="" />
-            <p className="text-sm font-medium text-slate-900">New venue</p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm font-medium text-foreground">New venue</p>
+            <p className="text-sm text-muted">
               This venue is saved with the event and added to the venue list for
               next time.
             </p>
             <div>
-              <label htmlFor={`${formId}-new-venue`} className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor={`${formId}-new-venue`} className="mb-1 block text-sm font-medium text-foreground">
                 Venue name <span className="text-red-700">*</span>
               </label>
               <input
@@ -434,12 +434,12 @@ export function EventForm({
                 aria-required="true"
                 aria-invalid={Boolean(state.fieldErrors?.newVenueName)}
                 aria-describedby={state.fieldErrors?.newVenueName ? errorId("newVenue") : undefined}
-                className={controlClassName("w-full bg-white")}
+                className={controlClassName("w-full bg-surface")}
               />
               <FieldError id={errorId("newVenue")} messages={state.fieldErrors?.newVenueName} />
             </div>
             <div>
-              <label htmlFor={`${formId}-new-address`} className="mb-1 block text-sm font-medium text-slate-700">
+              <label htmlFor={`${formId}-new-address`} className="mb-1 block text-sm font-medium text-foreground">
                 Address line
               </label>
               <input
@@ -452,7 +452,7 @@ export function EventForm({
                     ? errorId("newAddress")
                     : undefined
                 }
-                className={controlClassName("w-full bg-white")}
+                className={controlClassName("w-full bg-surface")}
               />
               <FieldError
                 id={errorId("newAddress")}
@@ -461,7 +461,7 @@ export function EventForm({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor={`${formId}-new-town`} className="mb-1 block text-sm font-medium text-slate-700">
+                <label htmlFor={`${formId}-new-town`} className="mb-1 block text-sm font-medium text-foreground">
                   Town / city
                 </label>
                 <input
@@ -474,7 +474,7 @@ export function EventForm({
                       ? errorId("newTown")
                       : undefined
                   }
-                  className={controlClassName("w-full bg-white")}
+                  className={controlClassName("w-full bg-surface")}
                 />
                 <FieldError
                   id={errorId("newTown")}
@@ -482,20 +482,20 @@ export function EventForm({
                 />
               </div>
               <div>
-                <label htmlFor={`${formId}-new-postcode`} className="mb-1 block text-sm font-medium text-slate-700">
+                <label htmlFor={`${formId}-new-postcode`} className="mb-1 block text-sm font-medium text-foreground">
                   Postcode
                 </label>
                 <input
                   id={`${formId}-new-postcode`}
                   name="newVenuePostcode"
                   autoComplete="postal-code"
-                  className={controlClassName("w-full bg-white")}
+                  className={controlClassName("w-full bg-surface")}
                 />
               </div>
             </div>
             <button
               type="button"
-              className="text-sm font-medium text-slate-700 underline"
+              className="text-sm font-medium text-foreground underline"
               onClick={() => setAddingVenue(false)}
             >
               Choose an existing venue instead
@@ -503,7 +503,7 @@ export function EventForm({
           </div>
         ) : (
           <div>
-            <label htmlFor={`${formId}-venue`} className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor={`${formId}-venue`} className="mb-1 block text-sm font-medium text-foreground">
               Venue <span className="text-red-700">*</span>
             </label>
             {filteredVenues.length > 0 ? (
@@ -515,7 +515,7 @@ export function EventForm({
                 aria-required="true"
                 aria-invalid={Boolean(state.fieldErrors?.venueId)}
                 aria-describedby={state.fieldErrors?.venueId ? errorId("venue") : undefined}
-                className={controlClassName("w-full bg-white")}
+                className={controlClassName("w-full bg-surface")}
               >
                 <option value="">Select venue</option>
                 {filteredVenues.map((venue) => (
@@ -531,18 +531,18 @@ export function EventForm({
             )}
             <FieldError id={errorId("venue")} messages={state.fieldErrors?.venueId} />
             {filteredVenues.length === 0 ? (
-              <div className="mt-2 rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-3">
-                <p className="text-sm font-medium text-slate-800">
+              <div className="mt-2 rounded-md border border-dashed border-border bg-wash px-4 py-3">
+                <p className="text-sm font-medium text-foreground">
                   {venueQuery.trim()
                     ? `No venues match “${venueQuery.trim()}”.`
                     : "No venues are saved yet."}
                 </p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-muted">
                   Create one here and it will be saved for future events.
                 </p>
                 <button
                   type="button"
-                  className="mt-3 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                  className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover"
                   onClick={() => startAddingVenue()}
                 >
                   {venueQuery.trim()
@@ -553,13 +553,13 @@ export function EventForm({
             ) : (
               <button
                 type="button"
-                className="mt-2 text-sm font-medium text-slate-700 underline"
+                className="mt-2 text-sm font-medium text-foreground underline"
                 onClick={() => startAddingVenue()}
               >
                 Can&apos;t find it? Add a new venue
               </button>
             )}
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted">
               Manage the full venue list in{" "}
               <Link href="/settings/events" className="font-medium underline">
                 Venues
@@ -570,7 +570,7 @@ export function EventForm({
         )}
 
         <div>
-          <label htmlFor={`${formId}-date`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-date`} className="mb-1 block text-sm font-medium text-foreground">
             Event date <span className="text-red-700">*</span>
           </label>
           <input
@@ -589,7 +589,7 @@ export function EventForm({
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
-            <p id={`${formId}-briefing-label`} className="mb-1 text-sm font-medium text-slate-700">
+            <p id={`${formId}-briefing-label`} className="mb-1 text-sm font-medium text-foreground">
               Briefing time
             </p>
             <HourMinuteFields
@@ -604,13 +604,13 @@ export function EventForm({
               }
               onChange={setBriefingTime}
             />
-            <p id={`${formId}-briefing-help`} className="mt-1 text-xs text-slate-500">
+            <p id={`${formId}-briefing-help`} className="mt-1 text-xs text-muted">
               Must be earlier than the start time. Minutes are in 5-minute steps.
             </p>
             <FieldError id={errorId("briefing")} messages={state.fieldErrors?.briefingTime} />
           </div>
           <div>
-            <p id={`${formId}-start-label`} className="mb-1 text-sm font-medium text-slate-700">
+            <p id={`${formId}-start-label`} className="mb-1 text-sm font-medium text-foreground">
               Start time
             </p>
             <HourMinuteFields
@@ -642,7 +642,7 @@ export function EventForm({
             <FieldError id={errorId("start")} messages={state.fieldErrors?.startTime} />
           </div>
           <div>
-            <p id={`${formId}-end-label`} className="mb-1 text-sm font-medium text-slate-700">
+            <p id={`${formId}-end-label`} className="mb-1 text-sm font-medium text-foreground">
               End time
             </p>
             <HourMinuteFields
@@ -659,23 +659,23 @@ export function EventForm({
               }}
               onChange={setEndTime}
             />
-            <p id={`${formId}-end-help`} className="mt-1 text-xs text-slate-500">
+            <p id={`${formId}-end-help`} className="mt-1 text-xs text-muted">
               Must be later than the start time. Minutes are in 5-minute steps.
             </p>
             <FieldError id={errorId("end")} messages={state.fieldErrors?.endTime} />
           </div>
         </div>
-        <label className="flex items-start gap-2 text-sm text-slate-700">
+        <label className="flex items-start gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             name="endsNextDay"
             checked={endsNextDay}
             onChange={(event) => setEndsNextDay(event.target.checked)}
-            className="mt-0.5 rounded border-slate-300"
+            className="mt-0.5 rounded border-border"
           />
           <span>
             Ends the next day
-            <span className="mt-0.5 block text-xs text-slate-500">
+            <span className="mt-0.5 block text-xs text-muted">
               Use this for overnight events, for example a start at 22:00 and an
               end at 02:00.
             </span>
@@ -683,18 +683,18 @@ export function EventForm({
         </label>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">
           Staffing and risk
         </legend>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted">
           The event page estimates fill rate from logged cancellations and
           AWOLs and compares it with these thresholds. Risk alerts are not sent
           yet.
         </p>
 
         <div>
-          <label htmlFor={`${formId}-staff`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-staff`} className="mb-1 block text-sm font-medium text-foreground">
             Staff required
           </label>
           <input
@@ -714,7 +714,7 @@ export function EventForm({
             }
             className={controlClassName("w-full sm:max-w-xs")}
           />
-          <p id={`${formId}-staff-hint`} className="mt-1 text-sm text-slate-500">
+          <p id={`${formId}-staff-hint`} className="mt-1 text-sm text-muted">
             Leave blank if you do not know this yet.
           </p>
           <FieldError id={errorId("staff")} messages={state.fieldErrors?.staffRequired} />
@@ -722,7 +722,7 @@ export function EventForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor={`${formId}-warning`} className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor={`${formId}-warning`} className="mb-1 block text-sm font-medium text-foreground">
               Warning fill rate (%) <span className="text-red-700">*</span>
             </label>
             <input
@@ -747,7 +747,7 @@ export function EventForm({
             <FieldError id={errorId("warning")} messages={state.fieldErrors?.warningFillRate} />
           </div>
           <div>
-            <label htmlFor={`${formId}-critical`} className="mb-1 block text-sm font-medium text-slate-700">
+            <label htmlFor={`${formId}-critical`} className="mb-1 block text-sm font-medium text-foreground">
               Critical fill rate (%) <span className="text-red-700">*</span>
             </label>
             <input
@@ -770,10 +770,10 @@ export function EventForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">Notes</legend>
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">Notes</legend>
         <div>
-          <label htmlFor={`${formId}-notes`} className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor={`${formId}-notes`} className="mb-1 block text-sm font-medium text-foreground">
             Internal notes
           </label>
           <textarea

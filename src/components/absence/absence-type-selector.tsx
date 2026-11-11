@@ -8,15 +8,15 @@ export type LogAbsenceType = "CANCELLATION" | "AWOL" | "SICKNESS";
 const TONE_CLASS = {
   cancel: {
     on: "border-cancel bg-cancel text-white",
-    off: "border-cancel bg-cancel-soft text-cancel hover:bg-white",
+    off: "border-cancel bg-cancel-soft text-cancel hover:bg-surface",
   },
   awol: {
-    on: "border-awol bg-awol text-white",
-    off: "border-awol bg-awol-soft text-awol hover:bg-white",
+    on: "border-awol bg-awol text-awol-on",
+    off: "border-awol bg-awol-soft text-awol-ink hover:bg-surface",
   },
   sickness: {
     on: "border-sickness bg-sickness text-white",
-    off: "border-sickness bg-sickness-soft text-sickness hover:bg-white",
+    off: "border-sickness bg-sickness-soft text-sickness hover:bg-surface",
   },
 } as const;
 
@@ -64,7 +64,7 @@ export function AbsenceTypeSelector({
   if (!locked && onChange) {
     return (
       <fieldset>
-        <legend className="text-sm font-medium text-slate-700">Absence type</legend>
+        <legend className="text-sm font-medium text-foreground">Absence type</legend>
         <div className="mt-2 flex flex-wrap gap-2">
           {TYPES.map((type) => {
             const pressed = value === type.value;
@@ -76,7 +76,7 @@ export function AbsenceTypeSelector({
                 aria-pressed={pressed}
                 onClick={() => onChange(type.value)}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400",
+                  "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium",
                   TONE_CLASS[type.tone][pressed ? "on" : "off"],
                 )}
               >
@@ -86,7 +86,7 @@ export function AbsenceTypeSelector({
             );
           })}
         </div>
-        <p className="mt-2 text-sm text-slate-600">{selected.description}</p>
+        <p className="mt-2 text-sm text-muted">{selected.description}</p>
       </fieldset>
     );
   }
@@ -134,14 +134,14 @@ function TypeCard({
         : "border-2 border-cancel bg-cancel-soft";
   const labelClass =
     tone === "awol"
-      ? "text-awol"
+      ? "text-awol-ink"
       : tone === "sickness"
         ? "text-sickness"
         : "text-cancel";
 
   if (disabled) {
     return (
-      <p className="rounded-xl border border-border bg-slate-50 px-4 py-4 text-slate-400">
+      <p className="rounded-xl border border-border bg-wash px-4 py-4 text-muted">
         <span className="flex items-center gap-2 text-sm font-semibold">
           <Icon className="size-4" aria-hidden="true" />
           {label}
@@ -158,7 +158,7 @@ function TypeCard({
         {label}
         {selected ? <Check className="size-4" aria-hidden="true" /> : null}
       </span>
-      <span className="mt-1 block text-xs text-slate-600">{description}</span>
+      <span className="mt-1 block text-xs text-muted">{description}</span>
     </p>
   );
 }

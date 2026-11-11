@@ -39,7 +39,7 @@ export function PasswordForm() {
       <div>
         <label
           htmlFor={`${formId}-currentPassword`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Current password
         </label>
@@ -66,7 +66,7 @@ export function PasswordForm() {
       <div>
         <label
           htmlFor={`${formId}-newPassword`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           New password
         </label>
@@ -92,7 +92,7 @@ export function PasswordForm() {
       <div>
         <label
           htmlFor={`${formId}-confirmPassword`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Confirm new password
         </label>

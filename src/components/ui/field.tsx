@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 export function labelClassName(className?: string) {
-  return cn("mb-1 block text-sm font-medium text-slate-700", className);
+  return cn("mb-1 block text-sm font-medium text-foreground", className);
 }
 
 export function FieldLabel({
@@ -25,8 +25,8 @@ export function FieldLabel({
       htmlFor={htmlFor}
       className={cn(
         size === "sm"
-          ? "mb-0.5 block text-xs font-medium text-slate-500"
-          : "mb-1 block text-sm font-medium text-slate-700",
+          ? "mb-0.5 block text-xs font-medium text-muted"
+          : "mb-1 block text-sm font-medium text-foreground",
         className,
       )}
     >

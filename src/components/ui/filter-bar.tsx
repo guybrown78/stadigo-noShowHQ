@@ -3,7 +3,6 @@
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
 
 export function FilterBar({
@@ -24,45 +23,43 @@ export function FilterBar({
   const panelId = useId();
 
   return (
-    <Card className={cn("shadow-none", className)}>
-      <CardBody className="px-3 py-2 md:py-2.5">
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 text-left md:hidden"
-          aria-expanded={open}
-          aria-controls={panelId}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span className="text-sm font-medium text-slate-800">Filters</span>
-          {active ? (
-            <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-hover">
-              Applied
-            </span>
-          ) : null}
-          <ChevronDown
-            className={cn(
-              "ml-auto size-4 shrink-0 text-slate-400 transition-transform",
-              open && "rotate-180",
-            )}
-            aria-hidden="true"
-          />
-        </button>
-        <div
-          id={panelId}
-          role="search"
-          aria-label={ariaLabel}
+    <div className={className}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 py-1 text-left md:hidden"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="text-sm font-medium text-foreground">Filters</span>
+        {active ? (
+          <span className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-hover">
+            Applied
+          </span>
+        ) : null}
+        <ChevronDown
           className={cn(
-            "flex flex-wrap items-end gap-x-2 gap-y-2",
-            open ? "mt-2 md:mt-0" : "hidden md:flex",
+            "ml-auto size-4 shrink-0 text-muted transition-transform",
+            open && "rotate-180",
           )}
-        >
-          {children}
-          {actions ? (
-            <div className="flex shrink-0 items-end gap-2 pb-px">{actions}</div>
-          ) : null}
-        </div>
-      </CardBody>
-    </Card>
+          aria-hidden="true"
+        />
+      </button>
+      <div
+        id={panelId}
+        role="search"
+        aria-label={ariaLabel}
+        className={cn(
+          "flex flex-wrap items-end gap-x-3 gap-y-3",
+          open ? "mt-3 md:mt-0" : "hidden md:flex",
+        )}
+      >
+        {children}
+        {actions ? (
+          <div className="flex shrink-0 items-end gap-2 pb-px">{actions}</div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

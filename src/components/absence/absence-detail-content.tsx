@@ -82,8 +82,8 @@ function Detail({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className={cn("mt-1 min-w-0 text-slate-900", valueClassName)}>
+      <dt className="text-sm font-medium text-muted">{label}</dt>
+      <dd className={cn("mt-1 min-w-0 text-foreground", valueClassName)}>
         {children}
       </dd>
     </div>
@@ -110,7 +110,7 @@ function actorName(user: { firstName: string; lastName: string } | null) {
 function HistoryList({ absence }: { absence: AbsenceDetail }) {
   if (absence.history.length === 0) {
     return (
-      <p className="mt-2 text-sm text-slate-600">No history recorded.</p>
+      <p className="mt-2 text-sm text-muted">No history recorded.</p>
     );
   }
   return (
@@ -118,19 +118,19 @@ function HistoryList({ absence }: { absence: AbsenceDetail }) {
       {absence.history.map((entry) => {
         const changes = parseHistoryChanges(entry.changes);
         return (
-          <li key={entry.id} className="py-3 text-sm text-slate-700">
-            <p className="font-medium text-slate-900">
+          <li key={entry.id} className="py-3 text-sm text-foreground">
+            <p className="font-medium text-foreground">
               {historyActionLabel(entry.action, absence.type)}
             </p>
-            <p className="mt-1 text-slate-600">
+            <p className="mt-1 text-muted">
               {formatLondonDateTime(entry.createdAt)}
               {` · ${entry.systemActor ? "NoShowHQ" : actorName(entry.actedBy)}`}
             </p>
             {entry.reason ? (
-              <p className="mt-1 text-slate-600">{entry.reason}</p>
+              <p className="mt-1 text-muted">{entry.reason}</p>
             ) : null}
             {changes.length > 0 ? (
-              <ul className="mt-2 space-y-1 break-words whitespace-pre-wrap text-slate-600">
+              <ul className="mt-2 space-y-1 break-words whitespace-pre-wrap text-muted">
                 {changes.map((change) => (
                   <li key={`${entry.id}-${change.field}`}>
                     {historyFieldLabel(change.field, absence.type)}:{" "}
@@ -160,7 +160,7 @@ function HistorySection({
   if (compact && long) {
     return (
       <details className="mt-6 rounded-xl border border-border bg-surface">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-900">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
           History ({absence.history.length})
         </summary>
         <div className="border-t border-border px-4 pb-3">
@@ -206,12 +206,12 @@ function StaffEventHeader({
         ) : (
           staffName
         )}
-        <span className="text-slate-600">
+        <span className="text-muted">
           {" "}
           · {absence.staff.staffIdNumber}
         </span>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-muted">
             {absence.staff.roleTitle}
           </span>
           <EmploymentStatusBadge status={absence.staff.employmentStatus} />
@@ -225,7 +225,7 @@ function StaffEventHeader({
         ) : (
           eventName
         )}
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {formatLocalDateDisplay(eventDate)}
         </p>
       </Detail>
@@ -261,7 +261,7 @@ function MetaDetails({
             : "—"}
           {absence.archivedBy ? ` · ${actorName(absence.archivedBy)}` : ""}
           {absence.archiveReason ? (
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-muted">
               {absence.archiveReason}
             </p>
           ) : null}
@@ -468,7 +468,7 @@ function AbsenceActions({
 function EventOutcomeNote({ event }: { event: AbsenceDetail["event"] }) {
   if (!event || event.deletedAt) {
     return (
-      <p className="mt-1 text-sm font-medium text-slate-700">
+      <p className="mt-1 text-sm font-medium text-foreground">
         This event was removed. The date, venue, and this absence stay on the
         record.
       </p>
@@ -476,7 +476,7 @@ function EventOutcomeNote({ event }: { event: AbsenceDetail["event"] }) {
   }
   if (event.status === "CANCELLED" || event.status === "POSTPONED") {
     return (
-      <p className="mt-1 text-sm font-medium text-slate-700">
+      <p className="mt-1 text-sm font-medium text-foreground">
         This event was {EVENT_STATUS_LABELS[event.status].toLowerCase()}. The
         date, venue, and this absence stay on the record.
       </p>
@@ -524,7 +524,7 @@ function CancellationFields({
         {detail.noticeBasis === "EXACT_TIME" && detail.noticeMinutes != null
           ? `${formatDurationMinutes(detail.noticeMinutes)} (${formatCalendarNotice(detail.noticeCalendarDays)} by date)`
           : formatCalendarNotice(detail.noticeCalendarDays)}
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           Calculated using {NOTICE_BASIS_LABELS[detail.noticeBasis].toLowerCase()}
         </p>
         {detail.isShortNotice ? (
@@ -540,10 +540,10 @@ function CancellationFields({
         ) : null}
       </Detail>
       <div className="sm:col-span-2">
-        <dt className="text-sm font-medium text-slate-500">
+        <dt className="text-sm font-medium text-muted">
           {ABSENCE_DETAIL_LABEL.reason}
         </dt>
-        <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+        <dd className="mt-1 whitespace-pre-wrap text-foreground">
           {absence.reason}
         </dd>
       </div>
@@ -574,7 +574,7 @@ function AwolFields({ absence }: { absence: AbsenceDetail }) {
         ) : (
           eventName
         )}
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {detail.eventReferenceSnapshot ?? "No reference"}
           {" · "}
           {formatLocalDateDisplay(detail.eventDateSnapshot)}
@@ -585,11 +585,11 @@ function AwolFields({ absence }: { absence: AbsenceDetail }) {
             ? `–${detail.eventEndTimeSnapshot}`
             : ""}
         </p>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {detail.venueNameSnapshot ?? "No venue recorded"}
         </p>
         <EventOutcomeNote event={absence.event} />
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {detail.eventTypeSnapshot ?? "Unspecified"}
           {detail.eventSubtypeSnapshot
             ? ` / ${detail.eventSubtypeSnapshot}`
@@ -633,12 +633,12 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
         ) : (
           staffName
         )}
-        <span className="text-slate-600">
+        <span className="text-muted">
           {" "}
           · {absence.staff.staffIdNumber}
         </span>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-muted">
             {absence.staff.roleTitle}
           </span>
           <EmploymentStatusBadge status={absence.staff.employmentStatus} />
@@ -647,7 +647,7 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
       <Detail label={ABSENCE_DETAIL_LABEL.recordStatus}>
         {RECORD_STATUS_LABELS[absence.recordStatus]}
         {!archived ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Active means this record is in operational views. It does not mean
             the staff member is still sick.
           </p>
@@ -656,19 +656,19 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
       <Detail label={ABSENCE_DETAIL_LABEL.episodeStatus}>
         {sicknessEpisodeStateLabel(detail.episodeState)}
         {detail.episodeState === "ENDED" ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Ended means an end date was recorded. It does not mean recovered,
             fit for work, returned to work or archived.
           </p>
         ) : null}
         {detail.episodeState === "ONGOING" ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Ongoing means the organisation has confirmed that no end date has
             been recorded yet.
           </p>
         ) : null}
         {detail.episodeState === "NOT_CONFIRMED" ? (
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             Sickness status not yet confirmed means no end date and no ongoing
             confirmation has been recorded.
           </p>
@@ -711,7 +711,7 @@ function SicknessFields({ absence }: { absence: AbsenceDetail }) {
       {ended && calendarSpan != null ? (
         <Detail label={ABSENCE_DETAIL_LABEL.calendarDaySpan}>
           {formatCalendarDaySpan(calendarSpan)}
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {SICKNESS_CALENDAR_DAY_SPAN_HINT}
           </p>
         </Detail>
@@ -1001,14 +1001,14 @@ function DrawerHeader({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <AbsenceTypeBadge type={absence.type} />
-            <span className="text-sm text-slate-700">
+            <span className="text-sm text-foreground">
               {RECORD_STATUS_LABELS[absence.recordStatus]}
             </span>
           </div>
-          <h2 id={titleId} className="mt-2 text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="mt-2 text-lg font-semibold text-foreground">
             {heading}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-muted">
             {staffName} · {absence.staff.staffIdNumber}
           </p>
         </div>
@@ -1121,7 +1121,7 @@ export function AbsenceDetailContent({
             todayIso={todayIso}
           />
           <details className="mt-4 rounded-xl border border-border bg-surface">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-900">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-foreground">
               Record
             </summary>
             <div className="border-t border-border px-4 py-4">
@@ -1204,7 +1204,7 @@ export function AbsenceDetailContent({
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <div className="order-2 flex flex-col gap-6 lg:order-1">
-          <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <div className="rounded-xl border border-border bg-surface p-6">
             <FiledPayPeriod absence={absence} payPeriods={payPeriods} />
             <TypeFields
               absence={absence}

@@ -28,7 +28,7 @@ export default async function EditVenuePage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/events" className="hover:underline">
           Events
         </Link>
@@ -39,14 +39,14 @@ export default async function EditVenuePage({
         <span aria-hidden="true"> / </span>
         Edit
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Edit venue
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Changes apply to this organisation only. Existing events keep this
         venue and show the updated name and address.
       </p>
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="mt-8 rounded-lg border border-border bg-surface p-6">
         <VenueForm
           mode="edit"
           venueId={venue.id}

@@ -137,17 +137,17 @@ export function SidebarShell({
 
   const sidebar = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border px-5 py-5">
+      <div className="shrink-0 px-3 pt-5 pb-2">
         <Link
           href={brandHref}
-          className="block"
+          className="block rounded-lg px-3 py-2"
           onClick={() => setDrawerOpen(false)}
         >
           <BrandMark title={brandTitle} />
+          {brandSubtitle ? (
+            <p className="mt-1 truncate pl-10 text-sm text-muted">{brandSubtitle}</p>
+          ) : null}
         </Link>
-        {brandSubtitle ? (
-          <p className="mt-1 truncate text-sm text-slate-500">{brandSubtitle}</p>
-        ) : null}
       </div>
 
       <nav
@@ -159,7 +159,7 @@ export function SidebarShell({
           {groups.map((group) => (
             <div key={group.label || "nav"}>
               {group.label ? (
-                <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+                <p className="px-3 pb-1.5 text-xs font-medium text-muted">
                   {group.label}
                 </p>
               ) : null}
@@ -173,10 +173,10 @@ export function SidebarShell({
                         href={item.href}
                         onClick={() => setDrawerOpen(false)}
                         className={cn(
-                          "flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                          "flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150",
                           active
-                            ? "bg-primary-soft text-primary-hover"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                            ? "bg-surface text-foreground shadow-sm"
+                            : "text-muted hover:bg-surface/70 hover:text-foreground",
                         )}
                         aria-current={active ? "page" : undefined}
                       >
@@ -185,7 +185,7 @@ export function SidebarShell({
                             <Icon
                               className={cn(
                                 "size-4 shrink-0",
-                                active ? "text-primary" : "text-slate-400",
+                                active ? "text-primary" : "text-muted",
                               )}
                               aria-hidden="true"
                             />
@@ -197,8 +197,8 @@ export function SidebarShell({
                             className={cn(
                               "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-semibold",
                               active
-                                ? "bg-primary text-white"
-                                : "bg-slate-900 text-white",
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-foreground text-background",
                             )}
                             aria-label={`${item.badge} ${item.badgeLabel ?? "open items"}`}
                           >
@@ -217,20 +217,20 @@ export function SidebarShell({
 
       <div
         ref={accountRef}
-        className="relative shrink-0 border-t border-border p-3"
+        className="relative shrink-0 border-t border-border/80 p-3"
       >
         {accountOpen ? (
           <div
             id={accountMenuId}
-            className="absolute inset-x-3 bottom-full z-10 mb-2 overflow-hidden rounded-xl border border-border bg-white shadow-lg"
+            className="absolute inset-x-3 bottom-full z-10 mb-2 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
             role="menu"
             aria-label="Account menu"
           >
-            <div className="border-b border-slate-100 px-3 py-2">
-              <p className="truncate text-sm font-medium text-slate-900">
+            <div className="border-b border-border px-3 py-2">
+              <p className="truncate text-sm font-medium text-foreground">
                 {displayName}
               </p>
-              <p className="truncate text-xs text-slate-500">{user.email}</p>
+              <p className="truncate text-xs text-muted">{user.email}</p>
             </div>
             <ul className="py-1">
               {accountMenuItems.map((item) => (
@@ -238,7 +238,7 @@ export function SidebarShell({
                   <Link
                     href={item.href}
                     role="menuitem"
-                    className="block px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="block px-3 py-2 text-sm text-foreground hover:bg-wash"
                     onClick={() => {
                       setAccountOpen(false);
                       setDrawerOpen(false);
@@ -253,7 +253,7 @@ export function SidebarShell({
                   <button
                     type="submit"
                     role="menuitem"
-                    className="w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    className="w-full px-3 py-2 text-left text-sm text-foreground hover:bg-wash"
                   >
                     Sign out
                   </button>
@@ -265,23 +265,23 @@ export function SidebarShell({
 
         <button
           type="button"
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-slate-100"
+          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-surface/70"
           aria-expanded={accountOpen}
           aria-controls={accountMenuId}
           onClick={() => setAccountOpen((value) => !value)}
         >
           <Avatar initials={initials} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium text-slate-900">
+            <span className="block truncate text-sm font-medium text-foreground">
               {displayName}
             </span>
-            <span className="block truncate text-xs text-slate-500">
+            <span className="block truncate text-xs text-muted">
               {user.role.replace(/_/g, " ")}
             </span>
           </span>
           <ChevronUp
             className={cn(
-              "size-4 shrink-0 text-slate-400 transition-transform",
+              "size-4 shrink-0 text-muted transition-transform",
               accountOpen ? "rotate-0" : "rotate-180",
             )}
             aria-hidden="true"
@@ -296,12 +296,12 @@ export function SidebarShell({
       {banner}
 
       <div className="lg:flex lg:min-h-dvh">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-white px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 lg:hidden">
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            className="h-10 w-10 px-0"
+            className="h-10 w-10 shrink-0 px-0"
             aria-expanded={drawerOpen}
             aria-controls={navId}
             onClick={() => setDrawerOpen(true)}
@@ -309,17 +309,17 @@ export function SidebarShell({
             <span className="sr-only">Open navigation</span>
             <Menu className="size-5" aria-hidden="true" />
           </Button>
-          <div className="min-w-0">
-            <BrandMark title={brandTitle} size="sm" />
-            {brandSubtitle ? (
-              <p className="truncate text-xs text-slate-500">{brandSubtitle}</p>
-            ) : null}
-          </div>
+          <BrandMark title={brandTitle} size="sm" className="shrink-0" />
+          {brandSubtitle ? (
+            <p className="ml-auto min-w-0 truncate border-l border-border pl-3 text-sm text-muted">
+              {brandSubtitle}
+            </p>
+          ) : null}
         </header>
 
         <div
           className={cn(
-            "fixed inset-0 z-40 bg-slate-900/40 transition-opacity duration-300 lg:hidden",
+            "fixed inset-0 z-40 bg-foreground/40 transition-opacity duration-300 lg:hidden",
             drawerOpen
               ? "pointer-events-auto opacity-100"
               : "pointer-events-none opacity-0",
@@ -330,12 +330,12 @@ export function SidebarShell({
 
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex h-dvh w-72 flex-col border-r border-border bg-white shadow-xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:z-0 lg:h-dvh lg:shrink-0 lg:shadow-none",
+            "fixed inset-y-0 left-0 z-50 flex h-dvh w-72 flex-col border-r border-border bg-rail shadow-xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:z-0 lg:h-dvh lg:shrink-0 lg:shadow-none",
             drawerOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           )}
         >
           <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3 lg:hidden">
-            <p className="text-sm font-medium text-slate-900">Menu</p>
+            <p className="text-sm font-medium text-foreground">Menu</p>
             <Button
               type="button"
               variant="secondary"

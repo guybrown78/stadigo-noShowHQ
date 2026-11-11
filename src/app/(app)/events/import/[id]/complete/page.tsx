@@ -43,17 +43,17 @@ export default async function ImportCompletePage({
 
   return (
       <div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           <Link href="/events" className="hover:underline">
             Events
           </Link>
           <span aria-hidden="true"> / </span>
           Import complete
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
           Import complete
         </h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="mt-2 max-w-2xl text-muted">
           {record.createdEventCount}{" "}
           {record.createdEventCount === 1 ? "event was" : "events were"} created
           {record.createdVenueCount > 0
@@ -63,19 +63,19 @@ export default async function ImportCompletePage({
         </p>
 
         <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg border border-border bg-surface px-4 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted">
               Events created
             </dt>
-            <dd className="mt-1 text-2xl font-semibold text-slate-900">
+            <dd className="mt-1 text-2xl font-semibold text-foreground">
               {record.createdEventCount}
             </dd>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div className="rounded-lg border border-border bg-surface px-4 py-3">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted">
               New venues created
             </dt>
-            <dd className="mt-1 text-2xl font-semibold text-slate-900">
+            <dd className="mt-1 text-2xl font-semibold text-foreground">
               {record.createdVenueCount}
             </dd>
           </div>
@@ -90,7 +90,7 @@ export default async function ImportCompletePage({
           </Link>
           <Link
             href="/events/import"
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
           >
             Start another import
           </Link>

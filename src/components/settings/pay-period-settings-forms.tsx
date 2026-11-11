@@ -84,12 +84,12 @@ function CurrentPeriod({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium text-slate-500">
+              <p className="text-sm font-medium text-muted">
                 Period {period.number}
               </p>
               <Badge tone="success">Current</Badge>
             </div>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
               {period.label}
             </h2>
           </div>
@@ -106,24 +106,24 @@ function CurrentPeriod({
 
         <dl className="mt-6 grid gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-sm text-slate-500">Dates</dt>
-            <dd className="mt-1 font-medium text-slate-900">
+            <dt className="text-sm text-muted">Dates</dt>
+            <dd className="mt-1 font-medium text-foreground">
               {displayDate(period.startsOn)} to {displayDate(period.endsOn)}
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-500">Records</dt>
-            <dd className="mt-1 font-medium text-slate-900">{records}</dd>
+            <dt className="text-sm text-muted">Records</dt>
+            <dd className="mt-1 font-medium text-foreground">{records}</dd>
           </div>
           <div>
-            <dt className="text-sm text-slate-500">New absences</dt>
-            <dd className="mt-1 font-medium text-slate-900">Filed in this period</dd>
+            <dt className="text-sm text-muted">New absences</dt>
+            <dd className="mt-1 font-medium text-foreground">Filed in this period</dd>
           </div>
         </dl>
 
         <div className="mt-6 border-t border-border pt-5">
           {editing ? (
-            <div className="rounded-lg bg-slate-50 p-4">
+            <div className="rounded-lg bg-wash p-4">
               <PeriodDateForm
                 key={`${period.number}-${period.startsOn}-${period.endsOn}`}
                 action={updateOpenPayPeriodAction}
@@ -237,10 +237,10 @@ function PeriodDateForm({
   return (
     <form action={formAction} className="grid max-w-xl gap-4" noValidate>
       <div>
-        <h3 id={headingId} className="text-base font-semibold text-slate-900">
+        <h3 id={headingId} className="text-base font-semibold text-foreground">
           {heading}
         </h3>
-        <p className="mt-1 text-sm text-slate-600">{description}</p>
+        <p className="mt-1 text-sm text-muted">{description}</p>
       </div>
       <FormAlert>{state.error}</FormAlert>
       <div>
@@ -261,7 +261,7 @@ function PeriodDateForm({
       </div>
       {suggestLengths ? (
         <div>
-          <p id={`${idPrefix}-lengths`} className="text-sm text-slate-600">
+          <p id={`${idPrefix}-lengths`} className="text-sm text-muted">
             End date from the start date
           </p>
           <div
@@ -309,9 +309,9 @@ function PeriodDateForm({
         />
         <FieldError id={`${idPrefix}-end-error`} messages={endMessages} />
       </div>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Name:{" "}
-        <span className="font-medium text-slate-900">
+        <span className="font-medium text-foreground">
           {label ?? "Enter both dates to see the name."}
         </span>
       </p>

@@ -22,9 +22,9 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={cn(className)}>
+    <div className={cn("border-b border-border pb-5", className)}>
       {breadcrumbs?.length ? (
-        <nav className="text-sm text-slate-500" aria-label="Breadcrumb">
+        <nav className="text-sm text-muted" aria-label="Breadcrumb">
           <ol className="flex flex-wrap items-center gap-1">
             {breadcrumbs.map((crumb, index) => {
               const last = index === breadcrumbs.length - 1;
@@ -32,11 +32,11 @@ export function PageHeader({
                 <li key={`${crumb.label}-${index}`} className="flex items-center gap-1">
                   {index > 0 ? <span aria-hidden="true">/</span> : null}
                   {crumb.href && !last ? (
-                    <Link href={crumb.href} className="hover:text-slate-800 hover:underline">
+                    <Link href={crumb.href} className="hover:text-foreground hover:underline">
                       {crumb.label}
                     </Link>
                   ) : (
-                    <span className={last ? "font-medium text-slate-700" : undefined}>
+                    <span className={last ? "font-medium text-foreground" : undefined}>
                       {crumb.label}
                     </span>
                   )}
@@ -54,11 +54,11 @@ export function PageHeader({
         )}
       >
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-[2rem] leading-[1.15] font-semibold text-foreground">
             {title}
           </h1>
           {description ? (
-            <div className="mt-1 max-w-2xl text-sm text-slate-600">
+            <div className="mt-2 max-w-xl text-[0.9375rem] leading-6 text-muted">
               {description}
             </div>
           ) : null}

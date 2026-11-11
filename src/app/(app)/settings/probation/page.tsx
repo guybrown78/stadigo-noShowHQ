@@ -38,14 +38,14 @@ export default async function ProbationSettingsPage({
 
       <Card className="mt-8 shadow-none">
         <CardBody className="p-6">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Current default:{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-foreground">
               {settings.defaultProbationDays} days
             </span>
           </p>
           {settings.updatedAt ? (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               Last changed {formatLondonDateTime(settings.updatedAt)}
               {settings.updatedBy
                 ? ` by ${settings.updatedBy.firstName} ${settings.updatedBy.lastName}`
@@ -53,7 +53,7 @@ export default async function ProbationSettingsPage({
               .
             </p>
           ) : (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               Using the organisation default of 90 days until an administrator
               saves a change.
             </p>

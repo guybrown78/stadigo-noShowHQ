@@ -40,7 +40,7 @@ export function SnoozeProbationTaskForm({
         <div>
           <label
             htmlFor={`${formId}-until`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Snooze until <span className="text-red-700">*</span>
           </label>
@@ -61,7 +61,7 @@ export function SnoozeProbationTaskForm({
         <div>
           <label
             htmlFor={`${formId}-reason`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Reason <span className="text-red-700">*</span>
           </label>
@@ -83,7 +83,7 @@ export function SnoozeProbationTaskForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+        className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash disabled:opacity-60"
       >
         {pending ? "Saving…" : "Snooze"}
       </button>

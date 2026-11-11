@@ -30,7 +30,7 @@ export function RepeatAbsences({
         />
         {rows.length === 0 ? (
           <CardBody>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               No staff member has more than one absence in this period.
             </p>
           </CardBody>
@@ -40,7 +40,7 @@ export function RepeatAbsences({
               <caption className="sr-only">
                 Staff with two or more absences in the selected period
               </caption>
-              <thead className="border-b border-border bg-slate-50 text-slate-600">
+              <thead className="border-b border-border text-muted">
                 <tr>
                   <th scope="col" className="px-5 py-2.5 font-medium">
                     Staff
@@ -60,16 +60,16 @@ export function RepeatAbsences({
                 {visible.map((row) => {
                   const name = formatStaffName(row);
                   return (
-                    <tr key={row.staffId} className="border-b border-border last:border-b-0">
+                    <tr key={row.staffId} className="border-b border-row hover:bg-wash last:border-b-0">
                       <th scope="row" className="px-5 py-3 font-normal">
                         <Link
                           href={`/staff/${row.staffId}#absence-history`}
-                          className="font-medium text-slate-900 hover:underline"
+                          className="font-medium text-foreground hover:underline"
                           aria-label={`${name}, absence history`}
                         >
                           {name}
                         </Link>
-                        <p className="mt-0.5 text-sm text-slate-500">
+                        <p className="mt-0.5 text-sm text-muted">
                           {row.roleTitle}
                         </p>
                         <CountBar
@@ -82,7 +82,7 @@ export function RepeatAbsences({
                       <CountCell value={row.cancellation} />
                       <CountCell value={row.awol} />
                       <CountCell value={row.sickness} />
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900 tabular-nums">
+                      <td className="px-4 py-3 text-right font-semibold text-foreground tabular-nums">
                         {row.total}
                       </td>
                     </tr>
@@ -116,6 +116,6 @@ function CountHeader({ label, swatch }: { label: string; swatch: string }) {
 
 function CountCell({ value }: { value: number }) {
   return (
-    <td className="px-4 py-3 text-right text-slate-800 tabular-nums">{value}</td>
+    <td className="px-4 py-3 text-right text-foreground tabular-nums">{value}</td>
   );
 }

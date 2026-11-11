@@ -133,7 +133,7 @@ export default async function ImportConfirmPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/staff" className="hover:underline">
           Staff
         </Link>
@@ -144,10 +144,10 @@ export default async function ImportConfirmPage({
         <span aria-hidden="true"> / </span>
         Create staff
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Review import
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Review the staff who will be created. This creates new operational staff
         records only. It does not update existing staff, create user accounts,
         or send communications.
@@ -174,7 +174,7 @@ export default async function ImportConfirmPage({
             a corrected file. You can also add the manager after the staff are
             created.
           </p>
-          <div className="mt-3 max-h-64 overflow-auto rounded-md border border-amber-200 bg-white">
+          <div className="mt-3 max-h-64 overflow-auto rounded-md border border-amber-200 bg-surface">
             <table className="min-w-full text-left text-sm">
               <thead className="border-b border-amber-100 bg-amber-50/60 text-amber-950">
                 <tr>
@@ -187,12 +187,12 @@ export default async function ImportConfirmPage({
               <tbody>
                 {omittedManagers.map((item) => (
                   <tr key={item.id} className="border-b border-amber-100">
-                    <td className="px-3 py-2 text-slate-900">{item.staffLabel}</td>
-                    <td className="px-3 py-2 text-slate-700">Manager Staff ID</td>
-                    <td className="px-3 py-2 text-slate-700">
+                    <td className="px-3 py-2 text-foreground">{item.staffLabel}</td>
+                    <td className="px-3 py-2 text-foreground">Manager Staff ID</td>
+                    <td className="px-3 py-2 text-foreground">
                       {item.submittedValue}
                     </td>
-                    <td className="px-3 py-2 text-slate-700">Left blank</td>
+                    <td className="px-3 py-2 text-foreground">Left blank</td>
                   </tr>
                 ))}
               </tbody>
@@ -223,7 +223,7 @@ export default async function ImportConfirmPage({
       ) : null}
 
       {confirmable && progress ? (
-        <div className="sticky top-0 z-10 mt-6 bg-white py-2">
+        <div className="sticky top-0 z-10 mt-6 bg-surface py-2">
           <ConfirmStaffImportForm
             importId={id}
             staffCount={record.validRows}
@@ -272,15 +272,15 @@ export default async function ImportConfirmPage({
         />
       </div>
 
-      <p className="mt-6 text-sm text-slate-500">
+      <p className="mt-6 text-sm text-muted">
         Showing {preview.rows.length} of {preview.total} staff
         {preview.pageCount > 1
           ? ` · Page ${preview.page} of ${preview.pageCount}`
           : ""}
       </p>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+          <thead className="border-b border-border text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Staff ID</th>
               <th className="px-4 py-3 font-medium">Name</th>
@@ -306,44 +306,44 @@ export default async function ImportConfirmPage({
               return (
                 <tr
                   key={row.id}
-                  className={`border-b border-slate-100 align-top ${
+                  className={`border-b border-row align-top ${
                     managerOmitted ? "bg-amber-50" : ""
                   }`}
                 >
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                     {normalized?.staffIdNumber ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {normalized
                       ? `${normalized.firstName} ${normalized.lastName}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {normalized?.roleTitle ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {normalized?.department ?? "—"}
                   </td>
                   <td
                     className={`px-4 py-3 ${
                       managerOmitted
                         ? "font-medium text-amber-950"
-                        : "text-slate-700"
+                        : "text-foreground"
                     }`}
                   >
                     {managerOmitted
                       ? omittedManagerLabel(submittedManager)
                       : managerMappingLabel(manager)}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {normalized
                       ? employmentLabel(normalized.employmentStatus)
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {probationSummaryLabel(probation, tenantDefaultDays)}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {normalized
                       ? clearanceLabel(normalized.securityClearanceStatus)
                       : "—"}
@@ -360,7 +360,7 @@ export default async function ImportConfirmPage({
           {preview.page > 1 ? (
             <Link
               href={importConfirmHref(id, { page: preview.page - 1 })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
             >
               Previous
             </Link>
@@ -368,7 +368,7 @@ export default async function ImportConfirmPage({
           {preview.page < preview.pageCount ? (
             <Link
               href={importConfirmHref(id, { page: preview.page + 1 })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
             >
               Next
             </Link>
@@ -391,11 +391,11 @@ function SummaryCard({
   value: number | string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+      <dd className="mt-1 text-2xl font-semibold text-foreground">{value}</dd>
     </div>
   );
 }
@@ -408,9 +408,9 @@ function CountList({
   items: { label: string; count: number }[];
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      <ul className="mt-2 space-y-1 text-sm text-slate-700">
+    <section className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      <ul className="mt-2 space-y-1 text-sm text-foreground">
         {items.map((item) => (
           <li key={item.label} className="flex justify-between gap-3">
             <span>{item.label}</span>

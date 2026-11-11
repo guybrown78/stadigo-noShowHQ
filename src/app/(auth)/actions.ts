@@ -2,6 +2,7 @@
 
 import { signOut } from "@/auth";
 import { clearActingTenantId } from "@/lib/acting-tenant";
+import { clearColorScheme } from "@/lib/color-scheme";
 
 export type ActionState = {
   error?: string;
@@ -11,5 +12,6 @@ export type ActionState = {
 
 export async function logoutAction() {
   await clearActingTenantId();
+  await clearColorScheme();
   await signOut({ redirectTo: "/login" });
 }

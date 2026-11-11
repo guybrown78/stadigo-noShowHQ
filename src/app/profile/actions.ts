@@ -6,6 +6,11 @@ import {
   parseProfileFormData,
 } from "@/lib/account/schema";
 import { requireAuth } from "@/lib/authz";
+import {
+  isColorSchemeChoice,
+  writeColorScheme,
+  type ColorSchemeChoice,
+} from "@/lib/color-scheme";
 import { prisma } from "@/lib/db";
 import { FORM_CHECK_MESSAGE, flattenFieldErrors } from "@/lib/form";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -48,6 +53,28 @@ export async function updateProfileAction(
   revalidatePath("/dashboard");
   revalidatePath("/admin");
   return { success: "Profile updated." };
+}
+
+export async function updateColorSchemeAction(
+  choice: ColorSchemeChoice,
+): Promise<{ error?: string }> {
+  const user = await requireAuth();
+  if (!isColorSchemeChoice(choice)) {
+    return { error: "Choose light or dark." };
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { colorScheme: choice },
+    });
+    await writeColorScheme(choice);
+  } catch {
+    return { error: "Could not save your appearance. Please try again." };
+  }
+
+  revalidatePath("/", "layout");
+  return {};
 }
 
 export async function updatePasswordAction(

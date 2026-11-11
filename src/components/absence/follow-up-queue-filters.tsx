@@ -56,7 +56,7 @@ export function FollowUpQueueFilters({
         ) : null}
       </form>
       <div>
-        <p className="mb-1.5 text-xs font-medium text-slate-500">Absence type</p>
+        <p className="mb-1.5 text-xs font-medium text-muted">Absence type</p>
         <SegmentedNav
           label="Absence type"
           items={[
@@ -74,7 +74,7 @@ export function FollowUpQueueFilters({
         />
       </div>
       <div>
-        <p className="mb-1.5 text-xs font-medium text-slate-500">Due</p>
+        <p className="mb-1.5 text-xs font-medium text-muted">Due</p>
         <SegmentedNav
           label="Due"
           items={[

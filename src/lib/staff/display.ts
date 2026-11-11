@@ -24,8 +24,8 @@ export const EMPLOYMENT_STATUS_STYLES: Record<EmploymentStatus, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-900",
   MONITORING: "bg-amber-100 text-amber-900",
   CONTACT_REQUIRED: "bg-orange-100 text-orange-900",
-  DISABLED: "bg-slate-200 text-slate-800",
-  INACTIVE: "bg-slate-100 text-slate-700",
+  DISABLED: "bg-slate-200 text-foreground",
+  INACTIVE: "bg-slate-100 text-foreground",
   LONG_TERM_SICK: "bg-rose-100 text-rose-900",
 };
 
@@ -38,11 +38,11 @@ export const PROBATION_STATUS_LABELS: Record<ProbationStatus, string> = {
 };
 
 export const PROBATION_STATUS_STYLES: Record<ProbationStatus, string> = {
-  NOT_APPLICABLE: "bg-slate-100 text-slate-700",
+  NOT_APPLICABLE: "bg-slate-100 text-foreground",
   IN_PROGRESS: "bg-sky-100 text-sky-900",
   PASSED: "bg-emerald-100 text-emerald-900",
   EXTENDED: "bg-amber-100 text-amber-900",
-  NOT_CONTINUED: "bg-slate-200 text-slate-800",
+  NOT_CONTINUED: "bg-slate-200 text-foreground",
 };
 
 export const PROBATION_LIFECYCLE_LABELS: Record<ProbationLifecycle, string> = {
@@ -59,8 +59,8 @@ export const PROBATION_LIFECYCLE_STYLES: Record<ProbationLifecycle, string> = {
   REVIEW_DUE: "bg-amber-100 text-amber-900",
   OVERDUE: "bg-red-100 text-red-800",
   PASSED: "bg-emerald-100 text-emerald-900",
-  NOT_CONTINUED: "bg-slate-200 text-slate-800",
-  NEEDS_DATES: "bg-slate-200 text-slate-800",
+  NOT_CONTINUED: "bg-slate-200 text-foreground",
+  NEEDS_DATES: "bg-slate-200 text-foreground",
 };
 
 export const DURATION_SOURCE_LABELS: Record<ProbationDurationSource, string> = {
@@ -78,11 +78,11 @@ export const CLEARANCE_STATUS_LABELS: Record<SecurityClearanceStatus, string> = 
 };
 
 export const CLEARANCE_STATUS_STYLES: Record<SecurityClearanceStatus, string> = {
-  NOT_REQUIRED: "bg-slate-100 text-slate-700",
+  NOT_REQUIRED: "bg-slate-100 text-foreground",
   PENDING: "bg-amber-100 text-amber-900",
   VALID: "bg-emerald-100 text-emerald-900",
   EXPIRED: "bg-red-100 text-red-800",
-  NOT_RECORDED: "bg-slate-100 text-slate-700",
+  NOT_RECORDED: "bg-slate-100 text-foreground",
 };
 
 export const PROBATION_ACTION_LABELS: Record<StaffProbationAction, string> = {

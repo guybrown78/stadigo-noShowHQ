@@ -44,7 +44,7 @@ export function AbsenceTrend({
           {hasAbsences ? (
             <TrendChart buckets={buckets} grain={grain} periodLabel={periodLabel} />
           ) : (
-            <p className="text-sm text-slate-600">No absences in this period.</p>
+            <p className="text-sm text-muted">No absences in this period.</p>
           )}
         </CardBody>
       </Card>
@@ -128,13 +128,14 @@ function TrendChart({
                   const top = y(next);
                   const barHeight = y(accumulated) - top;
                   accumulated = next;
+                  const gap = barHeight > 6 ? 1.5 : 0;
                   return (
                     <rect
                       key={series.key}
                       x={x}
-                      y={top}
+                      y={top + gap / 2}
                       width={barWidth}
-                      height={Math.max(barHeight, 0)}
+                      height={Math.max(barHeight - gap, 0)}
                       fill={series.fill}
                     />
                   );
@@ -153,7 +154,7 @@ function TrendChart({
           })}
         </svg>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted">
         {SERIES.map((series) => (
           <li key={series.key} className="inline-flex items-center gap-2">
             <span className={`size-2.5 rounded-sm ${series.swatch}`} aria-hidden="true" />

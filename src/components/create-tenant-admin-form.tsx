@@ -46,11 +46,11 @@ export function CreateTenantAdminForm({ tenantId }: { tenantId: string }) {
     <form
       ref={formRef}
       action={formAction}
-      className="space-y-4 rounded-lg border border-slate-200 bg-white p-5"
+      className="space-y-4 rounded-lg border border-border bg-surface p-5"
       noValidate
     >
       <input type="hidden" name="tenantId" value={tenantId} />
-      <p className="text-sm font-medium text-slate-900">Add admin</p>
+      <p className="text-sm font-medium text-foreground">Add admin</p>
 
       <FormAlert>{state.error}</FormAlert>
       <FormSuccess>{state.success}</FormSuccess>
@@ -59,7 +59,7 @@ export function CreateTenantAdminForm({ tenantId }: { tenantId: string }) {
         <div>
           <label
             htmlFor={`${formId}-firstName`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             First name
           </label>
@@ -81,7 +81,7 @@ export function CreateTenantAdminForm({ tenantId }: { tenantId: string }) {
         <div>
           <label
             htmlFor={`${formId}-lastName`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Last name
           </label>
@@ -104,7 +104,7 @@ export function CreateTenantAdminForm({ tenantId }: { tenantId: string }) {
       <div>
         <label
           htmlFor={`${formId}-email`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Email
         </label>
@@ -124,7 +124,7 @@ export function CreateTenantAdminForm({ tenantId }: { tenantId: string }) {
       <div>
         <label
           htmlFor={`${formId}-password`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Temporary password
         </label>

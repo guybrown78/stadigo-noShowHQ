@@ -88,14 +88,14 @@ export function LogNewAbsenceLink({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-[min(100%,28rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="w-[min(100%,28rem)] rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-foreground">
             Leave this record?
           </h2>
-          <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={descriptionId} className="mt-2 text-sm text-muted">
             You have unsaved changes on this record. Stay to keep them. Leaving
             does not save them.
           </p>

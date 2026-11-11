@@ -102,14 +102,14 @@ function DialogShell({
       ref={dialogRef}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
       onClose={onClose}
     >
       <div className="p-5">
-        <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+        <h2 id={titleId} className="text-lg font-semibold text-foreground">
           {title}
         </h2>
-        <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+        <p id={descriptionId} className="mt-2 text-sm text-muted">
           {description}
         </p>
         {children}
@@ -269,10 +269,10 @@ export function SelfCertificationDialog({
             return (
               <label
                 key={option}
-                className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm ${
+                className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
                   selected
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white text-slate-800"
+                    ? "border-primary/30 bg-primary-soft text-primary-hover"
+                    : "border-border bg-surface text-foreground"
                 }`}
               >
                 <input

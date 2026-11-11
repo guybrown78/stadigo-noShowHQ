@@ -112,7 +112,7 @@ export function DashboardFilters({
               ))}
             </select>
             {periodLocked ? (
-              <p id="dashboard-period-rule" className="mt-1 text-xs leading-5 text-slate-600">
+              <p id="dashboard-period-rule" className="mt-1 text-xs leading-5 text-muted">
                 The date range is not applied. Counts are the absences filed in
                 this pay period.
               </p>
@@ -128,7 +128,7 @@ export function DashboardFilters({
               aria-invalid={!periodLocked && datesInvalid ? true : undefined}
               aria-describedby={dateDescribedBy(periodLocked, datesInvalid)}
               className={filterControlClassName(
-                "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+                "disabled:cursor-not-allowed disabled:bg-wash disabled:text-muted",
               )}
             />
           </FilterField>
@@ -142,7 +142,7 @@ export function DashboardFilters({
               aria-invalid={!periodLocked && datesInvalid ? true : undefined}
               aria-describedby={dateDescribedBy(periodLocked, datesInvalid)}
               className={filterControlClassName(
-                "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+                "disabled:cursor-not-allowed disabled:bg-wash disabled:text-muted",
               )}
             />
           </FilterField>
@@ -180,53 +180,49 @@ export function DashboardFilters({
       </form>
 
       {selectedPeriod ? (
-        <div className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
-          <p className="text-sm text-slate-800">
-            <span className="font-medium">
+        <div className="mt-4 max-w-3xl space-y-1 text-sm leading-6 text-muted">
+          <p>
+            <span className="font-medium text-foreground">
               Pay period {formatPayPeriodName(selectedPeriod)}
             </span>
-            <span className="text-slate-600">
-              . The date range is not applied. Counts are the absences filed
-              in this pay period.
-            </span>
+            . The date range is not applied. Counts are the absences filed in
+            this pay period.
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p>
             {venue?.name ?? "All venues"}. {eventLabel}. Archived records are
             excluded.
           </p>
         </div>
       ) : result.ok ? (
-        <div className="mt-4 rounded-xl border border-border bg-surface px-4 py-3">
-          <p className="text-sm text-slate-800">
-            <span className="font-medium">
+        <div className="mt-4 max-w-3xl space-y-1 text-sm leading-6 text-muted">
+          <p>
+            <span className="font-medium text-foreground">
               {formatDashboardSpan(result.range.fromIso, result.range.toIso)}
             </span>
-            <span className="text-slate-600">
-              {", "}compared with{" "}
-              {formatDashboardSpan(
-                result.range.previousFromIso,
-                result.range.previousToIso,
-              )}
-              .
-            </span>
+            , compared with{" "}
+            {formatDashboardSpan(
+              result.range.previousFromIso,
+              result.range.previousToIso,
+            )}
+            .
           </p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p>
             {venue?.name ?? "All venues"}. {eventLabel}. Archived records are
             excluded.
           </p>
-          <p className="mt-2 text-sm text-slate-600">
+          <p>
             Cancellation and AWOL are counted on the event date. Sickness is
             counted once, on the first working day sick, however many days the
             episode covers.
           </p>
           {venueId || eventId ? (
-            <p className="mt-2 text-sm text-slate-800">
+            <p className="text-foreground">
               Sickness is not recorded against a venue or event, so the
               sickness count ignores the venue and event filters.
             </p>
           ) : null}
           {eventId ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p>
               {`Opening cancellation or AWOL in the ledger keeps these dates${
                 venueId ? " and venue" : ""
               }. The ledger does not filter to one event.`}

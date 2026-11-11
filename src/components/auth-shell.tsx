@@ -14,17 +14,19 @@ export function AuthShell({
   return (
     <div className="flex min-h-full flex-1 flex-col items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link href="/login" className="inline-flex justify-center">
+        <div className="mb-8">
+          <Link href="/login" className="inline-flex">
             <BrandMark />
           </Link>
-          <h1 className="mt-4 text-xl font-medium text-slate-800">{title}</h1>
+          <h1 className="mt-6 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
+            {title}
+          </h1>
         </div>
         <Card>
           <CardBody className="p-6">{children}</CardBody>
         </Card>
         {footer ? (
-          <div className="mt-4 text-center text-sm text-slate-600">{footer}</div>
+          <div className="mt-4 text-sm text-muted">{footer}</div>
         ) : null}
       </div>
     </div>

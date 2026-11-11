@@ -37,7 +37,7 @@ export function AttendanceWatchlist({
         <CardHeader headingId={headingId} title={title} description={description} />
         <CardBody>
           {rows.length === 0 ? (
-            <p className="text-sm text-slate-600">{empty}</p>
+            <p className="text-sm text-muted">{empty}</p>
           ) : (
             <ul className="divide-y divide-border">
               {visible.map((row) => (
@@ -52,11 +52,11 @@ export function AttendanceWatchlist({
                           ? { affectedFrom: fromIso, affectedTo: toIso }
                           : { reportedFrom: fromIso, reportedTo: toIso }),
                     })}
-                    className="font-medium text-slate-900 hover:underline"
+                    className="font-medium text-foreground hover:underline"
                   >
                     {formatStaffName(row)}
                   </Link>
-                  <span className="text-sm tabular-nums text-slate-600">
+                  <span className="text-sm tabular-nums text-muted">
                     {row.count}
                   </span>
                 </li>

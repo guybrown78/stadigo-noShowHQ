@@ -59,7 +59,7 @@ export default async function ImportErrorsPage({
 
   return (
       <div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           <Link href="/events" className="hover:underline">
             Events
           </Link>
@@ -70,10 +70,10 @@ export default async function ImportErrorsPage({
           <span aria-hidden="true"> / </span>
           Needs correction
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
           This file needs correction
         </h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="mt-2 max-w-2xl text-muted">
           No venues or events were created. Fix the rows below, then upload the
           corrected file. Valid rows are not imported on their own.
         </p>
@@ -97,10 +97,10 @@ export default async function ImportErrorsPage({
 
         <form
           method="get"
-          className="mt-6 rounded-lg border border-slate-200 bg-white p-4"
+          className="mt-6 rounded-lg border border-border bg-surface p-4"
           aria-label="Search errors"
         >
-          <label htmlFor="import-error-q" className="mb-1 block text-sm font-medium text-slate-700">
+          <label htmlFor="import-error-q" className="mb-1 block text-sm font-medium text-foreground">
             Search errors
           </label>
           <div className="flex flex-wrap gap-2">
@@ -110,7 +110,7 @@ export default async function ImportErrorsPage({
               type="search"
               defaultValue={q}
               placeholder="Row number, field, or value"
-              className="min-w-[16rem] flex-1 rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-primary/30 focus:border-primary focus:ring-2"
+              className="min-w-[16rem] flex-1 rounded-md border border-border px-3 py-2 text-foreground outline-none ring-primary/30 focus:border-primary focus:ring-2"
             />
             <button
               type="submit"
@@ -121,14 +121,14 @@ export default async function ImportErrorsPage({
           </div>
         </form>
 
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-muted">
           {list.total} {list.total === 1 ? "row" : "rows"} need correction
           {list.pageCount > 1 ? ` · Page ${list.page} of ${list.pageCount}` : ""}
         </p>
 
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-surface">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+            <thead className="border-b border-border text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Row</th>
                 <th className="px-4 py-3 font-medium">Field</th>
@@ -146,15 +146,15 @@ export default async function ImportErrorsPage({
                     ? entries
                     : [["form", ["This row needs correction"]]];
                 return lines.map(([field, messages]) => (
-                  <tr key={`${row.id}-${field}`} className="border-b border-slate-100 align-top">
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                  <tr key={`${row.id}-${field}`} className="border-b border-row align-top hover:bg-wash">
+                    <td className="whitespace-nowrap px-4 py-3 text-foreground">
                       {row.sourceRowNumber}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{importFieldLabel(field)}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-foreground">{importFieldLabel(field)}</td>
+                    <td className="px-4 py-3 text-muted">
                       {displaySubmittedValue(rawRow, field)}
                     </td>
-                    <td className="px-4 py-3 text-slate-800">{messages.join(" ")}</td>
+                    <td className="px-4 py-3 text-foreground">{messages.join(" ")}</td>
                   </tr>
                 ));
               })}
@@ -167,7 +167,7 @@ export default async function ImportErrorsPage({
             {list.page > 1 ? (
               <Link
                 href={importErrorsHref(id, { q, page: list.page - 1 })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
               >
                 Previous
               </Link>
@@ -175,7 +175,7 @@ export default async function ImportErrorsPage({
             {list.page < list.pageCount ? (
               <Link
                 href={importErrorsHref(id, { q, page: list.page + 1 })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
               >
                 Next
               </Link>
@@ -186,18 +186,18 @@ export default async function ImportErrorsPage({
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <a
             href={`/events/import/${id}/errors/download`}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
           >
             Download error report
           </a>
           <CancelImportForm importId={id} />
         </div>
 
-        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="mt-8 rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             Upload a corrected file
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Replace this import with a corrected spreadsheet. The previous check
             will be cancelled.
           </p>
@@ -211,11 +211,11 @@ export default async function ImportErrorsPage({
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+      <dd className="mt-1 text-2xl font-semibold text-foreground">{value}</dd>
     </div>
   );
 }

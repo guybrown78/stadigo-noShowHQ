@@ -35,7 +35,7 @@ export function Pagination({
       )}
       aria-label="Pagination"
     >
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Showing {from}–{to} of {total} {itemLabel}
       </p>
       <ol className="flex items-center gap-1">
@@ -58,7 +58,7 @@ export function Pagination({
           entry === "ellipsis" ? (
             <li
               key={`ellipsis-${index}`}
-              className="px-1 text-sm text-slate-400"
+              className="px-1 text-sm text-muted"
               aria-hidden="true"
             >
               …
@@ -99,11 +99,11 @@ export function Pagination({
 function pageButtonClass(active = false, disabled = false) {
   return cn(
     "inline-flex size-9 items-center justify-center rounded-md text-sm font-medium",
-    active && "bg-primary text-white",
+    active && "bg-primary-soft text-primary-hover",
     !active &&
       !disabled &&
-      "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
-    disabled && "border border-slate-200 text-slate-300",
+      "border border-border bg-surface text-foreground hover:bg-wash",
+    disabled && "border border-border text-muted opacity-40",
   );
 }
 

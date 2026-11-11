@@ -149,33 +149,33 @@ export function UpdateSicknessEpisodeDialog({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-foreground">
             {SICKNESS_EPISODE_UPDATE_LABEL}
           </h2>
-          <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={descriptionId} className="mt-2 text-sm text-muted">
             Record whether this sickness is ongoing or has ended. This does not
             archive the record or record a return to work.
           </p>
           <dl className="mt-4 grid gap-2 text-sm">
             <div>
-              <dt className="font-medium text-slate-500">Staff</dt>
-              <dd className="text-slate-900">{staffName}</dd>
+              <dt className="font-medium text-muted">Staff</dt>
+              <dd className="text-foreground">{staffName}</dd>
             </div>
             <div>
-              <dt className="font-medium text-slate-500">Date sickness reported</dt>
-              <dd className="text-slate-900">{reportedDateDisplay}</dd>
+              <dt className="font-medium text-muted">Date sickness reported</dt>
+              <dd className="text-foreground">{reportedDateDisplay}</dd>
             </div>
             <div>
-              <dt className="font-medium text-slate-500">First day sick from work</dt>
-              <dd className="text-slate-900">{firstWorkingDayDisplay}</dd>
+              <dt className="font-medium text-muted">First day sick from work</dt>
+              <dd className="text-foreground">{firstWorkingDayDisplay}</dd>
             </div>
             <div>
-              <dt className="font-medium text-slate-500">Current sickness status</dt>
-              <dd className="text-slate-900">
+              <dt className="font-medium text-muted">Current sickness status</dt>
+              <dd className="text-foreground">
                 {sicknessEpisodeStateLabel(currentEpisodeState)}
               </dd>
             </div>
@@ -268,7 +268,7 @@ export function UpdateSicknessEpisodeDialog({
                   }
                   className={controlClassName("w-full")}
                 />
-                <p id={hintId} className="mt-1 text-xs text-slate-500">
+                <p id={hintId} className="mt-1 text-xs text-muted">
                   {SICKNESS_ENDED_DATE_HINT} Calendar dates use {timeZone}.
                 </p>
                 <FieldError
@@ -305,7 +305,7 @@ export function UpdateSicknessEpisodeDialog({
             ) : null}
             {needsClearConfirmation ? (
               <div>
-                <label className="flex items-start gap-2 text-sm text-slate-800">
+                <label className="flex items-start gap-2 text-sm text-foreground">
                   <input
                     type="checkbox"
                     name="confirmClearEndDate"

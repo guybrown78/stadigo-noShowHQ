@@ -56,14 +56,14 @@ export function ArchiveAwolDialog({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-[min(100%,32rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="w-[min(100%,32rem)] rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-foreground">
             Archive AWOL for {staffName} at {eventName}?
           </h2>
-          <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={descriptionId} className="mt-2 text-sm text-muted">
             This record will leave active Staff history and the active AWOL
             Ledger but remain retained for audit.
           </p>
@@ -91,7 +91,7 @@ export function ArchiveAwolDialog({
                 messages={state.fieldErrors?.archiveReason}
               />
             </div>
-            <label className="flex items-start gap-2 text-sm text-slate-800">
+            <label className="flex items-start gap-2 text-sm text-foreground">
               <input type="checkbox" name="confirmArchive" className="mt-1" />
               <span>
                 I understand this will archive the AWOL for {staffName} at{" "}

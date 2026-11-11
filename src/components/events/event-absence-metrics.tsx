@@ -84,16 +84,16 @@ export function EventAbsenceMetrics({
     <section className="mt-8" aria-labelledby="event-absence-report-heading">
       <h2
         id="event-absence-report-heading"
-        className="text-lg font-semibold text-slate-900"
+        className="text-lg font-semibold text-foreground"
       >
         Absence report
       </h2>
-      <p className="mt-1 max-w-3xl text-sm text-slate-600">
+      <p className="mt-1 max-w-3xl text-sm text-muted">
         Estimated from cancellations and AWOLs logged against this event.
         Sickness is not recorded against an event, so it is not included.
       </p>
       {archivedCount > 0 ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           {archivedCount === 1
             ? "1 archived absence is excluded from this report."
             : `${archivedCount} archived absences are excluded from this report.`}
@@ -160,14 +160,14 @@ export function EventAbsenceMetrics({
                   staffRequired: summary.staffRequired,
                 }}
               />
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-muted">
                 {summary.exceedsRequirement
                   ? "Logged absences exceed the staff requirement, so the estimate is 0%."
                   : `${summary.covered} of ${summary.staffRequired} required staff still covered.`}
               </p>
             </>
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               Staff required is not set yet, so fill rate is not calculated.
             </p>
           )}
@@ -183,7 +183,7 @@ export function EventAbsenceMetrics({
           />
           <CardBody>
             {summary.absences === 0 ? (
-              <p className="text-sm text-slate-600">No absences logged.</p>
+              <p className="text-sm text-muted">No absences logged.</p>
             ) : (
               <>
                 <CountBar
@@ -217,7 +217,7 @@ export function EventAbsenceMetrics({
           />
           <CardBody>
             {summary.cancellations === 0 ? (
-              <p className="text-sm text-slate-600">No cancellations logged.</p>
+              <p className="text-sm text-muted">No cancellations logged.</p>
             ) : (
               <HorizontalBars
                 barClassName="bg-cancel"
@@ -238,7 +238,7 @@ export function EventAbsenceMetrics({
           />
           <CardBody>
             {summary.exactTimeCancellations === 0 ? (
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted">
                 {summary.dateOnlyCancellations === 0
                   ? "No cancellations have an exact time."
                   : "No cancellations have an exact time, so there is no hour breakdown."}
@@ -253,7 +253,7 @@ export function EventAbsenceMetrics({
               />
             )}
             {summary.dateOnlyCancellations > 0 ? (
-              <p className="mt-3 text-sm text-slate-600">
+              <p className="mt-3 text-sm text-muted">
                 {summary.dateOnlyCancellations === 1
                   ? "1 cancellation was recorded by date only and is not in these hour buckets."
                   : `${summary.dateOnlyCancellations} cancellations were recorded by date only and are not in these hour buckets.`}
@@ -276,8 +276,8 @@ export function EventAbsenceMetrics({
                     key={reason.reason}
                     className="flex items-baseline justify-between gap-3 text-sm"
                   >
-                    <span className="text-slate-800">{reason.reason}</span>
-                    <span className="tabular-nums font-medium text-slate-900">
+                    <span className="text-foreground">{reason.reason}</span>
+                    <span className="tabular-nums font-medium text-foreground">
                       {reason.count}
                     </span>
                   </li>
@@ -296,7 +296,7 @@ export function EventAbsenceMetrics({
         />
         <CardBody>
           {absences.length === 0 ? (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               No active cancellations or AWOLs are logged against this event.
             </p>
           ) : (
@@ -311,15 +311,15 @@ export function EventAbsenceMetrics({
                       <AbsenceTypeBadge type={absence.type} />
                       <Link
                         href={`/staff/${absence.staff.id}`}
-                        className="font-medium text-slate-900 underline"
+                        className="font-medium text-foreground underline"
                       >
                         {formatStaffName(absence.staff)}
                       </Link>
-                      <span className="text-sm text-slate-500">
+                      <span className="text-sm text-muted">
                         {absence.staff.staffIdNumber}
                       </span>
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       Notice{" "}
                       {absence.notice
                         ? formatNoticeSummary(absence.notice)
@@ -329,7 +329,7 @@ export function EventAbsenceMetrics({
                       <NoticeWarningBadges detail={absence.notice} />
                     ) : null}
                     {absence.reason ? (
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-muted">
                         {absence.reason}
                       </p>
                     ) : null}
@@ -364,16 +364,16 @@ function MetricCard({
   valueClassName?: string;
 }) {
   return (
-    <li className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+    <li className="overflow-hidden rounded-xl border border-border bg-surface">
       {bar ? <div className={`h-1 ${bar}`} /> : <div className="h-1 bg-slate-200" />}
       <div className="p-4">
-        <p className="text-sm font-medium text-slate-600">{label}</p>
+        <p className="text-sm font-medium text-muted">{label}</p>
         <p
-          className={`mt-2 font-semibold tracking-tight text-slate-900 tabular-nums ${valueClassName ?? "text-3xl"}`}
+          className={`mt-2 font-semibold tracking-tight text-foreground tabular-nums ${valueClassName ?? "text-3xl"}`}
         >
           {value}
         </p>
-        {detail ? <p className="mt-2 text-sm text-slate-600">{detail}</p> : null}
+        {detail ? <p className="mt-2 text-sm text-muted">{detail}</p> : null}
       </div>
     </li>
   );
@@ -408,7 +408,7 @@ function FillRateBar({
           />
         </div>
       </div>
-      <div className="mt-2 flex justify-between text-xs text-slate-500">
+      <div className="mt-2 flex justify-between text-xs text-muted">
         <span>0%</span>
         <span className={`font-medium tabular-nums ${FILL_TEXT[summary.fillStatus]}`}>
           {summary.fillRate}%
@@ -436,7 +436,7 @@ function ThresholdMark({
       style={{ left: `${rate}%` }}
     >
       <span
-        className={`absolute whitespace-nowrap text-xs text-slate-600 ${align} ${raised ? "bottom-full mb-5" : "bottom-full mb-1"}`}
+        className={`absolute whitespace-nowrap text-xs text-muted ${align} ${raised ? "bottom-full mb-5" : "bottom-full mb-1"}`}
       >
         {label} {rate}%
       </span>
@@ -455,11 +455,11 @@ function TypeCount({
 }) {
   return (
     <li className="flex items-center justify-between gap-3">
-      <span className="flex items-center gap-2 text-slate-700">
+      <span className="flex items-center gap-2 text-foreground">
         <span className={`size-2 rounded-full ${swatch}`} aria-hidden="true" />
         {label}
       </span>
-      <span className="tabular-nums font-medium text-slate-900">{count}</span>
+      <span className="tabular-nums font-medium text-foreground">{count}</span>
     </li>
   );
 }
@@ -477,8 +477,8 @@ function HorizontalBars({
       {rows.map((row) => (
         <li key={row.label}>
           <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="text-slate-700">{row.label}</span>
-            <span className="font-medium tabular-nums text-slate-900">
+            <span className="text-foreground">{row.label}</span>
+            <span className="font-medium tabular-nums text-foreground">
               {row.count}
             </span>
           </div>

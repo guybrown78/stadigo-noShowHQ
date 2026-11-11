@@ -158,14 +158,14 @@ export function StaffForm({
       <FormAlert>{state.error}</FormAlert>
 
       <fieldset className="space-y-4">
-        <legend className="text-base font-semibold text-slate-900">
+        <legend className="text-base font-semibold text-foreground">
           Identity and contact
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label
               htmlFor={`${formId}-staff-id`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Staff ID <span className="text-red-700">*</span>
             </label>
@@ -193,7 +193,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-first-name`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               First name <span className="text-red-700">*</span>
             </label>
@@ -218,7 +218,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-last-name`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Last name <span className="text-red-700">*</span>
             </label>
@@ -243,7 +243,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-email`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Email
             </label>
@@ -259,7 +259,7 @@ export function StaffForm({
               }
               className={controlClassName("w-full")}
             />
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               Operational contact only. This does not create a login.
             </p>
             <FieldError id={errorId("email")} messages={state.fieldErrors?.email} />
@@ -267,7 +267,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-phone`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Phone
             </label>
@@ -287,15 +287,15 @@ export function StaffForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">
           Operational details
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label
               htmlFor={`${formId}-department`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Department
             </label>
@@ -315,7 +315,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-role`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Role <span className="text-red-700">*</span>
             </label>
@@ -348,7 +348,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-status`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Employment status <span className="text-red-700">*</span>
             </label>
@@ -358,7 +358,7 @@ export function StaffForm({
               defaultValue={initialValues?.employmentStatus ?? "ACTIVE"}
               aria-required="true"
               aria-invalid={Boolean(state.fieldErrors?.employmentStatus)}
-              className={controlClassName("w-full bg-white")}
+              className={controlClassName("w-full bg-surface")}
             >
               {EMPLOYMENT_STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -374,14 +374,14 @@ export function StaffForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">
           Start date and probation
         </legend>
         <div>
           <label
             htmlFor={`${formId}-start`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Start date
           </label>
@@ -424,7 +424,7 @@ export function StaffForm({
               />
               <label
                 htmlFor={`${formId}-apply-probation`}
-                className="text-sm text-slate-800"
+                className="text-sm text-foreground"
               >
                 Apply probation
               </label>
@@ -432,10 +432,10 @@ export function StaffForm({
           )}
         </div>
         {locked && probationLock ? (
-          <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="space-y-3 rounded-md border border-border bg-wash p-4 text-sm text-foreground">
             <p>
               Effective rule:{" "}
-              <span className="font-medium text-slate-900">
+              <span className="font-medium text-foreground">
                 {formatDurationSource(
                   probationLock.durationSource,
                   probationLock.effectiveDurationDays,
@@ -453,13 +453,13 @@ export function StaffForm({
               <p className="flex flex-wrap gap-3">
                 <Link
                   href={`/staff/${staffId}/probation/review`}
-                  className="font-medium text-slate-900 underline"
+                  className="font-medium text-foreground underline"
                 >
                   Review probation
                 </Link>
                 <Link
                   href={`/staff/${staffId}/probation/amend`}
-                  className="font-medium text-slate-900 underline"
+                  className="font-medium text-foreground underline"
                 >
                   Amend end date
                 </Link>
@@ -470,7 +470,7 @@ export function StaffForm({
                 Use{" "}
                 <Link
                   href={`/staff/${staffId}`}
-                  className="font-medium text-slate-900 underline"
+                  className="font-medium text-foreground underline"
                 >
                   Start probation again
                 </Link>{" "}
@@ -479,17 +479,17 @@ export function StaffForm({
             )}
           </div>
         ) : applyProbation ? (
-          <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm text-slate-600">
+          <div className="space-y-4 rounded-md border border-border bg-wash p-4">
+            <p className="text-sm text-muted">
               Effective source:{" "}
-              <span className="font-medium text-slate-900">{sourceLabel}</span>
+              <span className="font-medium text-foreground">{sourceLabel}</span>
               . This value is stored when you save and will not change if the
               organisation default is edited later.
             </p>
             <div>
               <label
                 htmlFor={`${formId}-duration`}
-                className="mb-1 block text-sm font-medium text-slate-700"
+                className="mb-1 block text-sm font-medium text-foreground"
               >
                 Individual duration override (days)
               </label>
@@ -503,9 +503,9 @@ export function StaffForm({
                 value={durationOverride}
                 onChange={(event) => setDurationOverride(event.target.value)}
                 aria-invalid={Boolean(state.fieldErrors?.probationLengthDays)}
-                className={controlClassName("w-full max-w-xs bg-white")}
+                className={controlClassName("w-full max-w-xs bg-surface")}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted">
                 Leave blank to use the tenant default of {defaultProbationDays}{" "}
                 days.
               </p>
@@ -515,7 +515,7 @@ export function StaffForm({
               />
             </div>
             <input type="hidden" name="probationStatus" value="IN_PROGRESS" />
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-foreground">
               Calculated end date:{" "}
               {calculatedEnd
                 ? formatLocalDateDisplay(calculatedEnd)
@@ -532,7 +532,7 @@ export function StaffForm({
               />
               <label
                 htmlFor={`${formId}-override-end`}
-                className="text-sm text-slate-800"
+                className="text-sm text-foreground"
               >
                 Set a different probation end date
               </label>
@@ -541,7 +541,7 @@ export function StaffForm({
               <div>
                 <label
                   htmlFor={`${formId}-end`}
-                  className="mb-1 block text-sm font-medium text-slate-700"
+                  className="mb-1 block text-sm font-medium text-foreground"
                 >
                   Probation end date
                 </label>
@@ -552,7 +552,7 @@ export function StaffForm({
                   value={endDate}
                   onChange={(event) => setEndDate(event.target.value)}
                   aria-invalid={Boolean(state.fieldErrors?.probationEndDate)}
-                  className={controlClassName("w-full max-w-xs bg-white")}
+                  className={controlClassName("w-full max-w-xs bg-surface")}
                 />
                 <FieldError
                   id={errorId("end")}
@@ -560,7 +560,7 @@ export function StaffForm({
                 />
               </div>
             ) : null}
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               Review due date:{" "}
               {reviewDue
                 ? `${formatLocalDateDisplay(reviewDue)} (28 days before the end date)`
@@ -572,11 +572,11 @@ export function StaffForm({
         )}
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">
           Security clearance
         </legend>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           This records a status summary only. Clearance documents are not stored
           here.
         </p>
@@ -584,7 +584,7 @@ export function StaffForm({
           <div>
             <label
               htmlFor={`${formId}-clearance`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Clearance status <span className="text-red-700">*</span>
             </label>
@@ -597,7 +597,7 @@ export function StaffForm({
                   event.target.value as SecurityClearanceStatus,
                 )
               }
-              className={controlClassName("w-full bg-white")}
+              className={controlClassName("w-full bg-surface")}
             >
               {SECURITY_CLEARANCE_STATUSES.map((status) => (
                 <option key={status} value={status}>
@@ -614,7 +614,7 @@ export function StaffForm({
             <div>
               <label
                 htmlFor={`${formId}-expiry`}
-                className="mb-1 block text-sm font-medium text-slate-700"
+                className="mb-1 block text-sm font-medium text-foreground"
               >
                 Clearance expiry date <span className="text-red-700">*</span>
               </label>
@@ -638,12 +638,12 @@ export function StaffForm({
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-6">
-        <legend className="text-base font-semibold text-slate-900">Notes</legend>
+      <fieldset className="space-y-4 border-t border-border pt-6">
+        <legend className="text-base font-semibold text-foreground">Notes</legend>
         <div>
           <label
             htmlFor={`${formId}-notes`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Internal notes
           </label>

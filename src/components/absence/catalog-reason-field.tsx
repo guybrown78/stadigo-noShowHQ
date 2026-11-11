@@ -75,10 +75,10 @@ export function CatalogReasonField({
 
   const useSegments = labels.length + 1 < 6 && choice !== "__legacy";
   const choiceClass = (selected: boolean) =>
-    `inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-400 ${
+    `inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
       selected
-        ? "border-slate-900 bg-slate-900 text-white"
-        : "border-slate-300 bg-white text-slate-800"
+        ? "border-primary/30 bg-primary-soft text-primary-hover"
+        : "border-border bg-surface text-foreground"
     }`;
 
   return (

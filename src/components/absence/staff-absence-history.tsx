@@ -18,7 +18,7 @@ function FollowUpRecorded({ recorded }: { recorded: boolean }) {
   if (!recorded) {
     return null;
   }
-  return <p className="mt-1 text-sm text-slate-600">Follow-up recorded</p>;
+  return <p className="mt-1 text-sm text-muted">Follow-up recorded</p>;
 }
 
 function historyHref(page: number, archived: boolean) {
@@ -52,10 +52,10 @@ export async function StaffAbsenceHistory({
   return (
     <section
       id="absence-history"
-      className="mt-8 scroll-mt-8 rounded-lg border border-slate-200 bg-white p-6"
+      className="mt-8 scroll-mt-8 rounded-lg border border-border bg-surface p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className="text-lg font-semibold text-foreground">
           Absence history
         </h2>
         <Link
@@ -68,12 +68,12 @@ export async function StaffAbsenceHistory({
         </Link>
       </div>
       {includeArchivedSickness && archivedSicknessCount === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           No archived sickness reports for this staff member.
         </p>
       ) : null}
       {total === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           {includeArchivedSickness
             ? "No absences are recorded for this staff member."
             : "No active absences are recorded for this staff member."}
@@ -87,10 +87,10 @@ export async function StaffAbsenceHistory({
                   <li key={absence.id} className="py-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
                           <AbsenceTypeBadge type="SICKNESS" />
                           {absence.recordStatus === "ARCHIVED" ? (
-                            <span className="text-xs font-medium text-slate-500">
+                            <span className="text-xs font-medium text-muted">
                               Archived
                             </span>
                           ) : null}
@@ -104,7 +104,7 @@ export async function StaffAbsenceHistory({
                             )}
                           </Link>
                         </p>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-muted">
                           Reported{" "}
                           {formatLocalDateDisplay(absence.reportedDate)}
                           {` · ${sicknessEpisodeStateLabel(absence.sickness.episodeState)}`}
@@ -132,7 +132,7 @@ export async function StaffAbsenceHistory({
                   <li key={absence.id} className="py-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                        <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
                           <AbsenceTypeBadge type="AWOL" />
                           <Link
                             href={`/absence/${absence.id}`}
@@ -141,7 +141,7 @@ export async function StaffAbsenceHistory({
                             {absence.awol.eventNameSnapshot}
                           </Link>
                         </p>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-muted">
                           Event{" "}
                           {formatLocalDateDisplay(absence.awol.eventDateSnapshot)}
                           {absence.awol.venueNameSnapshot
@@ -151,7 +151,7 @@ export async function StaffAbsenceHistory({
                           {formatLocalDateDisplay(absence.reportedDate)}
                         </p>
                         {notes ? (
-                          <p className="mt-1 text-sm text-slate-600">{notes}</p>
+                          <p className="mt-1 text-sm text-muted">{notes}</p>
                         ) : null}
                         <FollowUpRecorded recorded={absence.followUpRecorded} />
                       </div>
@@ -173,7 +173,7 @@ export async function StaffAbsenceHistory({
                 <li key={absence.id} className="py-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
-                      <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
                         <AbsenceTypeBadge type="CANCELLATION" />
                         <Link
                           href={`/absence/${absence.id}`}
@@ -182,13 +182,13 @@ export async function StaffAbsenceHistory({
                           {eventName}
                         </Link>
                       </p>
-                      <p className="mt-1 text-sm text-slate-600">
+                      <p className="mt-1 text-sm text-muted">
                         Event {formatLocalDateDisplay(eventDate)} · Cancelled{" "}
                         {formatLocalDateDisplay(absence.reportedDate)} · Notice{" "}
                         {notice}
                       </p>
                       {absence.reason ? (
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-muted">
                           {truncateReason(absence.reason)}
                         </p>
                       ) : null}
@@ -212,7 +212,7 @@ export async function StaffAbsenceHistory({
                   Previous
                 </Link>
               ) : null}
-              <span className="text-slate-600">
+              <span className="text-muted">
                 Page {currentPage} of {pageCount} ({total} records,{" "}
                 {STAFF_ABSENCE_HISTORY_PAGE_SIZE} per page)
               </span>

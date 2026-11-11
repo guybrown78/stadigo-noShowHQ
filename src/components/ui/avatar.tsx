@@ -24,7 +24,7 @@ export function Avatar({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold tracking-wide text-primary-hover",
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-primary-soft font-semibold text-primary-hover",
         sizeClass[size],
         className,
       )}

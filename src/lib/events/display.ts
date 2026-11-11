@@ -9,7 +9,7 @@ export const EVENT_STATUS_LABELS: Record<EventStatus, string> = {
 };
 
 export const EVENT_STATUS_STYLES: Record<EventStatus, string> = {
-  PLANNED: "bg-slate-100 text-slate-800",
+  PLANNED: "bg-slate-100 text-foreground",
   CONFIRMED: "bg-sky-100 text-sky-900",
   CANCELLED: "bg-red-100 text-red-800",
   POSTPONED: "bg-violet-100 text-violet-900",

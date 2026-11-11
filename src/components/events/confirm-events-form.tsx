@@ -30,7 +30,7 @@ export function ConfirmEventsForm({
       >
         Create {eventCount} {eventCount === 1 ? "event" : "events"}
       </PendingSubmit>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         This creates new events only. It does not update existing events, create
         staff bookings, or calculate staffing risk.
       </p>

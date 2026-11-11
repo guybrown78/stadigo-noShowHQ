@@ -29,8 +29,8 @@ function Detail({
 }) {
   return (
     <div>
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-slate-900">{children}</dd>
+      <dt className="text-sm font-medium text-muted">{label}</dt>
+      <dd className="mt-1 text-foreground">{children}</dd>
     </div>
   );
 }
@@ -69,7 +69,7 @@ export default async function EventDetailPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/events" className="hover:underline">
           Events
         </Link>
@@ -103,12 +103,12 @@ export default async function EventDetailPage({
       <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            <h1 className="text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
               {event.name}
             </h1>
             <EventStatusBadge status={event.status} />
           </div>
-          <p className="mt-2 text-slate-600">
+          <p className="mt-2 text-muted">
             {formatLocalDateDisplay(event.eventDate)}
             {timeRange ? ` · ${timeRange}` : ""}
             {` · ${event.venue.name}`}
@@ -130,7 +130,7 @@ export default async function EventDetailPage({
         </div>
       </div>
 
-      <dl className="mt-8 grid gap-6 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-2">
+      <dl className="mt-8 grid gap-6 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2">
         <Detail label="Reference">{event.reference ?? "—"}</Detail>
         <Detail label="Status">
           <EventStatusBadge status={event.status} />
@@ -154,8 +154,8 @@ export default async function EventDetailPage({
           Warning {event.warningFillRate}% · Critical {event.criticalFillRate}%
         </Detail>
         <div className="sm:col-span-2">
-          <dt className="text-sm font-medium text-slate-500">Notes</dt>
-          <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+          <dt className="text-sm font-medium text-muted">Notes</dt>
+          <dd className="mt-1 whitespace-pre-wrap text-foreground">
             {event.notes ?? "—"}
           </dd>
         </div>

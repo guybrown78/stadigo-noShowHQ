@@ -60,7 +60,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor={`${formId}-email`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Email
         </label>
@@ -80,7 +80,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor={`${formId}-password`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Password
         </label>

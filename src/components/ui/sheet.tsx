@@ -228,7 +228,7 @@ export function Sheet({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-foreground/45"
         data-sheet-backdrop=""
         aria-label="Close details"
         onClick={close}
@@ -239,7 +239,7 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={labelledBy}
         data-sheet-panel=""
-        className="absolute top-0 right-0 bottom-0 left-auto flex h-dvh w-full max-w-full flex-col overflow-hidden bg-white shadow-2xl sm:w-[32rem] sm:max-w-[100vw] sm:rounded-l-2xl sm:border-l sm:border-border"
+        className="absolute top-0 right-0 bottom-0 left-auto flex h-dvh w-full max-w-full flex-col overflow-hidden bg-surface shadow-[-16px_0_40px_rgba(23,33,28,0.12)] sm:w-[32rem] sm:max-w-[100vw] sm:rounded-l-xl sm:border-l sm:border-border"
       >
         <div
           className={cn(

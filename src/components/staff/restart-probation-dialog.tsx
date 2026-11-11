@@ -48,7 +48,7 @@ export function RestartProbationDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+        className="rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
       >
         Start probation again
       </button>
@@ -56,19 +56,19 @@ export function RestartProbationDialog({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-[min(100%,28rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="w-[min(100%,28rem)] rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-foreground">
             Put {staffName} back on probation?
           </h2>
-          <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={descriptionId} className="mt-2 text-sm text-muted">
             This starts a new probation period from today. They will show as on
             probation again (Upcoming until the review window). The previous
             Passed or Not continued decision stays in history and is not undone.
           </p>
-          <p className="mt-3 text-sm text-slate-700">
+          <p className="mt-3 text-sm text-foreground">
             The new period uses the organisation default of{" "}
             <span className="font-medium">{defaultDays} days</span>, starting{" "}
             {startDateLabel}. End date {endDateLabel}; review due{" "}
@@ -80,7 +80,7 @@ export function RestartProbationDialog({
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash"
               onClick={() => setOpen(false)}
             >
               Cancel
@@ -90,7 +90,7 @@ export function RestartProbationDialog({
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
               >
                 {pending ? "Starting…" : "Start probation again"}
               </button>

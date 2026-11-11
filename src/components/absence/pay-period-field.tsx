@@ -25,7 +25,7 @@ export function PayPeriodField({
 }) {
   if (periods.length === 0) {
     return (
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         This absence will not be filed in a pay period until one is opened in
         Settings.
       </p>

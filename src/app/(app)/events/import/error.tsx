@@ -10,10 +10,10 @@ export default function ImportError({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Could not continue the import
       </h1>
-      <p className="mt-2 max-w-xl text-slate-600">
+      <p className="mt-2 max-w-xl text-muted">
         Something went wrong. No events were created from this step. You can try
         again, or go back to events.
       </p>
@@ -27,7 +27,7 @@ export default function ImportError({
         </button>
         <Link
           href="/events"
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
         >
           Back to events
         </Link>

@@ -9,10 +9,10 @@ const variantClass: Record<ButtonVariant, string> = {
   primary:
     "bg-primary text-primary-foreground hover:bg-primary-hover disabled:opacity-60",
   secondary:
-    "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-60",
+    "border border-border bg-surface text-foreground hover:bg-wash disabled:opacity-60",
   danger:
-    "border border-red-300 bg-white text-red-800 hover:bg-red-50 disabled:opacity-60",
-  ghost: "text-slate-700 hover:bg-slate-100 disabled:opacity-60",
+    "border border-red-300 bg-surface text-red-800 hover:bg-red-50 disabled:opacity-60",
+  ghost: "text-foreground hover:bg-wash disabled:opacity-60",
 };
 
 const sizeClass: Record<ButtonSize, string> = {
@@ -30,7 +30,7 @@ export function buttonClassName({
   className?: string;
 } = {}) {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors",
+    "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors duration-150",
     variantClass[variant],
     sizeClass[size],
     className,

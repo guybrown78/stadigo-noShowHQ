@@ -102,7 +102,7 @@ export default async function ImportConfirmPage({
 
     return (
       <div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           <Link href="/events" className="hover:underline">
             Events
           </Link>
@@ -113,10 +113,10 @@ export default async function ImportConfirmPage({
           <span aria-hidden="true"> / </span>
           Create events
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
           Create imported events
         </h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="mt-2 max-w-2xl text-muted">
           Review the events that will be created. This creates new events only.
           It does not update existing events, create staff bookings, or
           calculate staffing risk.
@@ -164,15 +164,15 @@ export default async function ImportConfirmPage({
           />
         </div>
 
-        <p className="mt-6 text-sm text-slate-500">
+        <p className="mt-6 text-sm text-muted">
           Showing {preview.rows.length} of {preview.total} events
           {preview.pageCount > 1
             ? ` · Page ${preview.page} of ${preview.pageCount}`
             : ""}
         </p>
-        <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-surface">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+            <thead className="border-b border-border text-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">Event</th>
                 <th className="px-4 py-3 font-medium">Date</th>
@@ -186,31 +186,31 @@ export default async function ImportConfirmPage({
               {preview.rows.map((row) => {
                 const normalized = parseRowNormalized(row.normalized);
                 return (
-                  <tr key={row.id} className="border-b border-slate-100">
-                    <td className="px-4 py-3 font-medium text-slate-900">
+                  <tr key={row.id} className="border-b border-row hover:bg-wash">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {normalized?.name ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                    <td className="whitespace-nowrap px-4 py-3 text-foreground">
                       {normalized?.eventDate
                         ? displayImportDate(normalized.eventDate)
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {row.venueKey
                         ? (venueNameByKey.get(row.venueKey) ?? "—")
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {normalized
                         ? `${normalized.eventTypeLabel} / ${normalized.eventSubtypeLabel}`
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {normalized
                         ? formatStaffRequired(normalized.staffRequired)
                         : "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {normalized
                         ? EVENT_STATUS_LABELS[normalized.status]
                         : "—"}
@@ -227,7 +227,7 @@ export default async function ImportConfirmPage({
             {preview.page > 1 ? (
               <Link
                 href={importConfirmHref(id, { page: preview.page - 1 })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
               >
                 Previous
               </Link>
@@ -235,7 +235,7 @@ export default async function ImportConfirmPage({
             {preview.page < preview.pageCount ? (
               <Link
                 href={importConfirmHref(id, { page: preview.page + 1 })}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
               >
                 Next
               </Link>
@@ -259,11 +259,11 @@ function SummaryCard({
   value: number | string;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+      <dd className="mt-1 text-2xl font-semibold text-foreground">{value}</dd>
     </div>
   );
 }
@@ -276,9 +276,9 @@ function CountList({
   items: { label: string; count: number }[];
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      <ul className="mt-2 space-y-1 text-sm text-slate-700">
+    <section className="rounded-lg border border-border bg-surface p-4">
+      <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+      <ul className="mt-2 space-y-1 text-sm text-foreground">
         {items.map((item) => (
           <li key={item.label} className="flex justify-between gap-3">
             <span>{item.label}</span>

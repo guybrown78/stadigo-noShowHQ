@@ -13,7 +13,7 @@ export function DataTable({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-surface shadow-sm",
+        "rounded-xl border border-border bg-surface",
         stickyHeader ? "overflow-visible" : "overflow-hidden",
         className,
       )}
@@ -33,9 +33,9 @@ export function DataTableHead({
   return (
     <thead
       className={cn(
-        "border-b border-border bg-slate-50 text-slate-600",
+        "border-b border-border bg-wash text-[0.8125rem] text-muted",
         sticky &&
-          "sticky top-0 z-10 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-slate-50",
+          "sticky top-0 z-10 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-wash",
       )}
     >
       {children}

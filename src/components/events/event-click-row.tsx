@@ -36,7 +36,7 @@ export function EventClickRow({
   return (
     <tr
       className={cn(
-        "cursor-pointer border-b border-slate-100 hover:bg-slate-50",
+        "cursor-pointer border-b border-row hover:bg-wash",
         className,
       )}
       onClick={(event) => {

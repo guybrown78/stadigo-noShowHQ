@@ -74,21 +74,21 @@ export function StaffSearchPicker({
     <div>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-sm font-medium text-slate-700"
+        className="mb-1 block text-sm font-medium text-foreground"
       >
         Staff member <span className="text-red-700">*</span>
       </label>
       <input type="hidden" name="staffId" value={selected?.id ?? ""} />
       {selected ? (
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-wash px-3 py-2">
           <div>
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-foreground">
               {formatStaffName(selected)}{" "}
-              <span className="font-normal text-slate-600">
+              <span className="font-normal text-muted">
                 ({selected.staffIdNumber})
               </span>
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               {selected.roleTitle} ·{" "}
               {EMPLOYMENT_STATUS_LABELS[selected.employmentStatus]}
             </p>
@@ -96,7 +96,7 @@ export function StaffSearchPicker({
           <button
             type="button"
             onClick={clear}
-            className="text-sm font-medium text-slate-700 underline hover:text-slate-900"
+            className="text-sm font-medium text-foreground underline hover:text-foreground"
           >
             Change
           </button>
@@ -158,12 +158,12 @@ export function StaffSearchPicker({
             <ul
               id={listId}
               role="listbox"
-              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg"
+              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-surface shadow-lg"
             >
               {pending && results.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-slate-500">Searching…</li>
+                <li className="px-3 py-2 text-sm text-muted">Searching…</li>
               ) : results.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-slate-500">
+                <li className="px-3 py-2 text-sm text-muted">
                   No matching staff in this organisation.
                 </li>
               ) : (
@@ -182,10 +182,10 @@ export function StaffSearchPicker({
                       choose(staff);
                     }}
                   >
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-foreground">
                       {formatStaffName(staff)}
                     </span>
-                    <span className="text-slate-600">
+                    <span className="text-muted">
                       {" "}
                       · {staff.staffIdNumber} · {staff.roleTitle} ·{" "}
                       {EMPLOYMENT_STATUS_LABELS[staff.employmentStatus]}

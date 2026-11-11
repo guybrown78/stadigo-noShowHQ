@@ -1,7 +1,7 @@
-import Link from "next/link";
-import { ledgerListHref } from "@/lib/absence/url";
+import { Tally, TallyCell } from "@/components/ui/tally";
 import { formatDashboardSpanCompact } from "@/lib/absence/dashboard-range";
 import type { DashboardTypeCounts } from "@/lib/absence/dashboard-query";
+import { ledgerListHref } from "@/lib/absence/url";
 
 const TYPES = [
   {
@@ -73,129 +73,82 @@ export function AbsenceTotals({
     previous.CANCELLATION + previous.AWOL + previous.SICKNESS;
 
   return (
-    <section className="mt-6" aria-labelledby="absence-totals-heading">
+    <section className="mt-8" aria-labelledby="absence-totals-heading">
       <h2 id="absence-totals-heading" className="sr-only">
         Absence totals
       </h2>
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <Tally columns={5}>
         {TYPES.map((type) => (
-          <li key={type.key}>
-            <Link
-              href={ledgerListHref({
-                view: type.view,
-                ...ledgerDates,
-                venue: type.filtered ? venueId : "",
-                unauthorised: type.unauthorised,
-              })}
-              className="group block h-full"
-            >
-              <article className="h-full overflow-hidden rounded-xl border border-border bg-surface shadow-sm transition-colors group-hover:border-slate-300">
-                <div className={`h-1 ${type.bar}`} />
-                <div className="p-4">
-                  <p className="text-sm font-medium text-slate-600">
-                    {type.label}
-                  </p>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">
-                    {current[type.key]}
-                  </p>
-                  <p className="mt-3 text-sm leading-5 text-slate-600">
-                    Compared with{" "}
-                    <span className="font-medium text-slate-800 tabular-nums">
-                      {previous[type.key]}
-                    </span>
-                    <span className="mt-0.5 block text-slate-500">{previousLabel}</span>
-                  </p>
-                  {type.key === "UNAUTHORISED" ? (
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      Cancellations marked unauthorised.
-                    </p>
-                  ) : null}
-                  {type.key === "SICKNESS" && selectionActive ? (
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      Sickness is not recorded against a venue or event, so
-                      this count ignores those filters.
-                    </p>
-                  ) : null}
-                  {type.filtered && eventFiltered ? (
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      The ledger keeps these dates and is not limited to this
-                      event.
-                    </p>
-                  ) : null}
-                  <p className="mt-3 text-sm font-medium text-primary-hover group-hover:underline">
-                    View in ledger
-                  </p>
-                </div>
-              </article>
-            </Link>
-          </li>
+          <TallyCell
+            key={type.key}
+            href={ledgerListHref({
+              view: type.view,
+              ...ledgerDates,
+              venue: type.filtered ? venueId : "",
+              unauthorised: type.unauthorised,
+            })}
+            label={type.label}
+            value={current[type.key]}
+            swatch={type.bar}
+            accent={type.bar}
+            action="View in ledger"
+            actionVisible
+          >
+            <ComparedWith value={previous[type.key]} label={previousLabel} />
+            {type.key === "UNAUTHORISED" ? (
+              <span className="mt-2 block text-xs leading-5">
+                Cancellations marked unauthorised.
+              </span>
+            ) : null}
+            {type.key === "SICKNESS" && selectionActive ? (
+              <span className="mt-2 block text-xs leading-5">
+                Sickness is not recorded against a venue or event, so this
+                count ignores those filters.
+              </span>
+            ) : null}
+            {type.filtered && eventFiltered ? (
+              <span className="mt-2 block text-xs leading-5">
+                The ledger keeps these dates and is not limited to this event.
+              </span>
+            ) : null}
+          </TallyCell>
         ))}
-        <li>
-          <TotalCard
-            href={
-              selectionActive
-                ? undefined
-                : ledgerListHref({
-                    view: "all",
-                    ...ledgerDates,
-                  })
-            }
-            total={totalCurrent}
-            previous={totalPrevious}
-            previousLabel={previousLabel}
-            selectionActive={selectionActive}
-          />
-        </li>
-      </ul>
+        <TallyCell
+          href={
+            selectionActive
+              ? undefined
+              : ledgerListHref({
+                  view: "all",
+                  ...ledgerDates,
+                })
+          }
+          label="Total"
+          value={totalCurrent}
+          accent="bg-muted"
+          action={selectionActive ? undefined : "View in ledger"}
+          actionVisible={!selectionActive}
+        >
+          <ComparedWith value={totalPrevious} label={previousLabel} />
+          {selectionActive ? (
+            <span className="mt-2 block text-xs leading-5">
+              Cancellation and AWOL for this selection, plus sickness for these
+              dates.
+            </span>
+          ) : null}
+        </TallyCell>
+      </Tally>
     </section>
   );
 }
 
-function TotalCard({
-  href,
-  total,
-  previous,
-  previousLabel,
-  selectionActive,
-}: {
-  href?: string;
-  total: number;
-  previous: number;
-  previousLabel: string;
-  selectionActive: boolean;
-}) {
-  const body = (
-    <article className="h-full overflow-hidden rounded-xl border border-border bg-surface shadow-sm transition-colors group-hover:border-slate-300">
-      <div className="h-1 bg-slate-300" />
-      <div className="p-4">
-        <p className="text-sm font-medium text-slate-600">Total</p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">
-          {total}
-        </p>
-        <p className="mt-3 text-sm leading-5 text-slate-600">
-          Compared with{" "}
-          <span className="font-medium text-slate-800 tabular-nums">{previous}</span>
-          <span className="mt-0.5 block text-slate-500">{previousLabel}</span>
-        </p>
-        {selectionActive ? (
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Cancellation and AWOL for this selection, plus sickness for these
-            dates.
-          </p>
-        ) : (
-          <p className="mt-3 text-sm font-medium text-primary-hover group-hover:underline">
-            View in ledger
-          </p>
-        )}
-      </div>
-    </article>
-  );
-  if (!href) {
-    return body;
-  }
+function ComparedWith({ value, label }: { value: number; label: string }) {
   return (
-    <Link href={href} className="group block h-full">
-      {body}
-    </Link>
+    <>
+      <span>
+        Compared with{" "}
+        <span className="font-medium text-foreground tabular-nums">{value}</span>
+      </span>
+      <span className="mt-0.5 block">{label}</span>
+    </>
   );
 }

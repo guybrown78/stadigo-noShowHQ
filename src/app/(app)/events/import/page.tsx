@@ -14,17 +14,17 @@ export default async function ImportEventsStartPage() {
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/events" className="hover:underline">
           Events
         </Link>
         <span aria-hidden="true"> / </span>
         Import
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Import events
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Populate a standard spreadsheet and import a season or programme in one
         controlled process. NoShowHQ checks every row and every venue before
         anything is created.
@@ -32,11 +32,11 @@ export default async function ImportEventsStartPage() {
       <ImportStepper current="upload" />
 
       <div className="mt-8 space-y-6">
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             1. Download the template
           </h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-600">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted">
             <li>Download and populate the template offline.</li>
             <li>
               Use the minimum template when you only know the event name, type,
@@ -66,18 +66,18 @@ export default async function ImportEventsStartPage() {
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a
               href="/events/import/template"
-              className="inline-flex rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+              className="inline-flex rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
             >
               Download full template
             </a>
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             2. Upload the completed file
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Uploading only checks the file. It does not create venues or events.
           </p>
           <div className="mt-4">

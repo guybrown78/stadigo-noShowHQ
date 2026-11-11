@@ -54,7 +54,7 @@ export default async function PayPeriodsSettingsPage() {
           <CardBody className="p-0">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="border-b border-border text-left text-slate-500">
+                <thead className="border-b border-border text-left text-muted">
                   <tr>
                     <th className="px-6 py-3 font-medium">Period</th>
                     <th className="px-6 py-3 font-medium">Dates</th>
@@ -66,10 +66,10 @@ export default async function PayPeriodsSettingsPage() {
                 <tbody>
                   {upcoming.map((period, index) => (
                     <tr key={period.id} className="border-b border-border last:border-0">
-                      <td className="px-6 py-3 font-medium text-slate-900">
+                      <td className="px-6 py-3 font-medium text-foreground">
                         {formatPayPeriodName(period)}
                       </td>
-                      <td className="px-6 py-3 text-slate-700">
+                      <td className="px-6 py-3 text-foreground">
                         {displayDate(period.startsOn)} to {displayDate(period.endsOn)}
                       </td>
                       <td className="px-6 py-3">
@@ -94,7 +94,7 @@ export default async function PayPeriodsSettingsPage() {
           <CardBody className="p-0">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="border-b border-border text-left text-slate-500">
+                <thead className="border-b border-border text-left text-muted">
                   <tr>
                     <th className="px-6 py-3 font-medium">Period</th>
                     <th className="px-6 py-3 font-medium">Dates</th>
@@ -107,13 +107,13 @@ export default async function PayPeriodsSettingsPage() {
                 <tbody>
                   {closed.map((period) => (
                     <tr key={period.id} className="border-b border-border last:border-0">
-                      <td className="px-6 py-3 font-medium text-slate-900">
+                      <td className="px-6 py-3 font-medium text-foreground">
                         {formatPayPeriodName(period)}
                       </td>
-                      <td className="px-6 py-3 text-slate-700">
+                      <td className="px-6 py-3 text-foreground">
                         {displayDate(period.startsOn)} to {displayDate(period.endsOn)}
                       </td>
-                      <td className="px-6 py-3 tabular-nums text-slate-700">
+                      <td className="px-6 py-3 tabular-nums text-foreground">
                         {period.absenceCount}
                       </td>
                       <td className="px-6 py-3">

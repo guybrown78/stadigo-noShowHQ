@@ -42,7 +42,7 @@ export function SicknessEvidenceSettingsForm({
       <div>
         <label
           htmlFor={`${formId}-required`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Fit note required from sickness day{" "}
           <span className="text-red-700">*</span>
@@ -62,7 +62,7 @@ export function SicknessEvidenceSettingsForm({
           }
           className={controlClassName("w-full")}
         />
-        <p id={`${formId}-required-help`} className="mt-2 text-sm text-slate-600">
+        <p id={`${formId}-required-help`} className="mt-2 text-sm text-muted">
           {EVIDENCE_REQUIRED_FROM_HELP}
         </p>
         <FieldError
@@ -73,7 +73,7 @@ export function SicknessEvidenceSettingsForm({
       <div>
         <label
           htmlFor={`${formId}-chase`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Chase after request, in calendar days{" "}
           <span className="text-red-700">*</span>
@@ -93,7 +93,7 @@ export function SicknessEvidenceSettingsForm({
           }
           className={controlClassName("w-full")}
         />
-        <p id={`${formId}-chase-help`} className="mt-2 text-sm text-slate-600">
+        <p id={`${formId}-chase-help`} className="mt-2 text-sm text-muted">
           {EVIDENCE_CHASE_AFTER_HELP}
         </p>
         <FieldError
@@ -101,7 +101,7 @@ export function SicknessEvidenceSettingsForm({
           messages={state.fieldErrors?.fitNoteChaseAfterDays}
         />
       </div>
-      <p className="text-sm text-slate-600">{EVIDENCE_SETTINGS_PROSPECTIVE}</p>
+      <p className="text-sm text-muted">{EVIDENCE_SETTINGS_PROSPECTIVE}</p>
       <button
         type="submit"
         disabled={pending}

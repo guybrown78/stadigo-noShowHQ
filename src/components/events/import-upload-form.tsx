@@ -37,7 +37,7 @@ export function ImportUploadForm({
       <div>
         <label
           htmlFor={`${formId}-file`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Spreadsheet file <span className="text-red-700">*</span>
         </label>
@@ -55,11 +55,11 @@ export function ImportUploadForm({
               : `${formId}-file-help`
           }
           className={controlClassName(
-            "block w-full bg-white text-sm file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800",
+            "block w-full bg-surface text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-primary-hover",
           )}
         />
         <FieldError id={errorId} messages={state.fieldErrors?.file} />
-        <p id={`${formId}-file-help`} className="mt-1 text-xs text-slate-500">
+        <p id={`${formId}-file-help`} className="mt-1 text-xs text-muted">
           .xlsx template or UTF-8 CSV with the same headers. Maximum 5 MB and
           5,000 event rows.
         </p>

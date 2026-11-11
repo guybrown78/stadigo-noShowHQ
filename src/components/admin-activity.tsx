@@ -8,14 +8,14 @@ export function AdminActivitySummary({
   lastActiveAt: Date | null;
 }) {
   return (
-    <p className="text-sm text-slate-600">
+    <p className="text-sm text-muted">
       Last signed in{" "}
-      <span className="font-medium text-slate-800">
+      <span className="font-medium text-foreground">
         {formatAdminTimestamp(lastLoggedInAt)}
       </span>
-      <span className="text-slate-400"> · </span>
+      <span className="text-muted"> · </span>
       Last activity{" "}
-      <span className="font-medium text-slate-800">
+      <span className="font-medium text-foreground">
         {formatAdminTimestamp(lastActiveAt)}
       </span>
     </p>
