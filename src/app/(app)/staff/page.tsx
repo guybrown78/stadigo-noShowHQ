@@ -68,7 +68,7 @@ function StaffProbationSummary({
   todayIso: string;
 }) {
   if (member.probationStatus === "NOT_APPLICABLE") {
-    return <span className="text-slate-500">—</span>;
+    return <span className="text-muted">—</span>;
   }
   const lifecycle = deriveProbationLifecycle({
     status: member.probationStatus,
@@ -81,7 +81,7 @@ function StaffProbationSummary({
     currentEndDate: member.probationEndDate,
     todayIso,
   });
-  if (!lifecycle) return <span className="text-slate-500">—</span>;
+  if (!lifecycle) return <span className="text-muted">—</span>;
   const caption = probationUrgencyCaption(
     lifecycle,
     member.probationReviewDueDate,
@@ -92,7 +92,7 @@ function StaffProbationSummary({
     <div>
       <ProbationLifecycleBadge lifecycle={lifecycle} />
       {caption ? (
-        <div className="mt-1 text-xs text-slate-500">{caption}</div>
+        <div className="mt-1 text-xs text-muted">{caption}</div>
       ) : null}
     </div>
   );
@@ -303,7 +303,7 @@ export default async function StaffPage({
       ) : (
         <>
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted">
               {total} {total === 1 ? "staff member" : "staff members"}
               {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
             </p>
@@ -327,13 +327,13 @@ export default async function StaffPage({
               <tbody>
                 {staff.map((member) => (
                   <StaffClickRow key={member.id} href={`/staff/${member.id}`}>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-700">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-foreground">
                       {member.staffIdNumber}
                     </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/staff/${member.id}`}
-                        className="flex items-center gap-3 font-medium text-slate-900 hover:underline"
+                        className="flex items-center gap-3 font-medium text-foreground hover:underline"
                       >
                         <Avatar
                           initials={initialsFor(member.firstName, member.lastName)}
@@ -342,10 +342,10 @@ export default async function StaffPage({
                         {formatStaffName(member)}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {member.roleTitle}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-foreground">
                       {member.department ?? "—"}
                     </td>
                     <td className="px-4 py-3">
@@ -376,16 +376,16 @@ export default async function StaffPage({
                 <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-mono text-xs font-medium text-slate-500">
+                    <p className="font-mono text-xs font-medium text-muted">
                       {member.staffIdNumber}
                     </p>
                     <Link
                       href={`/staff/${member.id}`}
-                      className="mt-1 block font-semibold text-slate-900"
+                      className="mt-1 block font-semibold text-foreground"
                     >
                       {formatStaffName(member)}
                     </Link>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {member.roleTitle}
                       {member.department ? ` · ${member.department}` : ""}
                     </p>

@@ -17,12 +17,12 @@ export function ImportStepper({ current }: { current: ImportStepId }) {
         return (
           <li
             key={step.id}
-            className={`rounded-full px-3 py-1 text-sm ${
+            className={`rounded-md px-3 py-1 text-sm ${
               active
-                ? "bg-slate-900 text-white"
+                ? "bg-primary-soft font-medium text-primary-hover"
                 : done
-                  ? "bg-emerald-50 text-emerald-900"
-                  : "bg-slate-100 text-slate-600"
+                  ? "bg-wash font-medium text-foreground"
+                  : "bg-wash text-muted"
             }`}
             aria-current={active ? "step" : undefined}
           >

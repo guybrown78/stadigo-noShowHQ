@@ -10,7 +10,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-surface shadow-sm",
+        "rounded-xl border border-border bg-surface",
         className,
       )}
     >
@@ -40,11 +40,14 @@ export function CardHeader({
       )}
     >
       <div>
-        <h2 id={headingId} className="text-base font-semibold text-slate-900">
+        <h2
+          id={headingId}
+          className="text-[0.9375rem] font-semibold tracking-[-0.01em] text-foreground"
+        >
           {title}
         </h2>
         {description ? (
-          <p className="mt-1 text-sm text-slate-500">{description}</p>
+          <p className="mt-1 max-w-prose text-sm leading-6 text-muted">{description}</p>
         ) : null}
       </div>
       {action}

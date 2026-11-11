@@ -73,17 +73,17 @@ export function ConfirmStaffImportForm({
     <div className="space-y-3">
       {showProgress ? (
         <section
-          className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+          className="rounded-lg border border-border bg-surface p-4"
           role="status"
           aria-live="polite"
         >
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-foreground">
             {error ? "Creation paused" : label}
           </h2>
           {error ? (
-            <p className="mt-1 text-sm text-slate-700">{label}</p>
+            <p className="mt-1 text-sm text-foreground">{label}</p>
           ) : (
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-muted">
               {running
                 ? "Please keep this page open until this finishes."
                 : "People already saved are kept. Continue to finish the rest."}
@@ -113,7 +113,7 @@ export function ConfirmStaffImportForm({
           Create {staffCount} {staffCount === 1 ? "staff member" : "staff members"}
         </button>
       )}
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-muted">
         This creates new operational staff records only. It does not update
         existing staff, create user accounts, or send communications.
       </p>

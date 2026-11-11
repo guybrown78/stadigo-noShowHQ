@@ -92,7 +92,7 @@ export default async function ImportVenuesPage({
 
   return (
       <div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           <Link href="/events" className="hover:underline">
             Events
           </Link>
@@ -103,10 +103,10 @@ export default async function ImportVenuesPage({
           <span aria-hidden="true"> / </span>
           Confirm venues
         </p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
           {hasNew ? "Review new venues" : "Confirm venues"}
         </h1>
-        <p className="mt-2 max-w-2xl text-slate-600">
+        <p className="mt-2 max-w-2xl text-muted">
           {hasNew
             ? `This file will create ${newVenues.length} ${newVenues.length === 1 ? "new venue" : "new venues"} and then ${record.validRows} ${record.validRows === 1 ? "event" : "events"} after the next step. Confirm the venue set first. No events are created yet.`
             : `Every venue in this file already exists. Confirm these mappings before ${record.validRows} ${record.validRows === 1 ? "event is" : "events are"} created.`}
@@ -143,11 +143,11 @@ export default async function ImportVenuesPage({
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+    <div className="rounded-lg border border-border bg-surface px-4 py-3">
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted">
         {label}
       </dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+      <dd className="mt-1 text-2xl font-semibold text-foreground">{value}</dd>
     </div>
   );
 }

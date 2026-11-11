@@ -33,7 +33,7 @@ export function ProbationSettingsForm({
       <div>
         <label
           htmlFor={`${formId}-days`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Default probation length (days){" "}
           <span className="text-red-700">*</span>
@@ -55,7 +55,7 @@ export function ProbationSettingsForm({
           }
           className={controlClassName("w-full")}
         />
-        <p id={`${formId}-help`} className="mt-2 text-sm text-slate-600">
+        <p id={`${formId}-help`} className="mt-2 text-sm text-muted">
           This default is used for staff added after you save this change. It
           will not alter existing probation dates.
         </p>

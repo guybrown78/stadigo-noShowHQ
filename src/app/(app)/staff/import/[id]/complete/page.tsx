@@ -53,17 +53,17 @@ export default async function ImportCompletePage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/staff" className="hover:underline">
           Staff
         </Link>
         <span aria-hidden="true"> / </span>
         Import complete
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Import complete
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         {record.createdStaffCount}{" "}
         {record.createdStaffCount === 1 ? "staff member was" : "staff members were"}{" "}
         created
@@ -74,33 +74,33 @@ export default async function ImportCompletePage({
       </p>
 
       <dl className="mt-6 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">
             Staff created
           </dt>
-          <dd className="mt-1 text-2xl font-semibold text-slate-900">
+          <dd className="mt-1 text-2xl font-semibold text-foreground">
             {record.createdStaffCount}
           </dd>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        <div className="rounded-lg border border-border bg-surface px-4 py-3">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted">
             Probation started
           </dt>
-          <dd className="mt-1 text-2xl font-semibold text-slate-900">
+          <dd className="mt-1 text-2xl font-semibold text-foreground">
             {record.createdProbationCount}
           </dd>
         </div>
       </dl>
 
-      <p className="mt-6 text-sm text-slate-500">
+      <p className="mt-6 text-sm text-muted">
         Showing {created.rows.length} of {created.total} imported staff
         {created.pageCount > 1
           ? ` · Page ${created.page} of ${created.pageCount}`
           : ""}
       </p>
-      <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-surface">
         <table className="min-w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+          <thead className="border-b border-border text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Staff ID</th>
               <th className="px-4 py-3 font-medium">Name</th>
@@ -112,11 +112,11 @@ export default async function ImportCompletePage({
               const normalized = parseRowNormalized(row.normalized);
               const staff = row.createdStaff;
               return (
-                <tr key={row.id} className="border-b border-slate-100">
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
+                <tr key={row.id} className="border-b border-row hover:bg-wash">
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-foreground">
                     {staff?.staffIdNumber ?? normalized?.staffIdNumber ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">
+                  <td className="px-4 py-3 text-foreground">
                     {staff
                       ? `${staff.firstName} ${staff.lastName}`
                       : normalized
@@ -127,7 +127,7 @@ export default async function ImportCompletePage({
                     {staff ? (
                       <Link
                         href={`/staff/${staff.id}`}
-                        className="font-medium text-slate-900 hover:underline"
+                        className="font-medium text-foreground hover:underline"
                       >
                         View
                       </Link>
@@ -147,7 +147,7 @@ export default async function ImportCompletePage({
           {created.page > 1 ? (
             <Link
               href={importCompleteHref(id, { page: created.page - 1 })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
             >
               Previous
             </Link>
@@ -155,7 +155,7 @@ export default async function ImportCompletePage({
           {created.page < created.pageCount ? (
             <Link
               href={importCompleteHref(id, { page: created.page + 1 })}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-wash"
             >
               Next
             </Link>
@@ -172,7 +172,7 @@ export default async function ImportCompletePage({
         </Link>
         <Link
           href="/staff/import"
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
         >
           Start another import
         </Link>

@@ -50,14 +50,14 @@ export function DeleteStaffDialog({
         ref={dialogRef}
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="w-[min(100%,28rem)] rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="w-[min(100%,28rem)] rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={titleId} className="text-lg font-semibold text-foreground">
             Delete {staffName} ({staffIdNumber})?
           </h2>
-          <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={descriptionId} className="mt-2 text-sm text-muted">
             This removes {staffName} from the active staff directory. They will
             no longer appear in search or be available for new links. Historical
             records that already refer to this person are kept.
@@ -65,7 +65,7 @@ export function DeleteStaffDialog({
           <div className="mt-5 flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash"
               onClick={() => setOpen(false)}
             >
               Cancel

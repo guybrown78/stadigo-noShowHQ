@@ -34,7 +34,7 @@ export function CountBar({
 
   return (
     <div
-      className={`flex h-2 overflow-hidden rounded-full bg-slate-100 ${className ?? ""}`}
+      className={`flex h-2 gap-0.5 overflow-hidden rounded-full bg-wash ${className ?? ""}`}
       role="img"
       aria-label={label}
     >

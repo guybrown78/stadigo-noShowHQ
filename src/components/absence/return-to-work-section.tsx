@@ -79,22 +79,22 @@ export function ReturnToWorkSection({
       <CardBody>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="text-sm font-medium text-slate-500">Status</h3>
-            <p className="mt-1 text-sm text-slate-900">
+            <h3 className="text-sm font-medium text-muted">Status</h3>
+            <p className="mt-1 text-sm text-foreground">
               {RETURN_TO_WORK_STATUS_LABELS[status]}
             </p>
             {completedIso && record?.completedOn ? (
-              <p className="mt-2 text-sm text-slate-700">
+              <p className="mt-2 text-sm text-foreground">
                 Completion date {formatLocalDateDisplay(record.completedOn)}
               </p>
             ) : null}
             {record?.note ? (
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                 {record.note}
               </p>
             ) : null}
             {record ? (
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-muted">
                 Updated {formatLondonDateTime(record.updatedAt)} ·{" "}
                 {formatStaffName(record.updatedBy)}
               </p>

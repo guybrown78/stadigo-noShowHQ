@@ -131,7 +131,7 @@ function NumberField({
   defaultValue: number;
 }) {
   return (
-    <label className="text-sm font-medium text-slate-700">
+    <label className="text-sm font-medium text-foreground">
       {label}
       <input
         name={name}
@@ -187,7 +187,7 @@ function ReasonRow({
           aria-label={savedLabel}
           className={controlClassName("w-full")}
         />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             name="active"
@@ -237,7 +237,7 @@ function IconButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex size-9 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-30"
+      className="inline-flex size-9 items-center justify-center rounded-md border border-border bg-surface text-foreground hover:bg-wash disabled:opacity-30"
     >
       {children}
     </button>
@@ -270,9 +270,9 @@ function AddReasonForm({
     <form
       ref={formRef}
       action={action}
-      className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-3"
+      className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border bg-wash p-3"
     >
-      <p className="w-full text-sm font-medium text-slate-900">
+      <p className="w-full text-sm font-medium text-foreground">
         Add a {listName} reason
       </p>
       <input type="hidden" name="kind" value={kind} />
@@ -362,10 +362,10 @@ function ReasonList({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <AddReasonForm kind={kind} title={title} />
       {rows.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-600">No reasons yet.</p>
+        <p className="mt-2 text-sm text-muted">No reasons yet.</p>
       ) : (
         <ul className="mt-2 space-y-1 overflow-x-auto">
           {rows.map((reason, index) => (

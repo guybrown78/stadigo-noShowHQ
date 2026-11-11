@@ -182,7 +182,7 @@ export function LedgerActiveFilters({
         </ButtonLink>
       ) : null}
       {hidesSickness ? (
-        <p className="basis-full text-xs text-slate-600">{sicknessNote}</p>
+        <p className="basis-full text-xs text-muted">{sicknessNote}</p>
       ) : null}
     </div>
   );

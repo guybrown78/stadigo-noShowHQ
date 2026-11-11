@@ -44,8 +44,8 @@ export function PayPeriodAssignment({
     <div className={embedded ? undefined : "mb-6 border-b border-border pb-6"}>
       {showCurrent ? (
         <>
-          <p className="text-sm font-medium text-slate-500">Pay period</p>
-          <p className="mt-1 text-slate-900">
+          <p className="text-sm font-medium text-muted">Pay period</p>
+          <p className="mt-1 text-foreground">
             {current ? formatPayPeriodName(current) : "Not filed in a pay period."}
           </p>
         </>
@@ -88,7 +88,7 @@ export function PayPeriodAssignment({
           </Button>
         </form>
       ) : periods && periods.length === 0 && !current ? (
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-muted">
           Open a pay period in Settings to file this record.
         </p>
       ) : null}

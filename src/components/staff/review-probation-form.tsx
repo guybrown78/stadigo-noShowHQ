@@ -47,7 +47,7 @@ export function ReviewProbationForm({
       <div>
         <label
           htmlFor={`${formId}-review-date`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Review date <span className="text-red-700">*</span>
         </label>
@@ -66,7 +66,7 @@ export function ReviewProbationForm({
         />
       </div>
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-slate-700">
+        <legend className="mb-2 text-sm font-medium text-foreground">
           Outcome <span className="text-red-700">*</span>
         </legend>
         <div className="space-y-2">
@@ -94,7 +94,7 @@ export function ReviewProbationForm({
           <div>
             <label
               htmlFor={`${formId}-new-end`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               New probation end date <span className="text-red-700">*</span>
             </label>
@@ -106,9 +106,9 @@ export function ReviewProbationForm({
               value={newEndDate}
               onChange={(event) => setNewEndDate(event.target.value)}
               aria-invalid={Boolean(state.fieldErrors?.newEndDate)}
-              className={controlClassName("w-full max-w-xs bg-white")}
+              className={controlClassName("w-full max-w-xs bg-surface")}
             />
-            <p className="mt-1 text-xs text-slate-600">
+            <p className="mt-1 text-xs text-muted">
               Must be after the current end date ({currentEndIso}).
             </p>
             <FieldError
@@ -116,14 +116,14 @@ export function ReviewProbationForm({
               messages={state.fieldErrors?.newEndDate}
             />
           </div>
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-foreground">
             New review due date:{" "}
             {newReviewDue ? formatLocalDateDisplay(newReviewDue) : "Select an end date"}
           </p>
         </div>
       ) : null}
       {outcome === "NOT_CONTINUED" ? (
-        <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <p className="rounded-md border border-border bg-wash px-3 py-2 text-sm text-foreground">
           This records the probation decision only. It does not automatically
           deactivate the staff member, change access, or send communication.
         </p>
@@ -131,13 +131,13 @@ export function ReviewProbationForm({
       <div>
         <label
           htmlFor={`${formId}-notes`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Decision notes
           {outcome === "EXTENDED" || outcome === "NOT_CONTINUED" ? (
             <span className="text-red-700"> *</span>
           ) : (
-            <span className="font-normal text-slate-500"> (optional for Passed)</span>
+            <span className="font-normal text-muted"> (optional for Passed)</span>
           )}
         </label>
         <textarea

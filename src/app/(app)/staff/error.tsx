@@ -10,10 +10,10 @@ export default function StaffError({
 }) {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Could not load staff
       </h1>
-      <p className="mt-2 max-w-xl text-slate-600">
+      <p className="mt-2 max-w-xl text-muted">
         Something went wrong while loading this page. Your data has not been
         changed. You can try again, or go back to the staff directory.
       </p>
@@ -27,7 +27,7 @@ export default function StaffError({
         </button>
         <Link
           href="/staff"
-          className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash"
         >
           Back to staff
         </Link>

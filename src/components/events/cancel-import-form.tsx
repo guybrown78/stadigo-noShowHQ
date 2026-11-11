@@ -9,7 +9,7 @@ export function CancelImportForm({ importId }: { importId: string }) {
       <input type="hidden" name="importId" value={importId} />
       <PendingSubmit
         pendingLabel="Cancelling…"
-        className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+        className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-wash disabled:opacity-60"
       >
         Cancel import
       </PendingSubmit>

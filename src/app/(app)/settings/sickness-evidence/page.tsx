@@ -51,19 +51,19 @@ export default async function SicknessEvidenceSettingsPage({
 
       <Card className="mt-8 shadow-none">
         <CardBody className="p-6">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-muted">
             Current fit note day:{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-foreground">
               {settings.requiredFromDay}
             </span>
             . Current chase days:{" "}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-foreground">
               {settings.chaseAfterDays}
             </span>
             .
           </p>
           {settings.updatedAt ? (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               Last changed {formatLondonDateTime(settings.updatedAt)}
               {settings.updatedBy
                 ? ` by ${settings.updatedBy.firstName} ${settings.updatedBy.lastName}`
@@ -72,7 +72,7 @@ export default async function SicknessEvidenceSettingsPage({
             </p>
           ) : null}
           {lastRun ? (
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-muted">
               Last check {formatLondonDateTime(lastRun.startedAt)}
               {lastRun.status === "SUCCESS" ? "" : ", failed"}.{" "}
               {lastRun.episodesScanned} episodes, {lastRun.tasksCreated} tasks
@@ -88,34 +88,34 @@ export default async function SicknessEvidenceSettingsPage({
 
       <Card className="mt-6 shadow-none">
         <CardBody className="p-6">
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-base font-semibold text-foreground">
             Existing episodes
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Apply the current counts to episodes that do not have them yet.
           </p>
-          <dl className="mt-4 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+          <dl className="mt-4 grid gap-3 text-sm text-foreground sm:grid-cols-2">
             <div>
-              <dt className="text-slate-500">Episodes to update</dt>
-              <dd className="font-medium text-slate-900">{preview.episodes}</dd>
+              <dt className="text-muted">Episodes to update</dt>
+              <dd className="font-medium text-foreground">{preview.episodes}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Fit note due</dt>
-              <dd className="font-medium text-slate-900">
+              <dt className="text-muted">Fit note due</dt>
+              <dd className="font-medium text-foreground">
                 {preview.requirementEligible}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Request tasks to create</dt>
-              <dd className="font-medium text-slate-900">{preview.requestTasks}</dd>
+              <dt className="text-muted">Request tasks to create</dt>
+              <dd className="font-medium text-foreground">{preview.requestTasks}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Chase tasks to create</dt>
-              <dd className="font-medium text-slate-900">{preview.chases}</dd>
+              <dt className="text-muted">Chase tasks to create</dt>
+              <dd className="font-medium text-foreground">{preview.chases}</dd>
             </div>
           </dl>
           {preview.records.length > 0 ? (
-            <ul className="mt-4 divide-y divide-slate-100 text-sm text-slate-700">
+            <ul className="mt-4 divide-y divide-slate-100 text-sm text-foreground">
               {preview.records.map((record) => (
                 <li key={record.absenceId} className="py-2">
                   {record.staffFirstName} {record.staffLastName} · day 1{" "}
@@ -134,7 +134,7 @@ export default async function SicknessEvidenceSettingsPage({
             </ul>
           ) : null}
           {preview.truncated ? (
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-muted">
               Showing the first 50. Apply uses the full count.
             </p>
           ) : null}

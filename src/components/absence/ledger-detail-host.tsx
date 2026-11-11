@@ -86,7 +86,7 @@ export function LedgerClickRow({
   const { openDetail } = useLedgerDetail();
   return (
     <tr
-      className={cn("cursor-pointer hover:bg-slate-50", className)}
+      className={cn("cursor-pointer hover:bg-wash", className)}
       onClick={(event) => openRowFromClick(event, absenceId, openDetail)}
     >
       {children}
@@ -162,7 +162,7 @@ function Pulse({ className }: { className: string }) {
 function FieldSkeleton({ label }: { label: string }) {
   return (
     <div role="group" aria-busy="true" aria-label={`Loading ${label}`}>
-      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className="text-sm font-medium text-muted">{label}</p>
       <Pulse className="mt-2 h-4 w-48" />
     </div>
   );
@@ -176,7 +176,7 @@ function SectionSkeleton({ title }: { title: string }) {
       aria-busy="true"
       aria-label={`Loading ${title}`}
     >
-      <p className="text-sm font-medium text-slate-900">{title}</p>
+      <p className="text-sm font-medium text-foreground">{title}</p>
       <Pulse className="mt-3 h-4 w-full" />
       <Pulse className="mt-2 h-4 w-2/3" />
     </div>
@@ -224,12 +224,12 @@ function PreviewBody({
       <header className="border-b border-border pb-4">
         <div className="flex flex-wrap items-center gap-2">
           <AbsenceTypeBadge type={preview.type} />
-          <span className="text-sm text-slate-700">{preview.statusLabel}</span>
+          <span className="text-sm text-foreground">{preview.statusLabel}</span>
         </div>
-        <h2 id={TITLE_ID} className="mt-2 text-lg font-semibold text-slate-900">
+        <h2 id={TITLE_ID} className="mt-2 text-lg font-semibold text-foreground">
           {preview.heading}
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-muted">
           {preview.staffHref ? (
             <a href={preview.staffHref} className="underline">
               {preview.staffName}
@@ -245,8 +245,8 @@ function PreviewBody({
       <dl className="mt-4 grid gap-6 sm:grid-cols-2">
         {preview.fields.map((field) => (
           <div key={field.label} className="min-w-0">
-            <dt className="text-sm font-medium text-slate-500">{field.label}</dt>
-            <dd className="mt-1 min-w-0 text-slate-900">
+            <dt className="text-sm font-medium text-muted">{field.label}</dt>
+            <dd className="mt-1 min-w-0 text-foreground">
               {field.lines.map((line, index) => {
                 if (index === 0 && field.href) {
                   return (
@@ -259,13 +259,13 @@ function PreviewBody({
                   return <span key={index}>{line}</span>;
                 }
                 return (
-                  <p key={index} className="mt-1 text-sm text-slate-600">
+                  <p key={index} className="mt-1 text-sm text-muted">
                     {line}
                   </p>
                 );
               })}
               {field.hints?.map((hint) => (
-                <p key={hint} className="mt-1 text-sm text-slate-600">
+                <p key={hint} className="mt-1 text-sm text-muted">
                   {hint}
                 </p>
               ))}

@@ -76,7 +76,7 @@ export function RowActionsMenu({
       "block w-full px-3 py-2 text-left text-sm",
       tone === "danger"
         ? "text-red-800 hover:bg-red-50"
-        : "text-slate-700 hover:bg-slate-50",
+        : "text-foreground hover:bg-wash",
     );
 
   return (
@@ -84,7 +84,7 @@ export function RowActionsMenu({
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+        className="inline-flex size-8 items-center justify-center rounded-md text-muted hover:bg-wash hover:text-foreground"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -102,7 +102,7 @@ export function RowActionsMenu({
           id={menuId}
           role="menu"
           aria-label={label}
-          className="fixed z-50 min-w-[11rem] overflow-hidden rounded-lg border border-border bg-white py-1 shadow-lg"
+          className="fixed z-50 min-w-[11rem] overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-lg"
           style={{ top: coords.top, right: coords.right }}
         >
           {items.map((item) =>

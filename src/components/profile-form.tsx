@@ -47,7 +47,7 @@ export function ProfileForm({
       <div>
         <label
           htmlFor={`${formId}-email`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Email
         </label>
@@ -56,9 +56,9 @@ export function ProfileForm({
           type="email"
           value={email}
           readOnly
-          className="w-full cursor-not-allowed rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-600"
+          className="w-full cursor-not-allowed rounded-md border border-border bg-wash px-3 py-2 text-muted"
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Email cannot be changed yet.
         </p>
       </div>
@@ -66,7 +66,7 @@ export function ProfileForm({
       <div>
         <label
           htmlFor={`${formId}-firstName`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           First name
         </label>
@@ -91,7 +91,7 @@ export function ProfileForm({
       <div>
         <label
           htmlFor={`${formId}-lastName`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Last name
         </label>

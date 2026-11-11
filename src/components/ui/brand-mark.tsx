@@ -14,7 +14,7 @@ export function BrandMark({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span
         className={cn(
-          "inline-flex items-center justify-center rounded-full bg-primary text-white",
+          "inline-flex items-center justify-center rounded-lg bg-primary text-white",
           size === "sm" ? "size-7" : "size-8",
         )}
         aria-hidden="true"
@@ -23,7 +23,7 @@ export function BrandMark({
       </span>
       <span
         className={cn(
-          "font-semibold tracking-tight text-slate-900",
+          "font-semibold tracking-[-0.02em] text-foreground",
           size === "sm" ? "text-base" : "text-lg",
         )}
       >

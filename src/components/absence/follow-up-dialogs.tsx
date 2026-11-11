@@ -93,14 +93,14 @@ function ContextList({
   return (
     <dl className="mt-4 grid gap-2 text-sm">
       <div>
-        <dt className="font-medium text-slate-500">Staff</dt>
-        <dd className="text-slate-900">
+        <dt className="font-medium text-muted">Staff</dt>
+        <dd className="text-foreground">
           {staffName} · {staffIdNumber}
         </dd>
       </div>
       <div>
-        <dt className="font-medium text-slate-500">Absence</dt>
-        <dd className="break-words text-slate-900">
+        <dt className="font-medium text-muted">Absence</dt>
+        <dd className="break-words text-foreground">
           {typeLabel}
           {context.length ? ` · ${context.join(" · ")}` : ""}
         </dd>
@@ -131,14 +131,14 @@ function DialogShell({
       ref={dialogRef}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+      className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
       onClose={onClose}
     >
       <div className="p-5">
-        <h2 id={titleId} className="text-lg font-semibold text-slate-900">
+        <h2 id={titleId} className="text-lg font-semibold text-foreground">
           {title}
         </h2>
-        <p id={descriptionId} className="mt-2 text-sm text-slate-600">
+        <p id={descriptionId} className="mt-2 text-sm text-muted">
           {description}
         </p>
         {children}
@@ -506,7 +506,7 @@ export function CompleteFollowUpDialog({
             typeLabel={typeLabel}
             context={context}
           />
-          <p className="mt-3 whitespace-pre-wrap break-words text-sm text-slate-700">
+          <p className="mt-3 whitespace-pre-wrap break-words text-sm text-foreground">
             {details}
           </p>
           <form

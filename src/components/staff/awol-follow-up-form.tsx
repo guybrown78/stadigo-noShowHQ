@@ -27,9 +27,9 @@ export function AwolFollowUpForm({
   );
 
   return (
-    <section className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">AWOL follow-up</h2>
-      <p className="mt-2 max-w-2xl text-sm text-slate-600">
+    <section className="mt-8 rounded-xl border border-border bg-surface p-6">
+      <h2 className="text-lg font-semibold text-foreground">AWOL follow-up</h2>
+      <p className="mt-2 max-w-2xl text-sm text-muted">
         Record the first informal contact, the second informal contact, and the
         date a formal process started. These dates are a record only. NoShowHQ
         does not send a message or produce a letter.
@@ -65,7 +65,7 @@ function DateField({
   defaultValue: string;
 }) {
   return (
-    <label className="text-sm font-medium text-slate-700">
+    <label className="text-sm font-medium text-foreground">
       {label}
       <input
         name={name}

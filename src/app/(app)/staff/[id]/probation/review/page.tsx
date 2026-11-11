@@ -63,7 +63,7 @@ export default async function ReviewProbationPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/staff" className="hover:underline">
           Staff
         </Link>
@@ -75,36 +75,36 @@ export default async function ReviewProbationPage({
         Review probation
       </p>
       <StaffSectionNav current="directory" />
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-4 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Review probation
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Record whether probation was passed, extended, or not continued. This
         does not send a message or change employment status automatically.
       </p>
 
-      <dl className="mt-6 grid gap-4 rounded-lg border border-slate-200 bg-white p-6 sm:grid-cols-2">
+      <dl className="mt-6 grid gap-4 rounded-lg border border-border bg-surface p-6 sm:grid-cols-2">
         <div>
-          <dt className="text-sm font-medium text-slate-500">Staff member</dt>
-          <dd className="mt-1 text-slate-900">
+          <dt className="text-sm font-medium text-muted">Staff member</dt>
+          <dd className="mt-1 text-foreground">
             {name}{" "}
-            <span className="font-mono text-slate-600">
+            <span className="font-mono text-muted">
               ({staff.staffIdNumber})
             </span>
           </dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-slate-500">Current state</dt>
+          <dt className="text-sm font-medium text-muted">Current state</dt>
           <dd className="mt-1">
             {lifecycle ? <ProbationLifecycleBadge lifecycle={lifecycle} /> : "—"}
           </dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-slate-500">Start date</dt>
+          <dt className="text-sm font-medium text-muted">Start date</dt>
           <dd className="mt-1">{formatLocalDateDisplay(probation.startDate)}</dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-slate-500">Effective duration</dt>
+          <dt className="text-sm font-medium text-muted">Effective duration</dt>
           <dd className="mt-1">
             {formatDurationSource(
               probation.durationSource,
@@ -113,20 +113,20 @@ export default async function ReviewProbationPage({
           </dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-slate-500">Current end date</dt>
+          <dt className="text-sm font-medium text-muted">Current end date</dt>
           <dd className="mt-1">
             {formatLocalDateDisplay(probation.currentEndDate)}
           </dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-slate-500">Review due date</dt>
+          <dt className="text-sm font-medium text-muted">Review due date</dt>
           <dd className="mt-1">
             {formatLocalDateDisplay(probation.reviewDueDate)}
           </dd>
         </div>
       </dl>
 
-      <div className="mt-6 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="mt-6 rounded-lg border border-border bg-surface p-6">
         <ReviewProbationForm
           staffId={staff.id}
           todayIso={todayIso}

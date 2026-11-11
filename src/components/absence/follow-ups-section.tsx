@@ -83,7 +83,7 @@ export function FollowUpsSection({
       />
       <CardBody>
         {items.length === 0 ? (
-          <p className="text-sm text-slate-600">No follow-ups recorded.</p>
+          <p className="text-sm text-muted">No follow-ups recorded.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {items.map((followUp) => {
@@ -94,30 +94,30 @@ export function FollowUpsSection({
               return (
                 <li key={followUp.id} className="py-4">
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-foreground">
                       {FOLLOW_UP_STATE_LABELS[followUp.state]}
                     </span>
-                    <span className="text-slate-700">
+                    <span className="text-foreground">
                       {FOLLOW_UP_PROVENANCE_LABELS[provenance]}
                     </span>
                     {followUp.purpose ? (
-                      <span className="text-slate-700">
+                      <span className="text-foreground">
                         {FOLLOW_UP_PURPOSE_LABELS[followUp.purpose]}
                       </span>
                     ) : null}
-                    <span className="text-slate-700">
+                    <span className="text-foreground">
                       Due {formatLocalDateDisplay(followUp.dueDate)}
                     </span>
                     {dueState ? (
-                      <span className="text-slate-700">
+                      <span className="text-foreground">
                         {FOLLOW_UP_DUE_LABELS[dueState]}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                     {followUp.details}
                   </p>
-                  <p className="mt-2 text-sm text-slate-600">
+                  <p className="mt-2 text-sm text-muted">
                     Added {formatLondonDateTime(followUp.createdAt)} ·{" "}
                     {followUp.createdBy
                       ? formatStaffName(followUp.createdBy)
@@ -125,12 +125,12 @@ export function FollowUpsSection({
                   </p>
                   {followUp.state === "COMPLETED" && followUp.completionNotes ? (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-slate-700">Outcome</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800">
+                      <p className="text-sm font-medium text-foreground">Outcome</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
                         {followUp.completionNotes}
                       </p>
                       {followUp.completedAt ? (
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-muted">
                           Completed {formatLondonDateTime(followUp.completedAt)}
                           {followUp.completedBy
                             ? ` · ${formatStaffName(followUp.completedBy)}`
@@ -141,14 +141,14 @@ export function FollowUpsSection({
                   ) : null}
                   {followUp.state === "CANCELLED" && followUp.cancellationReason ? (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-slate-700">
+                      <p className="text-sm font-medium text-foreground">
                         Cancellation reason
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-800">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
                         {followUp.cancellationReason}
                       </p>
                       {followUp.cancelledAt ? (
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-sm text-muted">
                           Cancelled {formatLondonDateTime(followUp.cancelledAt)}
                           {followUp.cancelledBy
                             ? ` · ${formatStaffName(followUp.cancelledBy)}`

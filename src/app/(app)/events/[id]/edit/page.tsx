@@ -40,7 +40,7 @@ export default async function EditEventPage({
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/events" className="hover:underline">
           Events
         </Link>
@@ -51,14 +51,14 @@ export default async function EditEventPage({
         <span aria-hidden="true"> / </span>
         Edit
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Edit event
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Update operational details. The event stays in this organisation and
         keeps its original record identifier.
       </p>
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="mt-8 rounded-lg border border-border bg-surface p-6">
         <EventForm
           mode="edit"
           eventId={event.id}

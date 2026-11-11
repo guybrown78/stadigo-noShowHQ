@@ -51,9 +51,9 @@ function QueueSection({
 
   return (
     <section className="mt-8">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       {items.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">{empty}</p>
+        <p className="mt-2 text-sm text-muted">{empty}</p>
       ) : (
         <ul className="mt-3 space-y-3">
           {items.map((item) => {
@@ -74,20 +74,20 @@ function QueueSection({
             return (
               <li
                 key={item.id}
-                className="rounded-lg border border-slate-200 bg-white p-4"
+                className="rounded-lg border border-border bg-surface p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="font-mono text-xs text-slate-500">
+                    <p className="font-mono text-xs text-muted">
                       {item.staff.staffIdNumber}
                     </p>
                     <Link
                       href={`/staff/${item.staff.id}`}
-                      className="mt-1 block font-semibold text-slate-900 hover:underline"
+                      className="mt-1 block font-semibold text-foreground hover:underline"
                     >
                       {formatStaffName(item.staff)}
                     </Link>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       {item.staff.roleTitle}
                       {item.staff.department
                         ? ` · ${item.staff.department}`
@@ -98,7 +98,7 @@ function QueueSection({
                     <ProbationLifecycleBadge lifecycle={lifecycle} />
                   ) : null}
                 </div>
-                <dl className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                <dl className="mt-3 grid gap-2 text-sm text-muted sm:grid-cols-2">
                   <div>
                     End {formatLocalDateDisplay(item.currentEndDate)}
                   </div>
@@ -114,13 +114,13 @@ function QueueSection({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
                     href={`/staff/${item.staff.id}`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                    className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash"
                   >
                     Open record
                   </Link>
                   <Link
                     href={`/staff/${item.staff.id}/probation/review`}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
                   >
                     Review probation
                   </Link>
@@ -134,7 +134,7 @@ function QueueSection({
                       />
                       <button
                         type="submit"
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                        className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash"
                       >
                         Acknowledge
                       </button>
@@ -142,7 +142,7 @@ function QueueSection({
                   ) : null}
                 </div>
                 {showSnooze && task ? (
-                  <div className="mt-4 border-t border-slate-100 pt-3">
+                  <div className="mt-4 border-t border-row pt-3">
                     <SnoozeProbationTaskForm
                       taskId={task.id}
                       staffId={item.staff.id}
@@ -186,10 +186,10 @@ export default async function ProbationQueuePage({
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h1 className="text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
             Probation
           </h1>
-          <p className="mt-2 max-w-2xl text-slate-600">
+          <p className="mt-2 max-w-2xl text-muted">
             Shared in-app work for this organisation. Any administrator can
             acknowledge, snooze, or record a decision. Nothing is emailed or
             sent as SMS.
@@ -223,11 +223,11 @@ export default async function ProbationQueuePage({
       ) : null}
 
       {!hasWork ? (
-        <div className="mt-8 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
-          <p className="text-sm font-medium text-slate-800">
+        <div className="mt-8 rounded-lg border border-dashed border-border bg-surface px-6 py-12 text-center">
+          <p className="text-sm font-medium text-foreground">
             There are no outstanding probation actions
           </p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             Due and overdue reviews will appear here for every administrator
             in this organisation.
           </p>
@@ -256,11 +256,11 @@ export default async function ProbationQueuePage({
             showSnooze
           />
           <section className="mt-8">
-            <h2 className="text-lg font-semibold text-slate-900">
+            <h2 className="text-lg font-semibold text-foreground">
               Needs dates ({needsDates.length})
             </h2>
             {needsDates.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-muted">
                 No active probation records are missing dates.
               </p>
             ) : (
@@ -268,18 +268,18 @@ export default async function ProbationQueuePage({
                 {needsDates.map((member) => (
                   <li
                     key={member.id}
-                    className="rounded-lg border border-slate-200 bg-white p-4"
+                    className="rounded-lg border border-border bg-surface p-4"
                   >
-                    <p className="font-mono text-xs text-slate-500">
+                    <p className="font-mono text-xs text-muted">
                       {member.staffIdNumber}
                     </p>
                     <Link
                       href={`/staff/${member.id}`}
-                      className="mt-1 block font-semibold text-slate-900 hover:underline"
+                      className="mt-1 block font-semibold text-foreground hover:underline"
                     >
                       {formatStaffName(member)}
                     </Link>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted">
                       Start or end dates are missing. Do not guess — open the
                       record and amend dates with a reason, or record a
                       review decision if enough information exists.

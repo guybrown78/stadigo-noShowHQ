@@ -57,15 +57,15 @@ export function VenueForm({
 
       {mode === "edit" && initialValues?.identifier ? (
         <div>
-          <p className="mb-1 text-sm font-medium text-slate-700">Venue ID</p>
-          <p className="font-mono text-sm text-slate-900">{initialValues.identifier}</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mb-1 text-sm font-medium text-foreground">Venue ID</p>
+          <p className="font-mono text-sm text-foreground">{initialValues.identifier}</p>
+          <p className="mt-1 text-sm text-muted">
             Assigned automatically. Use it in the event template when the venue
             has no code.
           </p>
         </div>
       ) : mode === "create" ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           Saving assigns a Venue ID such as VEN-1. You can use that ID, the
           venue name, or an optional code in the event template.
         </p>
@@ -74,7 +74,7 @@ export function VenueForm({
       <div>
         <label
           htmlFor={`${formId}-name`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Venue name <span className="text-red-700">*</span>
         </label>
@@ -96,7 +96,7 @@ export function VenueForm({
       <div>
         <label
           htmlFor={`${formId}-code`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Venue code
         </label>
@@ -111,7 +111,7 @@ export function VenueForm({
           }
           className={controlClassName("w-full sm:max-w-xs")}
         />
-        <p id={`${formId}-code-hint`} className="mt-1 text-sm text-slate-500">
+        <p id={`${formId}-code-hint`} className="mt-1 text-sm text-muted">
           Optional short code, unique in this organisation. Leave it blank if
           you do not have one. The Venue ID is always available for the import.
         </p>
@@ -121,7 +121,7 @@ export function VenueForm({
       <div>
         <label
           htmlFor={`${formId}-address`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Address line
         </label>
@@ -146,7 +146,7 @@ export function VenueForm({
         <div>
           <label
             htmlFor={`${formId}-town`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Town / city
           </label>
@@ -169,7 +169,7 @@ export function VenueForm({
         <div>
           <label
             htmlFor={`${formId}-postcode`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Postcode
           </label>
@@ -192,16 +192,16 @@ export function VenueForm({
       </div>
 
       {mode === "edit" ? (
-        <label className="flex items-start gap-2 text-sm text-slate-700">
+        <label className="flex items-start gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             name="active"
             defaultChecked={initialValues?.active !== false}
-            className="mt-0.5 rounded border-slate-300"
+            className="mt-0.5 rounded border-border"
           />
           <span>
             Active
-            <span className="mt-0.5 block text-xs text-slate-500">
+            <span className="mt-0.5 block text-xs text-muted">
               Inactive venues stay on past events but are hidden from the add
               event form.
             </span>

@@ -22,7 +22,7 @@ export function EmploymentStatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${EMPLOYMENT_STATUS_STYLES[status]}`}
+      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${EMPLOYMENT_STATUS_STYLES[status]}`}
     >
       {EMPLOYMENT_STATUS_LABELS[status]}
     </span>
@@ -32,7 +32,7 @@ export function EmploymentStatusBadge({
 export function ProbationStatusBadge({ status }: { status: ProbationStatus }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${PROBATION_STATUS_STYLES[status]}`}
+      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${PROBATION_STATUS_STYLES[status]}`}
     >
       {PROBATION_STATUS_LABELS[status]}
     </span>
@@ -46,7 +46,7 @@ export function ProbationLifecycleBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${PROBATION_LIFECYCLE_STYLES[lifecycle]}`}
+      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${PROBATION_LIFECYCLE_STYLES[lifecycle]}`}
     >
       {PROBATION_LIFECYCLE_LABELS[lifecycle]}
     </span>
@@ -60,7 +60,7 @@ export function ClearanceStatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${CLEARANCE_STATUS_STYLES[status]}`}
+      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${CLEARANCE_STATUS_STYLES[status]}`}
     >
       {CLEARANCE_STATUS_LABELS[status]}
     </span>

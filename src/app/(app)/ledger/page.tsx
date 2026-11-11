@@ -137,7 +137,7 @@ function SortHeader({
     >
       <Link
         href={href}
-        className={`inline-flex items-center gap-1 text-slate-700 hover:text-slate-950 hover:underline ${align === "right" ? "w-full justify-end" : ""}`}
+        className={`inline-flex items-center gap-1 text-foreground hover:text-slate-950 hover:underline ${align === "right" ? "w-full justify-end" : ""}`}
         aria-label={`Sort by ${label}, ${nextLabel}`}
       >
         {label}
@@ -157,17 +157,17 @@ function StaffCell({ row }: { row: LedgerAbsenceRow }) {
   const live = !staff.deletedAt;
   return (
     <>
-      <span className="block truncate font-medium text-slate-900" title={name}>
+      <span className="block truncate font-medium text-foreground" title={name}>
         {name}
       </span>
-      <p className="whitespace-nowrap font-mono text-xs text-slate-500">
+      <p className="whitespace-nowrap font-mono text-xs text-muted">
         {staff.staffIdNumber}
       </p>
       {live ? (
         <Link
           href={`/staff/${staff.id}`}
           data-ledger-separate=""
-          className="mt-1 inline-flex text-xs font-medium text-slate-600 hover:underline"
+          className="mt-1 inline-flex text-xs font-medium text-muted hover:underline"
         >
           Staff profile
         </Link>
@@ -180,14 +180,14 @@ function EventName({ row, name }: { row: LedgerAbsenceRow; name: string }) {
   const live = Boolean(row.event && !row.event.deletedAt);
   return (
     <>
-      <span className="block truncate font-medium text-slate-900" title={name}>
+      <span className="block truncate font-medium text-foreground" title={name}>
         {name}
       </span>
       {live && row.event ? (
         <Link
           href={`/events/${row.event.id}`}
           data-ledger-separate=""
-          className="mt-1 inline-flex text-xs font-medium text-slate-600 hover:underline"
+          className="mt-1 inline-flex text-xs font-medium text-muted hover:underline"
         >
           Event
         </Link>
@@ -204,7 +204,7 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
         <EventName row={row} name={detail.eventNameSnapshot} />
         {detail.venueNameSnapshot ? (
           <p
-            className="truncate text-xs text-slate-500"
+            className="truncate text-xs text-muted"
             title={detail.venueNameSnapshot}
           >
             {detail.venueNameSnapshot}
@@ -220,14 +220,14 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
         <EventName row={row} name={detail.eventNameSnapshot} />
         {detail.venueNameSnapshot ? (
           <p
-            className="truncate text-xs text-slate-500"
+            className="truncate text-xs text-muted"
             title={detail.venueNameSnapshot}
           >
             {detail.venueNameSnapshot}
           </p>
         ) : null}
         {detail.eventReferenceSnapshot ? (
-          <p className="whitespace-nowrap font-mono text-xs text-slate-500">
+          <p className="whitespace-nowrap font-mono text-xs text-muted">
             {detail.eventReferenceSnapshot}
           </p>
         ) : null}
@@ -237,22 +237,22 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
   if (row.type === "SICKNESS" && row.sickness) {
     return (
       <div className="min-w-0">
-        <p className="text-sm text-slate-800">
+        <p className="text-sm text-foreground">
           {formatSicknessLedgerEpisodeContext(row.sickness)}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           Sickness started{" "}
           {row.sickness.sicknessStartedDate
             ? formatLocalDateDisplay(row.sickness.sicknessStartedDate)
             : NO_SICKNESS_STARTED_RECORDED}
         </p>
         {row.issueSummaryPresent ? (
-          <p className="text-xs text-slate-500">{ISSUE_SUMMARY_PRESENT_LABEL}</p>
+          <p className="text-xs text-muted">{ISSUE_SUMMARY_PRESENT_LABEL}</p>
         ) : null}
       </div>
     );
   }
-  return <span className="text-slate-500">—</span>;
+  return <span className="text-muted">—</span>;
 }
 
 function StatusBadge({ row }: { row: LedgerAbsenceRow }) {
@@ -262,7 +262,7 @@ function StatusBadge({ row }: { row: LedgerAbsenceRow }) {
     );
   }
   return (
-    <span className="text-sm text-slate-500">
+    <span className="text-sm text-muted">
       {RECORD_STATUS_LABELS[row.recordStatus]}
     </span>
   );
@@ -299,7 +299,7 @@ function AffectedDateValue({
         {row.affectedDate ? formatLocalDateDisplay(row.affectedDate) : "—"}
       </span>
       {notice ? (
-        <span className="block text-xs font-normal text-slate-500">
+        <span className="block text-xs font-normal text-muted">
           Notice {notice}
         </span>
       ) : null}
@@ -517,10 +517,10 @@ export default async function LedgerPage({
 
       {query.view === "sickness" ? (
         <div className="mt-4">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-foreground">
             Sickness reports
           </h2>
-          <p className="mt-1 max-w-3xl text-sm text-slate-600">
+          <p className="mt-1 max-w-3xl text-sm text-muted">
             {SICKNESS_LEDGER_SUPPORTING_COPY}
           </p>
         </div>
@@ -701,7 +701,7 @@ export default async function LedgerPage({
           </FilterField>
         </FilterBar>
         {query.view === "all" && showEventFilters ? (
-          <p className="mt-2 max-w-3xl text-xs text-slate-500">
+          <p className="mt-2 max-w-3xl text-xs text-muted">
             {LEDGER_EVENT_FILTER_HELP}
           </p>
         ) : null}
@@ -756,7 +756,7 @@ export default async function LedgerPage({
         />
       ) : (
         <>
-          <div className="mt-4 space-y-0.5 text-sm text-slate-500" aria-live="polite">
+          <div className="mt-4 space-y-0.5 text-sm text-muted" aria-live="polite">
             {formatLedgerResultsSummary({
               view: query.view,
               total,
@@ -806,7 +806,7 @@ export default async function LedgerPage({
                 <LedgerClickRow
                   key={row.id}
                   absenceId={row.id}
-                  className="border-b border-slate-100"
+                  className="border-b border-row"
                 >
                   <td className="px-4 py-3">
                     <TypeCell row={row} />
@@ -814,10 +814,10 @@ export default async function LedgerPage({
                   <td className="max-w-[12rem] px-4 py-3">
                     <StaffCell row={row} />
                   </td>
-                  <td className="w-44 min-w-44 px-4 py-3 text-right text-slate-700 tabular-nums whitespace-nowrap">
+                  <td className="w-44 min-w-44 px-4 py-3 text-right text-foreground tabular-nums whitespace-nowrap">
                     {formatLocalDateDisplay(row.recordedDate)}
                   </td>
-                  <td className="w-44 min-w-44 px-4 py-3 text-right text-slate-700 tabular-nums">
+                  <td className="w-44 min-w-44 px-4 py-3 text-right text-foreground tabular-nums">
                     <AffectedDateValue row={row} />
                   </td>
                   <td className="max-w-[16rem] px-4 py-3">
@@ -846,13 +846,13 @@ export default async function LedgerPage({
                     <div className="mt-3">
                       <StaffCell row={row} />
                     </div>
-                    <p className="mt-2 text-sm text-slate-600 tabular-nums">
+                    <p className="mt-2 text-sm text-muted tabular-nums">
                       Recorded {formatLocalDateDisplay(row.recordedDate)}
                     </p>
-                    <div className="text-sm text-slate-600 tabular-nums">
+                    <div className="text-sm text-muted tabular-nums">
                       <AffectedDateValue row={row} prefix="Affected date" />
                     </div>
-                    <div className="mt-2 text-sm text-slate-700">
+                    <div className="mt-2 text-sm text-foreground">
                       <ContextCell row={row} />
                     </div>
                     <div className="mt-3">

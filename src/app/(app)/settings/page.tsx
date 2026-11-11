@@ -26,10 +26,10 @@ export default function SettingsPage() {
                   <ShieldCheck className="size-4" aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     Probation
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted">
                     Set the default probation length used when new staff records
                     are created. Changing it does not rewrite existing dates.
                   </p>
@@ -46,10 +46,10 @@ export default function SettingsPage() {
                   <ClipboardList className="size-4" aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     Sickness evidence
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted">
                     Fit note day and chase timing.
                   </p>
                 </div>
@@ -65,10 +65,10 @@ export default function SettingsPage() {
                   <SlidersHorizontal className="size-4" aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     Absence
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted">
                     Cancellation and sickness reasons, short notice, and the
                     cancellation and AWOL thresholds.
                   </p>
@@ -85,10 +85,10 @@ export default function SettingsPage() {
                   <CalendarRange className="size-4" aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     Pay periods
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted">
                     Name the dates absence records are filed under. This does
                     not calculate wages.
                   </p>
@@ -105,10 +105,10 @@ export default function SettingsPage() {
                   <Calendar className="size-4" aria-hidden="true" />
                 </span>
                 <div>
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-foreground">
                     Venues
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted">
                     Manage venues used when creating or importing events. You
                     can also open this list from Events.
                   </p>

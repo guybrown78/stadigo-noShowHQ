@@ -43,11 +43,11 @@ export function ManagerPicker({
     <div>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-sm font-medium text-slate-700"
+        className="mb-1 block text-sm font-medium text-foreground"
       >
         Manager
       </label>
-      <p className="mb-2 text-sm text-slate-500">
+      <p className="mb-2 text-sm text-muted">
         Optional. Search by name or staff ID for an active colleague in this
         organisation.
       </p>
@@ -70,7 +70,7 @@ export function ManagerPicker({
           type="button"
           onClick={search}
           disabled={pending}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-wash disabled:opacity-60"
         >
           {pending ? "Searching…" : "Search"}
         </button>
@@ -81,7 +81,7 @@ export function ManagerPicker({
         onChange={(event) => setSelectedId(event.target.value)}
         aria-invalid={Boolean(errorMessages?.length)}
         aria-describedby={errorMessages?.length ? errorId : undefined}
-        className={controlClassName("mt-2 w-full bg-white")}
+        className={controlClassName("mt-2 w-full bg-surface")}
       >
         <option value="">No manager</option>
         {results.map((staff) => (

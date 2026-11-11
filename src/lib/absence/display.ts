@@ -158,7 +158,7 @@ export const FOLLOW_UP_STATUS_STYLES: Record<AbsenceFollowUpStatus, string> = {
   PENDING: "bg-amber-100 text-amber-900",
   IN_PROGRESS: "bg-sky-100 text-sky-900",
   COMPLETED: "bg-emerald-100 text-emerald-900",
-  NOT_REQUIRED: "bg-slate-100 text-slate-700",
+  NOT_REQUIRED: "bg-slate-100 text-foreground",
 };
 
 export const RECORD_STATUS_LABELS: Record<AbsenceRecordStatus, string> = {

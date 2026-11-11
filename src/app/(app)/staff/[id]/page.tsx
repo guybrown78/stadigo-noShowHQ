@@ -58,8 +58,8 @@ function Detail({
 }) {
   return (
     <div>
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-slate-900">{children}</dd>
+      <dt className="text-sm font-medium text-muted">{label}</dt>
+      <dd className="mt-1 text-foreground">{children}</dd>
     </div>
   );
 }
@@ -163,7 +163,7 @@ export default async function StaffDetailPage({
         title={name}
         description={
           <>
-            <span className="font-mono text-slate-800">
+            <span className="font-mono text-foreground">
               Staff ID {staff.staffIdNumber}
             </span>
             <span className="block">
@@ -241,7 +241,7 @@ export default async function StaffDetailPage({
         </Banner>
       ) : null}
 
-      <dl className="mt-8 grid gap-6 rounded-xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2">
+      <dl className="mt-8 grid gap-6 rounded-xl border border-border bg-surface p-6 sm:grid-cols-2">
         <Detail label="Staff ID">
           <span className="font-mono">{staff.staffIdNumber}</span>
         </Detail>
@@ -277,7 +277,7 @@ export default async function StaffDetailPage({
             <div className="space-y-1">
               <ProbationLifecycleBadge lifecycle={lifecycle} />
               {previouslyExtended && !isClosedProbationLifecycle(lifecycle) ? (
-                <p className="text-sm text-slate-500">Previously extended</p>
+                <p className="text-sm text-muted">Previously extended</p>
               ) : null}
             </div>
           ) : (
@@ -327,8 +327,8 @@ export default async function StaffDetailPage({
             : "—"}
         </Detail>
         <div className="sm:col-span-2">
-          <dt className="text-sm font-medium text-slate-500">Notes</dt>
-          <dd className="mt-1 whitespace-pre-wrap text-slate-900">
+          <dt className="text-sm font-medium text-muted">Notes</dt>
+          <dd className="mt-1 whitespace-pre-wrap text-foreground">
             {staff.notes ?? "—"}
           </dd>
         </div>
@@ -360,11 +360,11 @@ export default async function StaffDetailPage({
       />
 
       {openTask && probation && !probation.completedAt ? (
-        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="mt-8 rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             In-app reminder
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             {TASK_TYPE_LABELS[openTask.type]} is {TASK_STATE_LABELS[openTask.state]}.
             Acknowledging records who acted but keeps the case visible.
           </p>
@@ -374,20 +374,20 @@ export default async function StaffDetailPage({
               <input type="hidden" name="staffId" value={staff.id} />
               <button
                 type="submit"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-wash"
               >
                 Acknowledge
               </button>
             </form>
             <Link
               href={`/staff/${staff.id}/probation/review`}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
             >
               Review probation
             </Link>
           </div>
           {canSnooze ? (
-            <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="mt-4 border-t border-row pt-4">
               <SnoozeProbationTaskForm
                 taskId={openTask.id}
                 staffId={staff.id}
@@ -395,7 +395,7 @@ export default async function StaffDetailPage({
               />
             </div>
           ) : (
-            <p className="mt-3 text-sm text-slate-500">
+            <p className="mt-3 text-sm text-muted">
               Snoozing is not available once probation is overdue.
             </p>
           )}
@@ -403,17 +403,17 @@ export default async function StaffDetailPage({
       ) : null}
 
       {staff.probationHistory.length > 0 ? (
-        <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="mt-8 rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             Probation history
           </h2>
           <ul className="mt-4 divide-y divide-slate-100">
             {staff.probationHistory.map((entry) => (
-              <li key={entry.id} className="py-3 text-sm text-slate-700">
-                <p className="font-medium text-slate-900">
+              <li key={entry.id} className="py-3 text-sm text-foreground">
+                <p className="font-medium text-foreground">
                   {PROBATION_ACTION_LABELS[entry.action]}
                 </p>
-                <p className="mt-1 text-slate-600">
+                <p className="mt-1 text-muted">
                   {formatLondonDateTime(entry.createdAt)}
                   {` · ${
                     entry.systemActor || !entry.actedBy
@@ -422,7 +422,7 @@ export default async function StaffDetailPage({
                   }`}
                 </p>
                 {entry.previousEndDate || entry.newEndDate ? (
-                  <p className="mt-1 text-slate-600">
+                  <p className="mt-1 text-muted">
                     End date{" "}
                     {entry.previousEndDate
                       ? formatLocalDateDisplay(entry.previousEndDate)
@@ -434,7 +434,7 @@ export default async function StaffDetailPage({
                   </p>
                 ) : null}
                 {entry.notes ? (
-                  <p className="mt-1 whitespace-pre-wrap text-slate-600">
+                  <p className="mt-1 whitespace-pre-wrap text-muted">
                     {entry.notes}
                   </p>
                 ) : null}

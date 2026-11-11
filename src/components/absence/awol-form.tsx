@@ -156,10 +156,10 @@ export function AwolForm({
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <p className="mb-1 block text-sm font-medium text-slate-700">
+          <p className="mb-1 block text-sm font-medium text-foreground">
             Event date
           </p>
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">
+          <p className="rounded-md border border-border bg-wash px-3 py-2 text-foreground">
             {eventDate ? formatLocalDateDisplay(eventDate) : "Select an event"}
           </p>
         </div>
@@ -186,7 +186,7 @@ export function AwolForm({
             }
             className={controlClassName("w-full")}
           />
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             The local date this AWOL was entered or confirmed. It cannot be
             before the event date or in the future.
           </p>
@@ -212,7 +212,7 @@ export function AwolForm({
             This Event is today and has no briefing or start time. Confirm that
             the staff member was expected and failed to attend.
           </p>
-          <label className="mt-2 flex items-start gap-2 text-sm text-slate-800">
+          <label className="mt-2 flex items-start gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               name="sameDayStartUnknownConfirmed"
@@ -260,7 +260,7 @@ export function AwolForm({
             }
             className={controlClassName("w-full")}
           />
-          <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
+          <p className="mt-1 text-sm text-muted">Optional. Maximum 2,000 characters.</p>
           <FieldError
             id={`${formId}-notes-error`}
             messages={state.fieldErrors?.notes}
@@ -282,7 +282,7 @@ export function AwolForm({
             }
             className={controlClassName("w-full")}
           />
-          <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
+          <p className="mt-1 text-sm text-muted">Optional. Maximum 2,000 characters.</p>
           <FieldError
             id={`${formId}-notes-error`}
             messages={state.fieldErrors?.notes}
@@ -346,7 +346,7 @@ export function AwolForm({
       />
       <FormAlert>{state.error}</FormAlert>
       {state.existingAbsenceId ? (
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-foreground">
           <ButtonLink
             href={`/absence/${state.existingAbsenceId}`}
             variant="ghost"
@@ -387,7 +387,7 @@ export function AwolForm({
           <LogFormBar
             summary={
               <>
-                <span className="font-medium text-awol">AWOL</span>
+                <span className="font-medium text-awol-ink">AWOL</span>
                 {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
                 {selectedEvent ? ` → ${selectedEvent.name}` : ""}
               </>

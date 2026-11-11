@@ -81,7 +81,7 @@ export function EventSearchPicker({
     <div>
       <label
         htmlFor={fieldId}
-        className="mb-1 block text-sm font-medium text-slate-700"
+        className="mb-1 block text-sm font-medium text-foreground"
       >
         Event <span className="text-red-700">*</span>
       </label>
@@ -93,23 +93,23 @@ export function EventSearchPicker({
         value={selected?.startTime ?? ""}
       />
       {selected ? (
-        <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-wash px-3 py-2">
           <div>
-            <p className="font-medium text-slate-900">{selected.name}</p>
-            <p className="text-sm text-slate-600">
+            <p className="font-medium text-foreground">{selected.name}</p>
+            <p className="text-sm text-muted">
               {formatEventDate(selected.eventDate)}
               {selected.startTime ? ` · ${selected.startTime}` : ""}
               {` · ${selected.venueName}`}
               {selected.reference ? ` · ${selected.reference}` : ""}
             </p>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted">
               {selected.eventTypeName} / {selected.eventSubtypeName}
             </p>
           </div>
           <button
             type="button"
             onClick={clear}
-            className="text-sm font-medium text-slate-700 underline hover:text-slate-900"
+            className="text-sm font-medium text-foreground underline hover:text-foreground"
           >
             Change
           </button>
@@ -171,12 +171,12 @@ export function EventSearchPicker({
             <ul
               id={listId}
               role="listbox"
-              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-slate-200 bg-white shadow-lg"
+              className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-surface shadow-lg"
             >
               {pending && results.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-slate-500">Searching…</li>
+                <li className="px-3 py-2 text-sm text-muted">Searching…</li>
               ) : results.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-slate-500">
+                <li className="px-3 py-2 text-sm text-muted">
                   No matching events in this organisation.
                 </li>
               ) : (
@@ -195,10 +195,10 @@ export function EventSearchPicker({
                       choose(event);
                     }}
                   >
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-foreground">
                       {event.name}
                     </span>
-                    <span className="text-slate-600">
+                    <span className="text-muted">
                       {" "}
                       · {formatEventDate(event.eventDate)} · {event.venueName}
                       {event.reference ? ` · ${event.reference}` : ""}

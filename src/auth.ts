@@ -1,8 +1,13 @@
+import { cookies } from "next/headers";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { Role } from "@prisma/client";
 import { authConfig } from "@/auth.config";
 import { credentialsSchema } from "@/lib/auth/schema";
+import {
+  COLOR_SCHEME_COOKIE,
+  isColorSchemeChoice,
+} from "@/lib/color-scheme";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { recordUserLogin } from "@/lib/user-activity";
@@ -54,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           lastName: user.lastName,
           role: user.role,
           tenantId: user.tenantId,
+          colorScheme: user.colorScheme,
         };
       },
     }),
@@ -68,6 +74,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.tenantId = user.tenantId;
         token.email = user.email;
+        if (isColorSchemeChoice(user.colorScheme)) {
+          const jar = await cookies();
+          jar.set(COLOR_SCHEME_COOKIE, user.colorScheme === "DARK" ? "dark" : "light", {
+            httpOnly: true,
+            sameSite: "lax",
+            path: "/",
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 60 * 60 * 24 * 365,
+          });
+        }
       }
 
       if (trigger === "update" && session?.user) {

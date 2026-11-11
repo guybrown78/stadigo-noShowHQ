@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 const toneClass = {
   success: "border-primary/20 bg-primary-soft text-primary-hover",
   warning: "border-amber-200 bg-amber-50 text-amber-950",
-  neutral: "border-slate-300 bg-slate-50 text-slate-800",
+  neutral: "border-border bg-wash text-foreground",
 };
 
 export function Banner({
@@ -18,7 +18,7 @@ export function Banner({
   return (
     <p
       className={cn(
-        "rounded-md border px-3 py-2 text-sm",
+        "rounded-lg border px-3 py-2 text-sm leading-6",
         toneClass[tone],
         className,
       )}

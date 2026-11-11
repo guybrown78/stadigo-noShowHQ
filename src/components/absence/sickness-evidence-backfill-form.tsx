@@ -26,8 +26,8 @@ export function SicknessEvidenceBackfillForm({
   return (
     <form action={action} className="mt-4 space-y-3">
       <FormAlert>{state.error}</FormAlert>
-      {state.success ? <p className="text-sm text-slate-700">{state.success}</p> : null}
-      <label className="flex items-start gap-2 text-sm text-slate-700">
+      {state.success ? <p className="text-sm text-foreground">{state.success}</p> : null}
+      <label className="flex items-start gap-2 text-sm text-foreground">
         <input type="checkbox" name="confirmBackfill" value="yes" className="mt-1" />
         <span>
           Apply to {episodes} existing {episodes === 1 ? "episode" : "episodes"}.

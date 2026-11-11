@@ -31,13 +31,13 @@ export function CreateTenantForm() {
       <FormAlert>{state.error}</FormAlert>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-slate-900">
+        <legend className="text-sm font-semibold text-foreground">
           Organisation
         </legend>
         <div>
           <label
             htmlFor={`${formId}-name`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Name
           </label>
@@ -56,7 +56,7 @@ export function CreateTenantForm() {
         <div>
           <label
             htmlFor={`${formId}-slug`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Slug
           </label>
@@ -75,15 +75,15 @@ export function CreateTenantForm() {
         </div>
       </fieldset>
 
-      <fieldset className="space-y-4 border-t border-slate-200 pt-4">
-        <legend className="text-sm font-semibold text-slate-900">
+      <fieldset className="space-y-4 border-t border-border pt-4">
+        <legend className="text-sm font-semibold text-foreground">
           Initial admin user
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label
               htmlFor={`${formId}-adminFirstName`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               First name
             </label>
@@ -107,7 +107,7 @@ export function CreateTenantForm() {
           <div>
             <label
               htmlFor={`${formId}-adminLastName`}
-              className="mb-1 block text-sm font-medium text-slate-700"
+              className="mb-1 block text-sm font-medium text-foreground"
             >
               Last name
             </label>
@@ -132,7 +132,7 @@ export function CreateTenantForm() {
         <div>
           <label
             htmlFor={`${formId}-adminEmail`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Email
           </label>
@@ -155,7 +155,7 @@ export function CreateTenantForm() {
         <div>
           <label
             htmlFor={`${formId}-adminPassword`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Temporary password
           </label>

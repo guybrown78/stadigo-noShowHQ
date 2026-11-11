@@ -33,7 +33,7 @@ export function AmendProbationEndForm({
       <div>
         <label
           htmlFor={`${formId}-end`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           New probation end date <span className="text-red-700">*</span>
         </label>
@@ -45,7 +45,7 @@ export function AmendProbationEndForm({
           aria-invalid={Boolean(state.fieldErrors?.newEndDate)}
           className={controlClassName("w-full max-w-xs")}
         />
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-muted">
           Current end date is {currentEndIso}. This is not a final Pass /
           Extend / Not continued decision.
         </p>
@@ -57,7 +57,7 @@ export function AmendProbationEndForm({
       <div>
         <label
           htmlFor={`${formId}-reason`}
-          className="mb-1 block text-sm font-medium text-slate-700"
+          className="mb-1 block text-sm font-medium text-foreground"
         >
           Reason <span className="text-red-700">*</span>
         </label>

@@ -119,11 +119,11 @@ function SwitchRow({
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface px-4 py-3">
       <div className="min-w-0">
-        <p id={labelId} className="text-sm font-semibold text-slate-900">
+        <p id={labelId} className="text-sm font-semibold text-foreground">
           Unauthorised
         </p>
-        <p id={hintId} className="mt-0.5 text-xs leading-5 text-slate-500">
-          <span className="font-medium text-slate-800">{status}.</span> {detail}
+        <p id={hintId} className="mt-0.5 text-xs leading-5 text-muted">
+          <span className="font-medium text-foreground">{status}.</span> {detail}
         </p>
       </div>
       <button
@@ -136,8 +136,8 @@ function SwitchRow({
         disabled={disabled}
         className={cn(
           "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-800",
-          shown ? "bg-slate-900" : "bg-slate-300",
+          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          shown ? "bg-cancel" : "bg-border",
           saving && "opacity-60",
           disabled && !saving && "cursor-not-allowed",
         )}
@@ -145,7 +145,7 @@ function SwitchRow({
         <span
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+            "pointer-events-none absolute top-0.5 size-5 rounded-full bg-surface shadow-sm transition-transform duration-200",
             shown ? "translate-x-5" : "translate-x-0.5",
           )}
         />

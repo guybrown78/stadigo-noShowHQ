@@ -150,7 +150,7 @@ export default async function FollowUpsPage({
         ) : (
           <>
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-muted">
                 {list.total === 1
                   ? "1 open follow-up"
                   : `${list.total} open follow-ups`}
@@ -185,29 +185,29 @@ export default async function FollowUpsPage({
                     className="align-top"
                   >
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-foreground">
                         {FOLLOW_UP_DUE_LABELS[row.dueState]}
                       </p>
-                      <p className="text-slate-600">
+                      <p className="text-muted">
                         {formatLocalDateDisplay(row.dueDate)}
                       </p>
                     </td>
                     <td className="max-w-[12rem] px-4 py-3">
-                      <p className="break-words font-medium text-slate-900">
+                      <p className="break-words font-medium text-foreground">
                         {formatStaffName(row.staff)}
                       </p>
-                      <p className="text-slate-600">{row.staff.staffIdNumber}</p>
+                      <p className="text-muted">{row.staff.staffIdNumber}</p>
                     </td>
                     <td className="max-w-[16rem] px-4 py-3">
                       <AbsenceTypeBadge type={row.absenceType} />
-                      <ul className="mt-2 space-y-1 break-words text-slate-700">
+                      <ul className="mt-2 space-y-1 break-words text-foreground">
                         {row.context.map((line) => (
                           <li key={line}>{line}</li>
                         ))}
                       </ul>
                     </td>
                     <td className="max-w-[20rem] px-4 py-3">
-                      <p className="whitespace-pre-wrap break-words text-slate-800">
+                      <p className="whitespace-pre-wrap break-words text-foreground">
                         {row.details}
                       </p>
                     </td>
@@ -244,25 +244,25 @@ export default async function FollowUpsPage({
                   <Card className="p-4 shadow-none">
                     <div className="flex flex-wrap items-center gap-2">
                       <AbsenceTypeBadge type={row.absenceType} />
-                      <span className="text-sm font-medium text-slate-900">
+                      <span className="text-sm font-medium text-foreground">
                         {FOLLOW_UP_DUE_LABELS[row.dueState]}
                       </span>
-                      <span className="text-sm text-slate-600">
+                      <span className="text-sm text-muted">
                         {formatLocalDateDisplay(row.dueDate)}
                       </span>
                     </div>
-                    <p className="mt-3 break-words font-medium text-slate-900">
+                    <p className="mt-3 break-words font-medium text-foreground">
                       {formatStaffName(row.staff)}
                     </p>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-muted">
                       {row.staff.staffIdNumber}
                     </p>
-                    <ul className="mt-2 space-y-1 break-words text-sm text-slate-700">
+                    <ul className="mt-2 space-y-1 break-words text-sm text-foreground">
                       {row.context.map((line) => (
                         <li key={line}>{line}</li>
                       ))}
                     </ul>
-                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
                       {row.details}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2" data-follow-up-separate>

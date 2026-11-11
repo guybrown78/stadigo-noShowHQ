@@ -62,7 +62,7 @@ export default async function DashboardPage({
           title="Dashboard"
           description="Cancellation, AWOL and sickness for the period you choose, and the staff who were absent more than once."
         />
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-muted">
           Absence totals need a valid organisation timezone before they can be
           shown.
         </p>

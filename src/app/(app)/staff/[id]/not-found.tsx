@@ -3,10 +3,10 @@ import Link from "next/link";
 export default function StaffNotFound() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Staff member not found
       </h1>
-      <p className="mt-2 max-w-xl text-slate-600">
+      <p className="mt-2 max-w-xl text-muted">
         This staff record is not available. It may have been removed, or you
         may not have access to it.
       </p>

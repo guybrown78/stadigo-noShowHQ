@@ -41,12 +41,12 @@ export function ResetAdminPasswordForm({
   return (
     <form
       action={formAction}
-      className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-4"
+      className="space-y-3 rounded-md border border-border bg-wash p-4"
       noValidate
     >
       <input type="hidden" name="tenantId" value={tenantId} />
       <input type="hidden" name="userId" value={userId} />
-      <p className="text-sm font-medium text-slate-900">
+      <p className="text-sm font-medium text-foreground">
         Reset password for {userLabel}
       </p>
 
@@ -57,7 +57,7 @@ export function ResetAdminPasswordForm({
         <div>
           <label
             htmlFor={`newPassword-${userId}`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             New temporary password
           </label>
@@ -74,7 +74,7 @@ export function ResetAdminPasswordForm({
                 ? `newPassword-${userId}-error`
                 : undefined
             }
-            className={controlClassName("w-full bg-white")}
+            className={controlClassName("w-full bg-surface")}
           />
           <FieldError
             id={`newPassword-${userId}-error`}
@@ -84,7 +84,7 @@ export function ResetAdminPasswordForm({
         <div>
           <label
             htmlFor={`confirmPassword-${userId}`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Confirm password
           </label>
@@ -101,7 +101,7 @@ export function ResetAdminPasswordForm({
                 ? `confirmPassword-${userId}-error`
                 : undefined
             }
-            className={controlClassName("w-full bg-white")}
+            className={controlClassName("w-full bg-surface")}
           />
           <FieldError
             id={`confirmPassword-${userId}-error`}
@@ -113,7 +113,7 @@ export function ResetAdminPasswordForm({
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Updating…" : "Set temporary password"}
       </button>

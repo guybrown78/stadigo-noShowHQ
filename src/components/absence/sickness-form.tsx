@@ -247,7 +247,7 @@ export function SicknessForm({
 
       {needsAdvanceConfirmation ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3">
-          <label className="flex items-start gap-2 text-sm text-slate-800">
+          <label className="flex items-start gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               name="futureFirstWorkingDayConfirmed"
@@ -277,7 +277,7 @@ export function SicknessForm({
 
       {mode === "create" ? (
         <div>
-          <p id={`${formId}-status-label`} className="mb-1 block text-sm font-medium text-slate-700">
+          <p id={`${formId}-status-label`} className="mb-1 block text-sm font-medium text-foreground">
             Sickness status <span className="text-red-700">*</span>
           </p>
           <div
@@ -303,10 +303,10 @@ export function SicknessForm({
               return (
                 <label
                   key={value}
-                  className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-400 ${
+                  className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary ${
                     selected
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-300 bg-white text-slate-800"
+                      ? "border-primary/30 bg-primary-soft text-primary-hover"
+                      : "border-border bg-surface text-foreground"
                   }`}
                 >
                   <input
@@ -355,7 +355,7 @@ export function SicknessForm({
                 }`}
                 className={controlClassName("w-full")}
               />
-              <p id={`${formId}-ended-hint`} className="mt-1 text-sm text-slate-500">
+              <p id={`${formId}-ended-hint`} className="mt-1 text-sm text-muted">
                 {SICKNESS_ENDED_DATE_HINT}
               </p>
               <FieldError
@@ -388,7 +388,7 @@ export function SicknessForm({
               state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
             }`}
           />
-          <p id={`${formId}-summary-help`} className="text-sm text-slate-500">
+          <p id={`${formId}-summary-help`} className="text-sm text-muted">
             {ISSUE_SUMMARY_HELPER_TEXT}
           </p>
           <FieldError
@@ -414,7 +414,7 @@ export function SicknessForm({
               state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
             }`}
           />
-          <p id={`${formId}-summary-help`} className="mt-1 text-sm text-slate-500">
+          <p id={`${formId}-summary-help`} className="mt-1 text-sm text-muted">
             {ISSUE_SUMMARY_HELPER_TEXT}
           </p>
           <FieldError
@@ -480,7 +480,7 @@ export function SicknessForm({
       <input type="hidden" name="todayIso" value={defaultReportedDate} />
       <FormAlert>{state.error}</FormAlert>
       {state.existingAbsenceId ? (
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-foreground">
           <ButtonLink
             href={`/absence/${state.existingAbsenceId}`}
             variant="ghost"

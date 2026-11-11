@@ -21,21 +21,21 @@ export default async function NewEventPage() {
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/events" className="hover:underline">
           Events
         </Link>
         <span aria-hidden="true"> / </span>
         Add event
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Add event
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Capture the operational details for one event. Staff bookings and
         absences will attach to this record later.
       </p>
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
+      <div className="mt-8 rounded-lg border border-border bg-surface p-6">
         <EventForm
           mode="create"
           types={types.map((type) => ({

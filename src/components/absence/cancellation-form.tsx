@@ -64,7 +64,7 @@ function OptionalTimeFields({
   const { hour, minute } = splitTime(value);
   const hours = hourOptions();
   const minutes = minuteOptions(value);
-  const selectClass = controlClassName("min-w-[4.5rem] bg-white");
+  const selectClass = controlClassName("min-w-[4.5rem] bg-surface");
 
   function commit(nextHour: string, nextMinute: string) {
     onChange(joinTime(nextHour, nextMinute));
@@ -88,7 +88,7 @@ function OptionalTimeFields({
           </option>
         ))}
       </select>
-      <span className="text-slate-500">:</span>
+      <span className="text-muted">:</span>
       <select
         id={`${id}-minute`}
         aria-label="Reported minute"
@@ -235,7 +235,7 @@ export function CancellationForm({
         <div>
           <p
             id={`${formId}-time-label`}
-            className="mb-1 block text-sm font-medium text-slate-700"
+            className="mb-1 block text-sm font-medium text-foreground"
           >
             Cancellation reported time
           </p>
@@ -250,7 +250,7 @@ export function CancellationForm({
                 : undefined
             }
           />
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             Optional. Leave blank if only the date is known.
           </p>
           <FieldError
@@ -260,10 +260,10 @@ export function CancellationForm({
         </div>
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
-        <p className="text-sm font-medium text-slate-700">Notice given</p>
+      <div className="rounded-md border border-border bg-wash px-3 py-3">
+        <p className="text-sm font-medium text-foreground">Notice given</p>
         {notice ? (
-          <div className="mt-1 text-sm text-slate-800">
+          <div className="mt-1 text-sm text-foreground">
             <p>
               {notice.noticeBasis === "EXACT_TIME" && notice.noticeMinutes != null
                 ? formatDurationMinutes(notice.noticeMinutes)
@@ -284,7 +284,7 @@ export function CancellationForm({
             ) : null}
           </div>
         ) : (
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             Select an event and reported date to preview notice.
           </p>
         )}
@@ -297,7 +297,7 @@ export function CancellationForm({
             will be stored as entered. Confirm if this is a retrospective or
             late record.
           </p>
-          <label className="mt-2 flex items-start gap-2 text-sm text-slate-800">
+          <label className="mt-2 flex items-start gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               name="retrospectiveConfirmed"
@@ -434,7 +434,7 @@ export function CancellationForm({
       <input type="hidden" name="reportedTime" value={reportedTime} />
       <FormAlert>{state.error}</FormAlert>
       {state.existingAbsenceId ? (
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-foreground">
           <ButtonLink
             href={`/absence/${state.existingAbsenceId}`}
             variant="ghost"

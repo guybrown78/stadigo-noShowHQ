@@ -50,18 +50,18 @@ export function ConfirmVenuesForm({
       <input type="hidden" name="importId" value={importId} />
       <FormAlert>{state.error}</FormAlert>
       <section>
-        <h2 className="text-lg font-semibold text-slate-900">Check each venue</h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-600">
+        <h2 className="text-lg font-semibold text-foreground">Check each venue</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
           The file can name a venue by its ID, its name, or its code. Choose
           the saved venue to use, or create a new one. Events are not saved
           until the next step.
         </p>
         {rows.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">No venues in this file.</p>
+          <p className="mt-3 text-sm text-muted">No venues in this file.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+              <thead className="border-b border-border text-muted">
                 <tr>
                   <th className="px-4 py-3 font-medium">In the file</th>
                   <th className="px-4 py-3 font-medium">Use this venue</th>
@@ -70,11 +70,11 @@ export function ConfirmVenuesForm({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 align-top">
-                    <td className="px-4 py-3 text-slate-900">
+                  <tr key={row.id} className="border-b border-row align-top hover:bg-wash">
+                    <td className="px-4 py-3 text-foreground">
                       <div className="font-medium">{row.typed.join(", ") || row.importedName}</div>
                       {row.address ? (
-                        <div className="mt-1 text-xs text-slate-500">{row.address}</div>
+                        <div className="mt-1 text-xs text-muted">{row.address}</div>
                       ) : null}
                       {row.note ? (
                         <div className="mt-1 text-xs text-amber-800">{row.note}</div>
@@ -104,7 +104,7 @@ export function ConfirmVenuesForm({
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{row.count}</td>
+                    <td className="px-4 py-3 text-foreground">{row.count}</td>
                   </tr>
                 ))}
               </tbody>
@@ -124,7 +124,7 @@ export function ConfirmVenuesForm({
               ? `Confirm venues and continue`
               : `Confirm ${eventCount} ${eventCount === 1 ? "event" : "events"} will use these venues`}
           </PendingSubmit>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted">
             This does not create events. Events are created only after the final
             confirmation.
           </p>

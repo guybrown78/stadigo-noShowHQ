@@ -104,7 +104,7 @@ function ContextCard({
       {rows.length > 0 ? (
         <ul>{rows.slice(0, preview.visibleCount)}</ul>
       ) : (
-        <p className="px-5 py-4 text-sm text-slate-600">{empty}</p>
+        <p className="px-5 py-4 text-sm text-muted">{empty}</p>
       )}
       <ShowAllButton
         total={rows.length}
@@ -132,21 +132,21 @@ function ContextRow({
   awol: number;
 }) {
   const heading = href ? (
-    <Link href={href} className="font-medium text-slate-900 hover:underline">
+    <Link href={href} className="font-medium text-foreground hover:underline">
       {title}
     </Link>
   ) : (
-    <p className="font-medium text-slate-900">{title}</p>
+    <p className="font-medium text-foreground">{title}</p>
   );
   return (
     <li className="border-t border-border px-5 py-3 first:border-t-0">
       <div className="flex items-baseline justify-between gap-3">
         {heading}
-        <span className="text-sm font-semibold text-slate-900 tabular-nums">
+        <span className="text-sm font-semibold text-foreground tabular-nums">
           {total}
         </span>
       </div>
-      <p className="mt-0.5 text-sm text-slate-500">{meta}</p>
+      <p className="mt-0.5 text-sm text-muted">{meta}</p>
       <CountBar
         className="mt-2 max-w-xs"
         cancellation={cancellation}

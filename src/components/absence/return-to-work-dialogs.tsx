@@ -197,14 +197,14 @@ export function ReturnToWorkDialog({
         ref={dialogRef}
         aria-labelledby={dialog.titleId}
         aria-describedby={dialog.descriptionId}
-        className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-slate-200 p-0 shadow-xl backdrop:bg-slate-900/40"
+        className="max-h-[90vh] w-[min(100%,32rem)] overflow-y-auto rounded-lg border border-border p-0 shadow-xl backdrop:bg-slate-900/40"
         onClose={() => dialog.setOpen(false)}
       >
         <div className="p-5">
-          <h2 id={dialog.titleId} className="text-lg font-semibold text-slate-900">
+          <h2 id={dialog.titleId} className="text-lg font-semibold text-foreground">
             {correcting ? "Correct return to work" : "Record return to work"}
           </h2>
-          <p id={dialog.descriptionId} className="mt-2 text-sm text-slate-600">
+          <p id={dialog.descriptionId} className="mt-2 text-sm text-muted">
             {RETURN_TO_WORK_SECTION_DESCRIPTION}
           </p>
           <form
@@ -260,7 +260,7 @@ export function ReturnToWorkDialog({
               {clearingDate ? (
                 <p
                   id={`${dialog.formId}-clear-date`}
-                  className="mt-2 text-sm text-slate-700"
+                  className="mt-2 text-sm text-foreground"
                 >
                   {RETURN_TO_WORK_CLEAR_DATE_MESSAGE}
                 </p>
@@ -293,7 +293,7 @@ export function ReturnToWorkDialog({
                 />
                 <p
                   id={`${dialog.formId}-completed-hint`}
-                  className="mt-1 text-sm text-slate-600"
+                  className="mt-1 text-sm text-muted"
                 >
                   The date this process was completed. This is not a planned
                   follow-up date.
@@ -320,7 +320,7 @@ export function ReturnToWorkDialog({
                 className={controlClassName("w-full whitespace-pre-wrap")}
                 onChange={(event) => setNextNote(event.target.value)}
               />
-              <p id={`${dialog.formId}-note-hint`} className="mt-1 text-sm text-slate-600">
+              <p id={`${dialog.formId}-note-hint`} className="mt-1 text-sm text-muted">
                 {RETURN_TO_WORK_NOTE_HELPER}
               </p>
               <FieldError

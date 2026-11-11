@@ -11,28 +11,28 @@ export default async function ImportStaffStartPage() {
 
   return (
     <div>
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted">
         <Link href="/staff" className="hover:underline">
           Staff
         </Link>
         <span aria-hidden="true"> / </span>
         Import
       </p>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+      <h1 className="mt-2 text-[1.75rem] leading-8 font-semibold tracking-[-0.02em] text-foreground">
         Import staff
       </h1>
-      <p className="mt-2 max-w-2xl text-slate-600">
+      <p className="mt-2 max-w-2xl text-muted">
         Download the Staff template, populate it offline, then upload it here.
         NoShowHQ checks every row before any staff record is created.
       </p>
       <ImportStepper current="upload" />
 
       <div className="mt-8 space-y-6">
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             1. Download the template
           </h2>
-          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-600">
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-muted">
             <li>Download and populate the Staff template.</li>
             <li>
               Use Staff IDs consistently and uniquely. Matching is
@@ -66,11 +66,11 @@ export default async function ImportStaffStartPage() {
           </a>
         </section>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <section className="rounded-lg border border-border bg-surface p-6">
+          <h2 className="text-lg font-semibold text-foreground">
             2. Upload the completed file
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm text-muted">
             Uploading only checks the file. It does not create staff, manager
             relationships, probation records, or tasks.
           </p>
