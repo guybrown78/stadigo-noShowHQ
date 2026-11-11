@@ -37,6 +37,8 @@ export function CatalogReasonField({
   invalid,
   describedBy,
   required = false,
+  ariaLabel,
+  labelledBy,
 }: {
   id: string;
   name: string;
@@ -46,6 +48,8 @@ export function CatalogReasonField({
   invalid?: boolean;
   describedBy?: string;
   required?: boolean;
+  ariaLabel?: string;
+  labelledBy?: string;
 }) {
   const labels = reasons.map((reason) => reason.label);
   const initial = splitCatalogReason(value, labels);
@@ -69,29 +73,76 @@ export function CatalogReasonField({
     onChange(nextChoice);
   }
 
+  const useSegments = labels.length + 1 < 6 && choice !== "__legacy";
+  const choiceClass = (selected: boolean) =>
+    `inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-400 ${
+      selected
+        ? "border-slate-900 bg-slate-900 text-white"
+        : "border-slate-300 bg-white text-slate-800"
+    }`;
+
   return (
     <div className="space-y-2">
       <input type="hidden" name={name} value={value} />
-      <select
-        id={id}
-        value={choice}
-        aria-invalid={invalid || undefined}
-        aria-describedby={describedBy}
-        aria-required={required || undefined}
-        className={selectControlClassName("w-full")}
-        onChange={(event) => publish(event.target.value, note)}
-      >
-        <option value="">Select a reason</option>
-        {labels.map((label) => (
-          <option key={label} value={label}>
-            {label}
-          </option>
-        ))}
-        <option value="__other">Other</option>
-        {choice === "__legacy" ? (
-          <option value="__legacy">{note}</option>
-        ) : null}
-      </select>
+      {useSegments ? (
+        <div
+          id={id}
+          role="radiogroup"
+          aria-label={labelledBy ? undefined : ariaLabel}
+          aria-labelledby={labelledBy}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          aria-required={required || undefined}
+          tabIndex={invalid ? -1 : undefined}
+          className="flex flex-wrap gap-2"
+        >
+          {labels.map((label) => (
+            <label key={label} className={choiceClass(choice === label)}>
+              <input
+                type="radio"
+                name={`${id}-choice`}
+                checked={choice === label}
+                className="sr-only"
+                onChange={() => publish(label, note)}
+              />
+              {label}
+            </label>
+          ))}
+          <label className={choiceClass(choice === "__other")}>
+            <input
+              type="radio"
+              name={`${id}-choice`}
+              checked={choice === "__other"}
+              className="sr-only"
+              onChange={() => publish("__other", note)}
+            />
+            Other
+          </label>
+        </div>
+      ) : (
+        <select
+          id={id}
+          value={choice}
+          aria-label={labelledBy ? undefined : ariaLabel}
+          aria-labelledby={labelledBy}
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          aria-required={required || undefined}
+          className={selectControlClassName("w-full")}
+          onChange={(event) => publish(event.target.value, note)}
+        >
+          <option value="">Select a reason</option>
+          {labels.map((label) => (
+            <option key={label} value={label}>
+              {label}
+            </option>
+          ))}
+          <option value="__other">Other</option>
+          {choice === "__legacy" ? (
+            <option value="__legacy">{note}</option>
+          ) : null}
+        </select>
+      )}
       {choice === "__other" ? (
         <input
           id={`${id}-note`}

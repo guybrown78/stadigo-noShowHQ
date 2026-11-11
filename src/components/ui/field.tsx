@@ -6,12 +6,14 @@ export function labelClassName(className?: string) {
 
 export function FieldLabel({
   htmlFor,
+  id,
   required,
   children,
   className,
   size = "md",
 }: {
   htmlFor?: string;
+  id?: string;
   required?: boolean;
   children: React.ReactNode;
   className?: string;
@@ -19,6 +21,7 @@ export function FieldLabel({
 }) {
   return (
     <label
+      id={id}
       htmlFor={htmlFor}
       className={cn(
         size === "sm"

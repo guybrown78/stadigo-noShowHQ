@@ -12,9 +12,12 @@ import { EventSearchPicker } from "@/components/absence/event-search-picker";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
-import { cn } from "@/lib/cn";
+import {
+  LogFormBar,
+  LogFormCard,
+  OptionalDetails,
+} from "@/components/absence/log-form-chrome";
 import {
   formatCalendarNotice,
   formatDurationMinutes,
@@ -317,7 +320,7 @@ export function CancellationForm({
       ) : null}
 
       <div>
-        <FieldLabel htmlFor={`${formId}-reason`} required>
+        <FieldLabel id={`${formId}-reason-label`} htmlFor={`${formId}-reason`} required>
           Reason for cancellation
         </FieldLabel>
         <CatalogReasonField
@@ -328,6 +331,7 @@ export function CancellationForm({
           value={reason}
           onChange={setReason}
           required
+          labelledBy={`${formId}-reason-label`}
           invalid={Boolean(state.fieldErrors?.reason)}
           describedBy={
             state.fieldErrors?.reason ? `${formId}-reason-error` : undefined
@@ -339,26 +343,53 @@ export function CancellationForm({
         />
       </div>
 
-      <div>
-        <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
-        <textarea
-          id={`${formId}-notes`}
-          name="notes"
-          rows={3}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          maxLength={2000}
-          aria-invalid={Boolean(state.fieldErrors?.notes)}
-          aria-describedby={
-            state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
-          }
-          className={controlClassName("w-full")}
-        />
-        <FieldError
-          id={`${formId}-notes-error`}
-          messages={state.fieldErrors?.notes}
-        />
-      </div>
+      {mode === "create" ? (
+        <OptionalDetails
+          key={formKey}
+          summary="Internal notes"
+          forceOpen={Boolean(state.fieldErrors?.notes)}
+        >
+          <textarea
+            id={`${formId}-notes`}
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={2000}
+            aria-label="Internal notes"
+            aria-invalid={Boolean(state.fieldErrors?.notes)}
+            aria-describedby={
+              state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
+            }
+            className={controlClassName("w-full")}
+          />
+          <FieldError
+            id={`${formId}-notes-error`}
+            messages={state.fieldErrors?.notes}
+          />
+        </OptionalDetails>
+      ) : (
+        <div>
+          <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
+          <textarea
+            id={`${formId}-notes`}
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={2000}
+            aria-invalid={Boolean(state.fieldErrors?.notes)}
+            aria-describedby={
+              state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
+            }
+            className={controlClassName("w-full")}
+          />
+          <FieldError
+            id={`${formId}-notes-error`}
+            messages={state.fieldErrors?.notes}
+          />
+        </div>
+      )}
 
       {mode === "edit" ? (
         <div>
@@ -402,13 +433,6 @@ export function CancellationForm({
       <input type="hidden" name="type" value="CANCELLATION" />
       <input type="hidden" name="reportedTime" value={reportedTime} />
       <FormAlert>{state.error}</FormAlert>
-      {mode === "create" ? (
-        <PayPeriodField
-          id={`${formId}-pay-period`}
-          periods={payPeriods}
-          messages={state.fieldErrors?.payPeriodId}
-        />
-      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink
@@ -423,12 +447,8 @@ export function CancellationForm({
 
       {mode === "create" ? (
         <>
-          {typeCards ? (
-            <FormSection step={1} title="What type of absence?">
-              {typeCards}
-            </FormSection>
-          ) : null}
-          <FormSection step={typeCards ? 2 : 1} title="Select staff">
+          <LogFormCard>
+            {typeCards}
             <StaffSearchPicker
               key={`staff-${formKey}`}
               initialStaff={selectedStaff}
@@ -439,8 +459,6 @@ export function CancellationForm({
                 onStaffChange?.(staff);
               }}
             />
-          </FormSection>
-          <FormSection step={typeCards ? 3 : 2} title="Select event">
             <EventSearchPicker
               key={`event-${formKey}`}
               initialEvent={selectedEvent}
@@ -448,25 +466,27 @@ export function CancellationForm({
               errorMessages={state.fieldErrors?.eventId}
               onSelect={setSelectedEvent}
             />
-          </FormSection>
-          <FormSection step={typeCards ? 4 : 3} title="Notes and notice">
             {detailsFields}
-          </FormSection>
-          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-            <p className="min-w-0 text-sm text-slate-600">
-              <span className="font-medium text-cancel">Cancellation</span>
-              {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
-              {selectedEvent ? ` → ${selectedEvent.name}` : ""}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" onClick={resetCreateForm}>
-                Clear
-              </Button>
-              <Button type="submit" disabled={pending} icon={Check}>
-                {pending ? "Saving…" : "Save absence"}
-              </Button>
-            </div>
-          </div>
+          </LogFormCard>
+          <LogFormBar
+            summary={
+              <>
+                <span className="font-medium text-cancel">Cancellation</span>
+                {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
+                {selectedEvent ? ` → ${selectedEvent.name}` : ""}
+              </>
+            }
+            payPeriod={
+              <PayPeriodField
+                id={`${formId}-pay-period`}
+                periods={payPeriods}
+                messages={state.fieldErrors?.payPeriodId}
+              />
+            }
+            onClear={resetCreateForm}
+            pending={pending}
+            saveLabel="Save absence"
+          />
         </>
       ) : (
         <>
@@ -494,26 +514,5 @@ export function CancellationForm({
         </>
       )}
     </form>
-  );
-}
-
-function FormSection({
-  step,
-  title,
-  children,
-}: {
-  step: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="shadow-none">
-      <CardBody className="space-y-4">
-        <h2 className={cn("text-xs font-semibold tracking-wider text-slate-500 uppercase")}>
-          {step} — {title}
-        </h2>
-        {children}
-      </CardBody>
-    </Card>
   );
 }
