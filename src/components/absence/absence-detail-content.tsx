@@ -965,20 +965,20 @@ function RecordActions({
   timeZone?: string;
   todayIso?: string;
 }) {
+  if (!absenceAllowsCorrectAndArchive(absence.recordStatus)) {
+    return null;
+  }
   return (
     <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-      {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
-        <AbsenceActions
-          absence={absence}
-          archiveReturnTo={archiveReturnTo}
-          episodeUpdateReturnTo={episodeUpdateReturnTo}
-          timeZone={timeZone}
-          todayIso={todayIso}
-          compact={compact}
-          omitEpisode={work.next?.kind === "confirm-episode"}
-        />
-      ) : null}
-      <LogNewAbsenceLink size={compact ? "sm" : "md"} variant="ghost" />
+      <AbsenceActions
+        absence={absence}
+        archiveReturnTo={archiveReturnTo}
+        episodeUpdateReturnTo={episodeUpdateReturnTo}
+        timeZone={timeZone}
+        todayIso={todayIso}
+        compact={compact}
+        omitEpisode={work.next?.kind === "confirm-episode"}
+      />
     </div>
   );
 }
@@ -997,18 +997,23 @@ function DrawerHeader({
       : ABSENCE_TYPE_LABELS[absence.type];
   return (
     <header className="border-b border-border pb-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <AbsenceTypeBadge type={absence.type} />
-        <span className="text-sm text-slate-700">
-          {RECORD_STATUS_LABELS[absence.recordStatus]}
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <AbsenceTypeBadge type={absence.type} />
+            <span className="text-sm text-slate-700">
+              {RECORD_STATUS_LABELS[absence.recordStatus]}
+            </span>
+          </div>
+          <h2 id={titleId} className="mt-2 text-lg font-semibold text-slate-900">
+            {heading}
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {staffName} · {absence.staff.staffIdNumber}
+          </p>
+        </div>
+        <LogNewAbsenceLink size="sm" />
       </div>
-      <h2 id={titleId} className="mt-2 text-lg font-semibold text-slate-900">
-        {heading}
-      </h2>
-      <p className="mt-1 text-sm text-slate-600">
-        {staffName} · {absence.staff.staffIdNumber}
-      </p>
     </header>
   );
 }
@@ -1194,6 +1199,7 @@ export function AbsenceDetailContent({
         ]}
         title={title}
         description={description}
+        actions={<LogNewAbsenceLink size="md" />}
       />
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
