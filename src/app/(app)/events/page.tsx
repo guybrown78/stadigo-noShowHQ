@@ -4,12 +4,15 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable, DataTableHead } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FieldLabel } from "@/components/ui/field";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Banner } from "@/components/ui/banner";
 import { filterControlClassName } from "@/components/form";
-import { SegmentedNav } from "@/components/ui/segmented-nav";
+import { EventActiveFilters } from "@/components/events/event-active-filters";
+import { EventClickCard, EventClickRow } from "@/components/events/event-click-row";
+import { EventQuickFilters } from "@/components/events/event-quick-filters";
 import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { EVENT_STATUSES } from "@/lib/events/catalog";
@@ -72,6 +75,7 @@ export default async function EventsPage({
   ]);
 
   const { events, total, page, pageCount } = list;
+  const typeName = types.find((type) => type.id === query.type)?.name;
   const deleted = first(raw.deleted) === "1";
   const archived = first(raw.archived) === "1";
   const unarchived = first(raw.unarchived) === "1";
@@ -117,27 +121,15 @@ export default async function EventsPage({
         </Banner>
       ) : null}
 
-      <form method="get" className="mt-4">
-        <FilterBar
-          ariaLabel="Filter events"
-          active={hasFilters}
-          actions={
-            <>
-              <Button type="submit" size="sm">
-                Apply filters
-              </Button>
-              {hasFilters ? (
-                <ButtonLink href="/events" variant="secondary" size="sm">
-                  Reset
-                </ButtonLink>
-              ) : null}
-            </>
-          }
-        >
-        {query.range !== "upcoming" ? (
-          <input type="hidden" name="range" value={query.range} />
-        ) : null}
-        <FilterField label="Search" htmlFor="events-q" className="min-w-[12rem] flex-[1.3]">
+      <form
+        key={`${query.q}|${query.status}|${query.type}|${query.range}|${query.from}|${query.to}`}
+        method="get"
+        className="mt-4 space-y-3"
+      >
+        <div>
+          <FieldLabel htmlFor="events-q" size="sm">
+            Search
+          </FieldLabel>
           <input
             id="events-q"
             name="q"
@@ -146,7 +138,20 @@ export default async function EventsPage({
             placeholder="Name, reference, or venue"
             className={filterControlClassName()}
           />
-        </FilterField>
+        </div>
+        <EventQuickFilters query={query} />
+        {query.range !== "upcoming" ? (
+          <input type="hidden" name="range" value={query.range} />
+        ) : null}
+        <FilterBar
+          ariaLabel="Filter events"
+          active={hasFilters}
+          actions={
+            <Button type="submit" variant="secondary" size="sm">
+              Apply
+            </Button>
+          }
+        >
         <FilterField label="Status" htmlFor="events-status">
           <select
             id="events-status"
@@ -198,45 +203,14 @@ export default async function EventsPage({
         </FilterBar>
       </form>
 
-      <SegmentedNav
-        className="mt-3"
-        label="Quick date filters"
-        items={[
-          {
-            href: eventsListHref(query, {
-              range: "upcoming",
-              page: 1,
-              from: "",
-              to: "",
-            }),
-            label: "Upcoming",
-            active: query.range === "upcoming",
-          },
-          {
-            href: eventsListHref(query, { range: "all", page: 1, from: "", to: "" }),
-            label: "All",
-            active: query.range === "all",
-          },
-          {
-            href: eventsListHref(query, { range: "past", page: 1, from: "", to: "" }),
-            label: "Past",
-            active: query.range === "past",
-          },
-          {
-            href: eventsListHref(query, {
-              range: "archived",
-              page: 1,
-              from: "",
-              to: "",
-            }),
-            label: "Archived",
-            active: query.range === "archived",
-          },
-        ]}
-      />
-
       {events.length === 0 ? (
-        <EmptyState
+        <>
+          {hasFilters ? (
+            <div className="mt-3">
+              <EventActiveFilters query={query} typeName={typeName} />
+            </div>
+          ) : null}
+          <EmptyState
           className="mt-6"
           title={
             !onlyRange
@@ -294,15 +268,19 @@ export default async function EventsPage({
             )
           }
         />
+        </>
       ) : (
         <>
-          <p className="mt-4 text-sm text-slate-500">
-            {total} {total === 1 ? "event" : "events"}
-            {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
-          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-sm text-slate-500">
+              {total} {total === 1 ? "event" : "events"}
+              {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
+            </p>
+            <EventActiveFilters query={query} typeName={typeName} />
+          </div>
 
-          <DataTable className="mt-3 hidden md:block">
-              <DataTableHead>
+          <DataTable className="mt-3 hidden md:block" stickyHeader>
+              <DataTableHead sticky>
                 <tr>
                   <th className="px-4 py-3 font-medium">Date</th>
                   <th className="px-4 py-3 font-medium">Event</th>
@@ -317,7 +295,7 @@ export default async function EventsPage({
               </DataTableHead>
               <tbody>
                 {events.map((event) => (
-                  <tr key={event.id} className="border-b border-slate-100">
+                  <EventClickRow key={event.id} href={`/events/${event.id}`}>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                       <div>{formatLocalDateDisplay(event.eventDate)}</div>
                       <div className="text-xs text-slate-500">
@@ -354,14 +332,14 @@ export default async function EventsPage({
                     <td className="px-4 py-3">
                       <EventStatusBadge status={event.status} />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right" data-event-separate>
                       <EventRowActions
                         eventId={event.id}
                         eventName={event.name}
                         archived={Boolean(event.archivedAt)}
                       />
                     </td>
-                  </tr>
+                  </EventClickRow>
                 ))}
               </tbody>
           </DataTable>
@@ -369,6 +347,7 @@ export default async function EventsPage({
           <ul className="mt-3 space-y-3 md:hidden">
             {events.map((event) => (
               <li key={event.id}>
+                <EventClickCard href={`/events/${event.id}`}>
                 <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -393,7 +372,7 @@ export default async function EventsPage({
                 <p className="mt-3 text-sm text-slate-600">
                   Staff required: {formatStaffRequired(event.staffRequired)}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2" data-event-separate>
                   <ButtonLink href={`/events/${event.id}`} variant="secondary" size="sm">
                     View
                   </ButtonLink>
@@ -411,6 +390,7 @@ export default async function EventsPage({
                   />
                 </div>
                 </Card>
+                </EventClickCard>
               </li>
             ))}
           </ul>

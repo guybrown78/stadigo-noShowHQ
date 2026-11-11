@@ -1,71 +1,96 @@
-import { ButtonLink } from "@/components/ui/button";
-import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { Button } from "@/components/ui/button";
+import { FieldLabel } from "@/components/ui/field";
+import { SegmentedNav } from "@/components/ui/segmented-nav";
 import { filterControlClassName } from "@/components/form";
-import { followUpQueueHasFilters } from "@/lib/absence/follow-up-schema";
+import { ABSENCE_TYPES, FOLLOW_UP_DUE_GROUPS } from "@/lib/absence/catalog";
+import { ABSENCE_TYPE_LABELS } from "@/lib/absence/display";
+import { FOLLOW_UP_DUE_LABELS } from "@/lib/absence/follow-up";
 import type { FollowUpQueueQuery } from "@/lib/absence/follow-up-schema";
+import { followUpQueueHref } from "@/lib/absence/follow-up-url";
+
+function choiceHref(
+  query: FollowUpQueueQuery,
+  overrides: Partial<FollowUpQueueQuery>,
+) {
+  return followUpQueueHref(query, { ...overrides, page: 1 });
+}
 
 export function FollowUpQueueFilters({
   query,
 }: {
   query: FollowUpQueueQuery;
 }) {
-  const hasFilters = followUpQueueHasFilters(query);
-
   return (
-    <form method="get" className="mt-6">
-      {query.detail ? (
-        <input type="hidden" name="detail" value={query.detail} />
-      ) : null}
-      <FilterBar ariaLabel="Follow-up filters" active={hasFilters}>
-        <FilterField label="Search" htmlFor="follow-up-q">
-          <input
-            id="follow-up-q"
-            name="q"
-            defaultValue={query.q}
-            placeholder="Staff name or staff ID"
-            className={filterControlClassName()}
-          />
-        </FilterField>
-        <FilterField label="Absence type" htmlFor="follow-up-type">
-          <select
-            id="follow-up-type"
-            name="type"
-            defaultValue={query.type}
-            className={filterControlClassName()}
-          >
-            <option value="">All types</option>
-            <option value="CANCELLATION">Cancellation</option>
-            <option value="AWOL">AWOL</option>
-            <option value="SICKNESS">Sickness</option>
-          </select>
-        </FilterField>
-        <FilterField label="Due" htmlFor="follow-up-due">
-          <select
-            id="follow-up-due"
-            name="due"
-            defaultValue={query.due}
-            className={filterControlClassName()}
-          >
-            <option value="">All open</option>
-            <option value="overdue">Overdue</option>
-            <option value="dueToday">Due today</option>
-            <option value="upcoming">Upcoming</option>
-          </select>
-        </FilterField>
-        <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-hover"
-          >
+    <div className="mt-6 space-y-3">
+      <form
+        key={`${query.q}|${query.type}|${query.due}`}
+        method="get"
+        className="space-y-3"
+      >
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[12rem] flex-1">
+            <FieldLabel htmlFor="follow-up-q" size="sm">
+              Search
+            </FieldLabel>
+            <input
+              id="follow-up-q"
+              name="q"
+              type="search"
+              defaultValue={query.q}
+              placeholder="Staff name or staff ID"
+              className={filterControlClassName()}
+            />
+          </div>
+          <Button type="submit" variant="secondary" size="sm">
             Apply
-          </button>
-          {hasFilters ? (
-            <ButtonLink href="/follow-ups" variant="secondary" size="sm">
-              Clear filters
-            </ButtonLink>
-          ) : null}
+          </Button>
         </div>
-      </FilterBar>
-    </form>
+        {query.type ? (
+          <input type="hidden" name="type" value={query.type} />
+        ) : null}
+        {query.due ? (
+          <input type="hidden" name="due" value={query.due} />
+        ) : null}
+        {query.detail ? (
+          <input type="hidden" name="detail" value={query.detail} />
+        ) : null}
+      </form>
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-slate-500">Absence type</p>
+        <SegmentedNav
+          label="Absence type"
+          items={[
+            {
+              href: choiceHref(query, { type: "" }),
+              label: "All types",
+              active: query.type === "",
+            },
+            ...ABSENCE_TYPES.map((type) => ({
+              href: choiceHref(query, { type }),
+              label: ABSENCE_TYPE_LABELS[type],
+              active: query.type === type,
+            })),
+          ]}
+        />
+      </div>
+      <div>
+        <p className="mb-1.5 text-xs font-medium text-slate-500">Due</p>
+        <SegmentedNav
+          label="Due"
+          items={[
+            {
+              href: choiceHref(query, { due: "" }),
+              label: "All open",
+              active: query.due === "",
+            },
+            ...FOLLOW_UP_DUE_GROUPS.map((due) => ({
+              href: choiceHref(query, { due }),
+              label: FOLLOW_UP_DUE_LABELS[due],
+              active: query.due === due,
+            })),
+          ]}
+        />
+      </div>
+    </div>
   );
 }

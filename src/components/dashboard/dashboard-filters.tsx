@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
 import { SegmentedNav } from "@/components/ui/segmented-nav";
@@ -39,8 +42,10 @@ export function DashboardFilters({
   }[];
   selectedPeriodId: string;
 }) {
+  const [periodId, setPeriodId] = useState(selectedPeriodId);
   const rangeKey = result.ok ? result.filters.range : "custom";
   const datesInvalid = !result.ok;
+  const periodLocked = periodId !== "";
   const venue = venues.find((item) => item.id === venueId);
   const event = events.find((item) => item.id === eventId);
   const selectedPeriod = periods.find((period) => period.id === selectedPeriodId);
@@ -62,6 +67,8 @@ export function DashboardFilters({
           }),
           label: preset.label,
           active: result.ok && result.filters.range === preset.key,
+          disabled: periodLocked,
+          disabledNote: null,
         }))}
       />
 
@@ -87,7 +94,8 @@ export function DashboardFilters({
             <select
               id="dashboard-period"
               name="period"
-              defaultValue={selectedPeriod ? selectedPeriod.id : ""}
+              value={periodId}
+              onChange={(event) => setPeriodId(event.target.value)}
               className={filterControlClassName()}
             >
               <option value="">Use the date range</option>
@@ -103,6 +111,12 @@ export function DashboardFilters({
                 </option>
               ))}
             </select>
+            {periodLocked ? (
+              <p id="dashboard-period-rule" className="mt-1 text-xs leading-5 text-slate-600">
+                The date range is not applied. Counts are the absences filed in
+                this pay period.
+              </p>
+            ) : null}
           </FilterField>
           <FilterField label="From" htmlFor="dashboard-from">
             <input
@@ -110,9 +124,12 @@ export function DashboardFilters({
               name="from"
               type="date"
               defaultValue={result.filters.from}
-              aria-invalid={datesInvalid || undefined}
-              aria-describedby={datesInvalid ? "dashboard-range-error" : undefined}
-              className={filterControlClassName()}
+              disabled={periodLocked}
+              aria-invalid={!periodLocked && datesInvalid ? true : undefined}
+              aria-describedby={dateDescribedBy(periodLocked, datesInvalid)}
+              className={filterControlClassName(
+                "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+              )}
             />
           </FilterField>
           <FilterField label="To" htmlFor="dashboard-to">
@@ -121,9 +138,12 @@ export function DashboardFilters({
               name="to"
               type="date"
               defaultValue={result.filters.to}
-              aria-invalid={datesInvalid || undefined}
-              aria-describedby={datesInvalid ? "dashboard-range-error" : undefined}
-              className={filterControlClassName()}
+              disabled={periodLocked}
+              aria-invalid={!periodLocked && datesInvalid ? true : undefined}
+              aria-describedby={dateDescribedBy(periodLocked, datesInvalid)}
+              className={filterControlClassName(
+                "disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500",
+              )}
             />
           </FilterField>
           <FilterField label="Venue" htmlFor="dashboard-venue">
@@ -224,6 +244,14 @@ export function DashboardFilters({
       )}
     </div>
   );
+}
+
+function dateDescribedBy(periodLocked: boolean, datesInvalid: boolean) {
+  const ids = [
+    periodLocked ? "dashboard-period-rule" : null,
+    !periodLocked && datesInvalid ? "dashboard-range-error" : null,
+  ].filter((id) => id !== null);
+  return ids.length > 0 ? ids.join(" ") : undefined;
 }
 
 function eventOptionLabel(event: DashboardEventOption): string {

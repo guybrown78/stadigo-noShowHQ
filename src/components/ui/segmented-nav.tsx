@@ -12,6 +12,11 @@ export function SegmentedNav({
     label: string;
     active?: boolean;
     disabled?: boolean;
+    /**
+     * Extra text shown on a disabled item. Defaults to "Coming soon".
+     * Pass null when the surrounding screen already explains why it is unavailable.
+     */
+    disabledNote?: string | null;
     badge?: number;
   }>;
   className?: string;
@@ -20,16 +25,24 @@ export function SegmentedNav({
     <nav className={cn("flex flex-wrap gap-2", className)} aria-label={label}>
       {items.map((item) => {
         if (item.disabled) {
+          const note =
+            item.disabledNote === undefined ? "Coming soon" : item.disabledNote;
           return (
             <span
               key={item.label}
-              className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-sm text-slate-400 ring-1 ring-slate-200"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium",
+                item.active
+                  ? "bg-primary-soft text-primary-hover ring-1 ring-primary/30"
+                  : "bg-slate-50 text-slate-400 ring-1 ring-slate-200",
+              )}
               aria-disabled="true"
+              aria-current={item.active ? "page" : undefined}
             >
               {item.label}
-              <span className="text-xs font-medium text-slate-500">
-                Coming soon
-              </span>
+              {note ? (
+                <span className="text-xs font-medium text-slate-500">{note}</span>
+              ) : null}
             </span>
           );
         }

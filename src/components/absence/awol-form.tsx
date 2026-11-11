@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useId, useMemo, useState } from "react";
+import { useActionState, useEffect, useId, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import {
   correctAwolAction,
@@ -16,9 +16,12 @@ import { EventSearchPicker } from "@/components/absence/event-search-picker";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
-import { cn } from "@/lib/cn";
+import {
+  LogFormBar,
+  LogFormCard,
+  OptionalDetails,
+} from "@/components/absence/log-form-chrome";
 import {
   DATE_RECORDED_BEFORE_EVENT_MESSAGE,
   previewAwolEventEligibility,
@@ -78,9 +81,10 @@ export function AwolForm({
   );
   const formId = useId();
   const [formKey, setFormKey] = useState(0);
-  const [idempotencyKey, setIdempotencyKey] = useState(() =>
-    crypto.randomUUID(),
-  );
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+  useEffect(() => {
+    setIdempotencyKey(crypto.randomUUID());
+  }, []);
   const [selectedStaff, setSelectedStaff] = useState<AbsenceStaffOption | null>(
     initialStaff ?? null,
   );
@@ -236,27 +240,55 @@ export function AwolForm({
         </div>
       ) : null}
 
-      <div>
-        <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
-        <textarea
-          id={`${formId}-notes`}
-          name="notes"
-          rows={3}
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          maxLength={2000}
-          aria-invalid={Boolean(state.fieldErrors?.notes)}
-          aria-describedby={
-            state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
-          }
-          className={controlClassName("w-full")}
-        />
-        <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
-        <FieldError
-          id={`${formId}-notes-error`}
-          messages={state.fieldErrors?.notes}
-        />
-      </div>
+      {mode === "create" ? (
+        <OptionalDetails
+          key={formKey}
+          summary="Internal notes"
+          forceOpen={Boolean(state.fieldErrors?.notes)}
+        >
+          <textarea
+            id={`${formId}-notes`}
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={2000}
+            aria-label="Internal notes"
+            aria-invalid={Boolean(state.fieldErrors?.notes)}
+            aria-describedby={
+              state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
+            }
+            className={controlClassName("w-full")}
+          />
+          <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
+          <FieldError
+            id={`${formId}-notes-error`}
+            messages={state.fieldErrors?.notes}
+          />
+        </OptionalDetails>
+      ) : (
+        <div>
+          <FieldLabel htmlFor={`${formId}-notes`}>Internal notes</FieldLabel>
+          <textarea
+            id={`${formId}-notes`}
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            maxLength={2000}
+            aria-invalid={Boolean(state.fieldErrors?.notes)}
+            aria-describedby={
+              state.fieldErrors?.notes ? `${formId}-notes-error` : undefined
+            }
+            className={controlClassName("w-full")}
+          />
+          <p className="mt-1 text-sm text-slate-500">Optional. Maximum 2,000 characters.</p>
+          <FieldError
+            id={`${formId}-notes-error`}
+            messages={state.fieldErrors?.notes}
+          />
+        </div>
+      )}
 
       {mode === "edit" ? (
         <div>
@@ -313,13 +345,6 @@ export function AwolForm({
         value={selectedEvent?.startTime ?? ""}
       />
       <FormAlert>{state.error}</FormAlert>
-      {mode === "create" ? (
-        <PayPeriodField
-          id={`${formId}-pay-period`}
-          periods={payPeriods}
-          messages={state.fieldErrors?.payPeriodId}
-        />
-      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink
@@ -334,12 +359,8 @@ export function AwolForm({
 
       {mode === "create" ? (
         <>
-          {typeCards ? (
-            <FormSection step={1} title="What type of absence?">
-              {typeCards}
-            </FormSection>
-          ) : null}
-          <FormSection step={typeCards ? 2 : 1} title="Select staff">
+          <LogFormCard>
+            {typeCards}
             <StaffSearchPicker
               key={`staff-${formKey}`}
               initialStaff={selectedStaff}
@@ -350,8 +371,6 @@ export function AwolForm({
                 onStaffChange?.(staff);
               }}
             />
-          </FormSection>
-          <FormSection step={typeCards ? 3 : 2} title="Select event">
             <EventSearchPicker
               key={`event-${formKey}`}
               initialEvent={selectedEvent}
@@ -363,25 +382,28 @@ export function AwolForm({
                 setSameDayConfirmed(false);
               }}
             />
-          </FormSection>
-          <FormSection step={typeCards ? 4 : 3} title="Date recorded and notes">
             {detailsFields}
-          </FormSection>
-          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-            <p className="min-w-0 text-sm text-slate-600">
-              <span className="font-medium text-awol">AWOL</span>
-              {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
-              {selectedEvent ? ` → ${selectedEvent.name}` : ""}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" onClick={resetCreateForm}>
-                Clear
-              </Button>
-              <Button type="submit" disabled={pending || !idempotencyKey} icon={Check}>
-                {pending ? "Saving…" : "Save absence"}
-              </Button>
-            </div>
-          </div>
+          </LogFormCard>
+          <LogFormBar
+            summary={
+              <>
+                <span className="font-medium text-awol">AWOL</span>
+                {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
+                {selectedEvent ? ` → ${selectedEvent.name}` : ""}
+              </>
+            }
+            payPeriod={
+              <PayPeriodField
+                id={`${formId}-pay-period`}
+                periods={payPeriods}
+                messages={state.fieldErrors?.payPeriodId}
+              />
+            }
+            onClear={resetCreateForm}
+            pending={pending}
+            saveDisabled={!idempotencyKey}
+            saveLabel="Save absence"
+          />
         </>
       ) : (
         <>
@@ -413,26 +435,5 @@ export function AwolForm({
         </>
       )}
     </form>
-  );
-}
-
-function FormSection({
-  step,
-  title,
-  children,
-}: {
-  step: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="shadow-none">
-      <CardBody className="space-y-4">
-        <h2 className={cn("text-xs font-semibold tracking-wider text-slate-500 uppercase")}>
-          {step} — {title}
-        </h2>
-        {children}
-      </CardBody>
-    </Card>
   );
 }

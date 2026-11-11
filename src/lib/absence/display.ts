@@ -9,6 +9,7 @@ import {
   NOTES_PREVIEW_MAX_LENGTH,
   type LedgerView,
   type SicknessEpisodeState,
+  type SicknessEvidenceFilter,
 } from "@/lib/absence/catalog";
 import {
   FIT_NOTE_STATUS_LABELS,
@@ -450,6 +451,23 @@ export function formatIssueSummary(
 
 export const LEDGER_EVENT_FILTER_HELP =
   "Venue and Event type filters apply only to Cancellations and AWOLs. Sickness records are not linked to an Event, so they will not appear when these filters are applied.";
+
+export const LEDGER_EVIDENCE_FILTER_LABELS: Record<
+  SicknessEvidenceFilter,
+  string
+> = {
+  required_unrequested: "Required, not requested",
+  requested_pending: "Requested, awaiting receipt",
+  overdue: "Chase overdue",
+  received: "Received",
+};
+
+export const LEDGER_SICKNESS_HIDDEN_BY_VENUE =
+  "Sickness records stay hidden while this venue filter is on.";
+export const LEDGER_SICKNESS_HIDDEN_BY_EVENT_TYPE =
+  "Sickness records stay hidden while this event type filter is on.";
+export const LEDGER_SICKNESS_HIDDEN_BY_EVENT_FILTERS =
+  "Sickness records stay hidden while these venue and event type filters are on.";
 
 export const LEDGER_EVENT_LINKED_SEARCH_PLACEHOLDER =
   "Staff name, Staff ID, Event name or reference";

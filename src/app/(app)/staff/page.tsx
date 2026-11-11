@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { DeleteStaffDialog } from "@/components/staff/delete-staff-dialog";
+import { StaffActiveFilters } from "@/components/staff/staff-active-filters";
+import { StaffClickCard, StaffClickRow } from "@/components/staff/staff-click-row";
+import { StaffQuickFilters } from "@/components/staff/staff-quick-filters";
 import { StaffRowActions } from "@/components/staff/staff-row-actions";
 import { Banner } from "@/components/ui/banner";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -8,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { DataTable, DataTableHead } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FilterBar, FilterField } from "@/components/ui/filter-bar";
+import { FieldLabel } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { Avatar, initialsFor } from "@/components/ui/avatar";
@@ -169,24 +173,11 @@ export default async function StaffPage({
         </Banner>
       ) : null}
 
-      <form method="get" className="mt-4">
-        <FilterBar
-          ariaLabel="Filter staff"
-          active={hasFilters}
-          actions={
-            <>
-              <Button type="submit" size="sm">
-                Apply filters
-              </Button>
-              {hasFilters ? (
-                <ButtonLink href="/staff" variant="secondary" size="sm">
-                  Reset
-                </ButtonLink>
-              ) : null}
-            </>
-          }
-        >
-        <FilterField label="Search" htmlFor="staff-q" className="min-w-[12rem] flex-[1.3]">
+      <form method="get" className="mt-4 space-y-3">
+        <div>
+          <FieldLabel htmlFor="staff-q" size="sm">
+            Search
+          </FieldLabel>
           <input
             id="staff-q"
             name="q"
@@ -195,7 +186,24 @@ export default async function StaffPage({
             placeholder="Staff ID or name"
             className={filterControlClassName()}
           />
-        </FilterField>
+        </div>
+        <StaffQuickFilters query={query} />
+        {query.probationLifecycle ? (
+          <input
+            type="hidden"
+            name="probationLifecycle"
+            value={query.probationLifecycle}
+          />
+        ) : null}
+        <FilterBar
+          ariaLabel="Filter staff"
+          active={hasFilters}
+          actions={
+            <Button type="submit" variant="secondary" size="sm">
+              Apply
+            </Button>
+          }
+        >
         <FilterField label="Employment" htmlFor="staff-employment">
           <select
             id="staff-employment"
@@ -241,18 +249,6 @@ export default async function StaffPage({
             ))}
           </select>
         </FilterField>
-        <FilterField label="Urgency" htmlFor="staff-probation-lifecycle">
-          <select
-            id="staff-probation-lifecycle"
-            name="probationLifecycle"
-            defaultValue={query.probationLifecycle}
-            className={filterControlClassName()}
-          >
-            <option value="">All</option>
-            <option value="review_due">Review due</option>
-            <option value="overdue">Overdue</option>
-          </select>
-        </FilterField>
         <FilterField label="Clearance" htmlFor="staff-clearance">
           <select
             id="staff-clearance"
@@ -272,7 +268,13 @@ export default async function StaffPage({
       </form>
 
       {staff.length === 0 ? (
-        <EmptyState
+        <>
+          {hasFilters ? (
+            <div className="mt-3">
+              <StaffActiveFilters query={query} />
+            </div>
+          ) : null}
+          <EmptyState
           className="mt-6"
           title={hasFilters ? "No staff match these filters" : "No staff yet"}
           description={
@@ -297,15 +299,19 @@ export default async function StaffPage({
             )
           }
         />
+        </>
       ) : (
         <>
-          <p className="mt-4 text-sm text-slate-500">
-            {total} {total === 1 ? "staff member" : "staff members"}
-            {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
-          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-sm text-slate-500">
+              {total} {total === 1 ? "staff member" : "staff members"}
+              {pageCount > 1 ? ` · Page ${page} of ${pageCount}` : ""}
+            </p>
+            <StaffActiveFilters query={query} />
+          </div>
 
-          <DataTable className="mt-3 hidden md:block">
-              <DataTableHead>
+          <DataTable className="mt-3 hidden md:block" stickyHeader>
+              <DataTableHead sticky>
                 <tr>
                   <th className="px-4 py-3 font-medium">Staff ID</th>
                   <th className="px-4 py-3 font-medium">Name</th>
@@ -320,7 +326,7 @@ export default async function StaffPage({
               </DataTableHead>
               <tbody>
                 {staff.map((member) => (
-                  <tr key={member.id} className="border-b border-slate-100">
+                  <StaffClickRow key={member.id} href={`/staff/${member.id}`}>
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-slate-700">
                       {member.staffIdNumber}
                     </td>
@@ -351,14 +357,14 @@ export default async function StaffPage({
                         todayIso={todayIso}
                       />
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right" data-staff-separate>
                       <StaffRowActions
                         staffId={member.id}
                         staffName={formatStaffName(member)}
                         staffIdNumber={member.staffIdNumber}
                       />
                     </td>
-                  </tr>
+                  </StaffClickRow>
                 ))}
               </tbody>
           </DataTable>
@@ -366,6 +372,7 @@ export default async function StaffPage({
           <ul className="mt-3 space-y-3 md:hidden">
             {staff.map((member) => (
               <li key={member.id}>
+                <StaffClickCard href={`/staff/${member.id}`}>
                 <Card className="p-4 shadow-none">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -407,6 +414,7 @@ export default async function StaffPage({
                   />
                 </div>
                 </Card>
+                </StaffClickCard>
               </li>
             ))}
           </ul>

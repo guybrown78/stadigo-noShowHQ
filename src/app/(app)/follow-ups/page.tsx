@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { AbsenceDetailContent } from "@/components/absence/absence-detail-content";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { CompleteFollowUpDialog } from "@/components/absence/follow-up-dialogs";
+import { FollowUpActiveFilters } from "@/components/absence/follow-up-active-filters";
+import { FollowUpClickCard, FollowUpClickRow } from "@/components/absence/follow-up-click-row";
 import { FollowUpQueueFilters } from "@/components/absence/follow-up-queue-filters";
 import { LedgerDetailDrawer } from "@/components/absence/ledger-detail-drawer";
 import { Banner } from "@/components/ui/banner";
@@ -118,6 +120,12 @@ export default async function FollowUpsPage({
         <FollowUpQueueFilters query={query} />
 
         {!today ? null : list.total === 0 ? (
+          <>
+          {hasFilters ? (
+            <div className="mt-4">
+              <FollowUpActiveFilters query={query} />
+            </div>
+          ) : null}
           <EmptyState
             className="mt-6"
             title={
@@ -138,15 +146,19 @@ export default async function FollowUpsPage({
               ) : undefined
             }
           />
+          </>
         ) : (
           <>
-            <p className="mt-4 text-sm text-slate-600">
-              {list.total === 1
-                ? "1 open follow-up"
-                : `${list.total} open follow-ups`}
-            </p>
-            <DataTable className="mt-3 hidden xl:block">
-              <DataTableHead>
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <p className="text-sm text-slate-600">
+                {list.total === 1
+                  ? "1 open follow-up"
+                  : `${list.total} open follow-ups`}
+              </p>
+              <FollowUpActiveFilters query={query} />
+            </div>
+            <DataTable className="mt-3 hidden xl:block" stickyHeader>
+              <DataTableHead sticky>
                 <tr>
                   <th className="px-4 py-3 font-medium" scope="col">
                     Due
@@ -167,7 +179,11 @@ export default async function FollowUpsPage({
               </DataTableHead>
               <tbody>
                 {list.rows.map((row) => (
-                  <tr key={row.id} className="border-b border-slate-100 align-top">
+                  <FollowUpClickRow
+                    key={row.id}
+                    href={followUpDetailHref(query, row.absenceId)}
+                    className="align-top"
+                  >
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-900">
                         {FOLLOW_UP_DUE_LABELS[row.dueState]}
@@ -195,7 +211,7 @@ export default async function FollowUpsPage({
                         {row.details}
                       </p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" data-follow-up-separate>
                       <div className="flex flex-col items-start gap-2">
                         <Link
                           href={followUpDetailHref(query, row.absenceId)}
@@ -216,7 +232,7 @@ export default async function FollowUpsPage({
                         />
                       </div>
                     </td>
-                  </tr>
+                  </FollowUpClickRow>
                 ))}
               </tbody>
             </DataTable>
@@ -224,6 +240,7 @@ export default async function FollowUpsPage({
             <ul className="mt-3 space-y-3 xl:hidden">
               {list.rows.map((row) => (
                 <li key={row.id}>
+                  <FollowUpClickCard href={followUpDetailHref(query, row.absenceId)}>
                   <Card className="p-4 shadow-none">
                     <div className="flex flex-wrap items-center gap-2">
                       <AbsenceTypeBadge type={row.absenceType} />
@@ -248,7 +265,7 @@ export default async function FollowUpsPage({
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm text-slate-800">
                       {row.details}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2" data-follow-up-separate>
                       <Link
                         href={followUpDetailHref(query, row.absenceId)}
                         data-ledger-view={row.absenceId}
@@ -268,6 +285,7 @@ export default async function FollowUpsPage({
                       />
                     </div>
                   </Card>
+                  </FollowUpClickCard>
                 </li>
               ))}
             </ul>

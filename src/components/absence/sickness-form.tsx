@@ -18,12 +18,14 @@ import {
   FieldError,
   FormAlert,
   controlClassName,
-  selectControlClassName,
 } from "@/components/form";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Card, CardBody } from "@/components/ui/card";
 import { FieldLabel } from "@/components/ui/field";
-import { cn } from "@/lib/cn";
+import {
+  LogFormBar,
+  LogFormCard,
+  OptionalDetails,
+} from "@/components/absence/log-form-chrome";
 import { type SicknessEpisodeState } from "@/lib/absence/catalog";
 import type { AbsenceStaffOption } from "@/lib/absence/queries";
 import {
@@ -89,9 +91,10 @@ export function SicknessForm({
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [formKey, setFormKey] = useState(0);
-  const [idempotencyKey, setIdempotencyKey] = useState(() =>
-    crypto.randomUUID(),
-  );
+  const [idempotencyKey, setIdempotencyKey] = useState("");
+  useEffect(() => {
+    setIdempotencyKey(crypto.randomUUID());
+  }, []);
   const [selectedStaff, setSelectedStaff] = useState<AbsenceStaffOption | null>(
     initialStaff ?? null,
   );
@@ -273,42 +276,63 @@ export function SicknessForm({
       ) : null}
 
       {mode === "create" ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <FieldLabel htmlFor={`${formId}-status`} required>
-              Sickness status
-            </FieldLabel>
-            <select
-              id={`${formId}-status`}
-              name="episodeState"
-              value={episodeState}
-              aria-invalid={Boolean(state.fieldErrors?.episodeState)}
-              aria-describedby={
-                state.fieldErrors?.episodeState
-                  ? `${formId}-status-error`
-                  : undefined
-              }
-              className={selectControlClassName("w-full")}
-              onChange={(event) => {
-                const next = event.target.value as "" | SicknessEpisodeState;
-                setEpisodeState(next);
-                if (next !== "ENDED") {
-                  setSicknessEndedDate("");
-                }
-              }}
-            >
-              <option value="">Choose sickness status</option>
-              <option value="ONGOING">Ongoing</option>
-              <option value="ENDED">Ended</option>
-              <option value="NOT_CONFIRMED">Not yet confirmed</option>
-            </select>
-            <FieldError
-              id={`${formId}-status-error`}
-              messages={state.fieldErrors?.episodeState}
-            />
+        <div>
+          <p id={`${formId}-status-label`} className="mb-1 block text-sm font-medium text-slate-700">
+            Sickness status <span className="text-red-700">*</span>
+          </p>
+          <div
+            role="radiogroup"
+            aria-labelledby={`${formId}-status-label`}
+            aria-invalid={Boolean(state.fieldErrors?.episodeState) || undefined}
+            aria-describedby={
+              state.fieldErrors?.episodeState
+                ? `${formId}-status-error`
+                : undefined
+            }
+            tabIndex={state.fieldErrors?.episodeState ? -1 : undefined}
+            className="flex flex-wrap gap-2"
+          >
+            {(
+              [
+                ["ONGOING", "Ongoing"],
+                ["ENDED", "Ended"],
+                ["NOT_CONFIRMED", "Not yet confirmed"],
+              ] as const
+            ).map(([value, label]) => {
+              const selected = episodeState === value;
+              return (
+                <label
+                  key={value}
+                  className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-slate-400 ${
+                    selected
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 bg-white text-slate-800"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="episodeState"
+                    value={value}
+                    checked={selected}
+                    className="sr-only"
+                    onChange={() => {
+                      setEpisodeState(value);
+                      if (value !== "ENDED") {
+                        setSicknessEndedDate("");
+                      }
+                    }}
+                  />
+                  {label}
+                </label>
+              );
+            })}
           </div>
+          <FieldError
+            id={`${formId}-status-error`}
+            messages={state.fieldErrors?.episodeState}
+          />
           {episodeState === "ENDED" ? (
-            <div>
+            <div className="mt-4 max-w-xs">
               <FieldLabel htmlFor={`${formId}-ended`} required>
                 Last day sick from work
               </FieldLabel>
@@ -345,28 +369,60 @@ export function SicknessForm({
         </div>
       ) : null}
 
-      <div>
-        <FieldLabel htmlFor={`${formId}-summary`}>Issue summary</FieldLabel>
-        <CatalogReasonField
+      {mode === "create" ? (
+        <OptionalDetails
           key={formKey}
-          id={`${formId}-summary`}
-          name="issueSummary"
-          reasons={reasons}
-          value={issueSummary ?? ""}
-          onChange={setIssueSummary}
-          invalid={Boolean(state.fieldErrors?.issueSummary)}
-          describedBy={`${formId}-summary-help${
-            state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
-          }`}
-        />
-        <p id={`${formId}-summary-help`} className="mt-1 text-sm text-slate-500">
-          {ISSUE_SUMMARY_HELPER_TEXT}
-        </p>
-        <FieldError
-          id={`${formId}-summary-error`}
-          messages={state.fieldErrors?.issueSummary}
-        />
-      </div>
+          summary="Issue summary"
+          forceOpen={Boolean(state.fieldErrors?.issueSummary)}
+        >
+          <CatalogReasonField
+            key={formKey}
+            id={`${formId}-summary`}
+            name="issueSummary"
+            reasons={reasons}
+            value={issueSummary ?? ""}
+            onChange={setIssueSummary}
+            ariaLabel="Issue summary"
+            invalid={Boolean(state.fieldErrors?.issueSummary)}
+            describedBy={`${formId}-summary-help${
+              state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
+            }`}
+          />
+          <p id={`${formId}-summary-help`} className="text-sm text-slate-500">
+            {ISSUE_SUMMARY_HELPER_TEXT}
+          </p>
+          <FieldError
+            id={`${formId}-summary-error`}
+            messages={state.fieldErrors?.issueSummary}
+          />
+        </OptionalDetails>
+      ) : (
+        <div>
+          <FieldLabel id={`${formId}-summary-label`}>
+            Issue summary
+          </FieldLabel>
+          <CatalogReasonField
+            key={formKey}
+            id={`${formId}-summary`}
+            name="issueSummary"
+            reasons={reasons}
+            value={issueSummary ?? ""}
+            onChange={setIssueSummary}
+            labelledBy={`${formId}-summary-label`}
+            invalid={Boolean(state.fieldErrors?.issueSummary)}
+            describedBy={`${formId}-summary-help${
+              state.fieldErrors?.issueSummary ? ` ${formId}-summary-error` : ""
+            }`}
+          />
+          <p id={`${formId}-summary-help`} className="mt-1 text-sm text-slate-500">
+            {ISSUE_SUMMARY_HELPER_TEXT}
+          </p>
+          <FieldError
+            id={`${formId}-summary-error`}
+            messages={state.fieldErrors?.issueSummary}
+          />
+        </div>
+      )}
 
       {mode === "edit" ? (
         <div>
@@ -423,13 +479,6 @@ export function SicknessForm({
       <input type="hidden" name="type" value="SICKNESS" />
       <input type="hidden" name="todayIso" value={defaultReportedDate} />
       <FormAlert>{state.error}</FormAlert>
-      {mode === "create" ? (
-        <PayPeriodField
-          id={`${formId}-pay-period`}
-          periods={payPeriods}
-          messages={state.fieldErrors?.payPeriodId}
-        />
-      ) : null}
       {state.existingAbsenceId ? (
         <p className="text-sm text-slate-700">
           <ButtonLink
@@ -444,12 +493,8 @@ export function SicknessForm({
 
       {mode === "create" ? (
         <>
-          {typeCards ? (
-            <FormSection step={1} title="What type of absence?">
-              {typeCards}
-            </FormSection>
-          ) : null}
-          <FormSection step={typeCards ? 2 : 1} title="Select staff">
+          <LogFormCard>
+            {typeCards}
             <StaffSearchPicker
               key={`staff-${formKey}`}
               initialStaff={selectedStaff}
@@ -460,24 +505,27 @@ export function SicknessForm({
                 onStaffChange?.(staff);
               }}
             />
-          </FormSection>
-          <FormSection step={typeCards ? 3 : 2} title="Initial report">
             {detailsFields}
-          </FormSection>
-          <div className="sticky bottom-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-            <p className="min-w-0 text-sm text-slate-600">
-              <span className="font-medium text-sickness">Sickness</span>
-              {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" onClick={resetCreateForm}>
-                Clear
-              </Button>
-              <Button type="submit" disabled={pending || !idempotencyKey} icon={Check}>
-                {pending ? "Saving…" : "Save sickness report"}
-              </Button>
-            </div>
-          </div>
+          </LogFormCard>
+          <LogFormBar
+            summary={
+              <>
+                <span className="font-medium text-sickness">Sickness</span>
+                {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
+              </>
+            }
+            payPeriod={
+              <PayPeriodField
+                id={`${formId}-pay-period`}
+                periods={payPeriods}
+                messages={state.fieldErrors?.payPeriodId}
+              />
+            }
+            onClear={resetCreateForm}
+            pending={pending}
+            saveDisabled={!idempotencyKey}
+            saveLabel="Save sickness report"
+          />
         </>
       ) : (
         <>
@@ -503,26 +551,5 @@ export function SicknessForm({
         </>
       )}
     </form>
-  );
-}
-
-function FormSection({
-  step,
-  title,
-  children,
-}: {
-  step: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="shadow-none">
-      <CardBody className="space-y-4">
-        <h2 className={cn("text-xs font-semibold tracking-wider text-slate-500 uppercase")}>
-          {step} — {title}
-        </h2>
-        {children}
-      </CardBody>
-    </Card>
   );
 }

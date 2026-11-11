@@ -5,7 +5,6 @@ import { AbsenceTypeSelector, type LogAbsenceType } from "@/components/absence/a
 import { AwolForm } from "@/components/absence/awol-form";
 import { CancellationForm } from "@/components/absence/cancellation-form";
 import { SicknessForm } from "@/components/absence/sickness-form";
-import { Card, CardBody } from "@/components/ui/card";
 import type { PayPeriodChoice } from "@/components/absence/pay-period-field";
 import type { AbsenceStaffOption } from "@/lib/absence/queries";
 
@@ -36,15 +35,8 @@ export function LogAbsenceForm({
   );
 
   return (
-    <div className="space-y-6">
-      <Card className="shadow-none">
-        <CardBody className="space-y-4">
-          <h2 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
-            1 — What type of absence?
-          </h2>
-          <AbsenceTypeSelector value={type} onChange={setType} />
-        </CardBody>
-      </Card>
+    <div className="max-w-2xl space-y-6">
+      <AbsenceTypeSelector value={type} onChange={setType} />
       {type === "AWOL" ? (
         <AwolForm
           key={`awol-${staff?.id ?? "none"}`}

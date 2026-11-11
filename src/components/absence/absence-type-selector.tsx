@@ -5,6 +5,51 @@ import { cn } from "@/lib/cn";
 
 export type LogAbsenceType = "CANCELLATION" | "AWOL" | "SICKNESS";
 
+const TONE_CLASS = {
+  cancel: {
+    on: "border-cancel bg-cancel text-white",
+    off: "border-cancel bg-cancel-soft text-cancel hover:bg-white",
+  },
+  awol: {
+    on: "border-awol bg-awol text-white",
+    off: "border-awol bg-awol-soft text-awol hover:bg-white",
+  },
+  sickness: {
+    on: "border-sickness bg-sickness text-white",
+    off: "border-sickness bg-sickness-soft text-sickness hover:bg-white",
+  },
+} as const;
+
+const TYPES: Array<{
+  value: LogAbsenceType;
+  label: string;
+  description: string;
+  icon: typeof Ban;
+  tone: "cancel" | "awol" | "sickness";
+}> = [
+  {
+    value: "CANCELLATION",
+    label: "Cancellation",
+    description: "Staff notified before or after the event",
+    icon: Ban,
+    tone: "cancel",
+  },
+  {
+    value: "AWOL",
+    label: "AWOL",
+    description: "Did not attend with no prior notice",
+    icon: UserX,
+    tone: "awol",
+  },
+  {
+    value: "SICKNESS",
+    label: "Sickness",
+    description: "Staff member reported that sickness affects work",
+    icon: Bed,
+    tone: "sickness",
+  },
+];
+
 export function AbsenceTypeSelector({
   value,
   onChange,
@@ -14,45 +59,54 @@ export function AbsenceTypeSelector({
   onChange?: (value: LogAbsenceType) => void;
   locked?: boolean;
 }) {
+  const selected = TYPES.find((type) => type.value === value) ?? TYPES[0];
+
+  if (!locked && onChange) {
+    return (
+      <fieldset>
+        <legend className="text-sm font-medium text-slate-700">Absence type</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {TYPES.map((type) => {
+            const pressed = value === type.value;
+            const Icon = type.icon;
+            return (
+              <button
+                key={type.value}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => onChange(type.value)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-slate-400",
+                  TONE_CLASS[type.tone][pressed ? "on" : "off"],
+                )}
+              >
+                <Icon className="size-4" aria-hidden="true" />
+                {type.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-sm text-slate-600">{selected.description}</p>
+      </fieldset>
+    );
+  }
+
   return (
     <fieldset>
       <legend className="sr-only">Absence type</legend>
       <div className="grid gap-3 sm:grid-cols-3">
-        <TypeCard
-          selected={value === "CANCELLATION"}
-          disabled={locked && value !== "CANCELLATION"}
-          onSelect={locked ? undefined : () => onChange?.("CANCELLATION")}
-          icon={Ban}
-          label="Cancellation"
-          description="Staff notified before or after the event"
-          tone="cancel"
-        />
-        <TypeCard
-          selected={value === "AWOL"}
-          disabled={locked && value !== "AWOL"}
-          onSelect={locked ? undefined : () => onChange?.("AWOL")}
-          icon={UserX}
-          label="AWOL"
-          description="Did not attend with no prior notice"
-          tone="awol"
-        />
-        <TypeCard
-          selected={value === "SICKNESS"}
-          disabled={locked && value !== "SICKNESS"}
-          onSelect={locked ? undefined : () => onChange?.("SICKNESS")}
-          icon={Bed}
-          label="Sickness"
-          description="Staff member reported that sickness affects work"
-          tone="sickness"
-        />
+        {TYPES.map((type) => (
+          <TypeCard
+            key={type.value}
+            selected={value === type.value}
+            disabled={locked && value !== type.value}
+            icon={type.icon}
+            label={type.label}
+            description={type.description}
+            tone={type.tone}
+          />
+        ))}
       </div>
-      <p className="mt-3 text-sm text-slate-600">
-        {value === "AWOL"
-          ? "Use AWOL when a staff member did not attend an Event and gave no prior notice."
-          : value === "SICKNESS"
-            ? "Record the initial sickness report. Certificates, follow-ups and return-to-work actions will be added in later steps."
-            : "A cancellation means the staff member notified the organisation before the event. You can still record a late or retrospective cancellation when notice arrived after the event."}
-      </p>
     </fieldset>
   );
 }
@@ -60,7 +114,6 @@ export function AbsenceTypeSelector({
 function TypeCard({
   selected,
   disabled,
-  onSelect,
   icon: Icon,
   label,
   description,
@@ -68,7 +121,6 @@ function TypeCard({
 }: {
   selected: boolean;
   disabled?: boolean;
-  onSelect?: () => void;
   icon: typeof Ban;
   label: string;
   description: string;
@@ -99,42 +151,14 @@ function TypeCard({
     );
   }
 
-  if (!onSelect) {
-    return (
-      <p className={cn("rounded-xl px-4 py-4", selectedClass)}>
-        <span className={cn("flex items-center gap-2 text-sm font-semibold", labelClass)}>
-          <Icon className="size-4" aria-hidden="true" />
-          {label}
-          {selected ? <Check className="size-4" aria-hidden="true" /> : null}
-        </span>
-        <span className="mt-1 block text-xs text-slate-600">{description}</span>
-      </p>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      className={cn(
-        "rounded-xl px-4 py-4 text-left",
-        selected
-          ? selectedClass
-          : "border border-border bg-white hover:bg-slate-50",
-      )}
-    >
-      <span
-        className={cn(
-          "flex items-center gap-2 text-sm font-semibold",
-          selected ? labelClass : "text-slate-800",
-        )}
-      >
+    <p className={cn("rounded-xl px-4 py-4", selectedClass)}>
+      <span className={cn("flex items-center gap-2 text-sm font-semibold", labelClass)}>
         <Icon className="size-4" aria-hidden="true" />
         {label}
         {selected ? <Check className="size-4" aria-hidden="true" /> : null}
       </span>
       <span className="mt-1 block text-xs text-slate-600">{description}</span>
-    </button>
+    </p>
   );
 }

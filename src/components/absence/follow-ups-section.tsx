@@ -26,11 +26,13 @@ export function FollowUpsSection({
   todayIso,
   returnTo,
   compact = false,
+  promotedFollowUpId,
 }: {
   absence: AbsenceDetail;
   todayIso?: string;
   returnTo?: string;
   compact?: boolean;
+  promotedFollowUpId?: string;
 }) {
   const staffName = formatStaffName(absence.staff);
   const typeLabel = ABSENCE_TYPE_LABELS[absence.type];
@@ -166,12 +168,14 @@ export function FollowUpsSection({
                           {...dialogContext}
                         />
                       ) : null}
-                      <CompleteFollowUpDialog
-                        followUpId={followUp.id}
-                        details={followUp.details}
-                        expectedUpdatedAt={followUp.updatedAt.toISOString()}
-                        {...dialogContext}
-                      />
+                      {promotedFollowUpId === followUp.id ? null : (
+                        <CompleteFollowUpDialog
+                          followUpId={followUp.id}
+                          details={followUp.details}
+                          expectedUpdatedAt={followUp.updatedAt.toISOString()}
+                          {...dialogContext}
+                        />
+                      )}
                       <CancelFollowUpDialog
                         followUpId={followUp.id}
                         expectedUpdatedAt={followUp.updatedAt.toISOString()}

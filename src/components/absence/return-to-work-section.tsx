@@ -23,12 +23,14 @@ export function ReturnToWorkSection({
   followUpReturnTo,
   returnToWorkReturnTo,
   compact = false,
+  hideRecord = false,
 }: {
   absence: AbsenceDetail;
   todayIso?: string;
   followUpReturnTo?: string;
   returnToWorkReturnTo?: string;
   compact?: boolean;
+  hideRecord?: boolean;
 }) {
   if (absence.type !== "SICKNESS" || !absence.sickness) {
     return null;
@@ -98,7 +100,7 @@ export function ReturnToWorkSection({
               </p>
             ) : null}
           </div>
-          {canMutate ? (
+          {canMutate && !hideRecord ? (
             <ReturnToWorkDialog
               absenceId={absence.id}
               status={status}

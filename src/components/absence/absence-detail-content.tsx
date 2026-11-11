@@ -2,8 +2,12 @@ import Link from "next/link";
 import { ArchiveAwolDialog } from "@/components/absence/archive-awol-dialog";
 import { ArchiveCancellationDialog } from "@/components/absence/archive-cancellation-dialog";
 import { ArchiveSicknessDialog } from "@/components/absence/archive-sickness-dialog";
+import { AbsenceNextPanel } from "@/components/absence/absence-next-panel";
+import { AddFitNoteDialog, SelfCertificationDialog } from "@/components/absence/evidence-dialogs";
 import { EvidenceSection } from "@/components/absence/evidence-section";
+import { CompleteFollowUpDialog } from "@/components/absence/follow-up-dialogs";
 import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
+import { ReturnToWorkDialog } from "@/components/absence/return-to-work-dialogs";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
 import {
   AbsenceRecord,
@@ -15,7 +19,7 @@ import { UnauthorisedCancellationBox } from "@/components/absence/unauthorised-c
 import { UpdateSicknessEpisodeDialog } from "@/components/absence/update-sickness-episode-dialog";
 import { AbsenceTypeBadge } from "@/components/absence/absence-badges";
 import { Banner } from "@/components/ui/banner";
-import { ButtonLink } from "@/components/ui/button";
+import { ButtonLink, type ButtonVariant } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -34,6 +38,9 @@ import {
   NOTICE_BASIS_LABELS,
 } from "@/lib/absence/display";
 import { parseHistoryChanges } from "@/lib/absence/history";
+import { buildNextWork, type NextWork } from "@/lib/absence/next-work";
+import { followUpContextLines } from "@/lib/absence/follow-up";
+import { returnToWorkDateApplies } from "@/lib/absence/return-to-work";
 import type { AbsenceDetail } from "@/lib/absence/queries";
 import {
   formatLocalDateDisplay,
@@ -143,9 +150,11 @@ function HistoryList({ absence }: { absence: AbsenceDetail }) {
 function HistorySection({
   absence,
   compact,
+  inset = false,
 }: {
   absence: AbsenceDetail;
   compact: boolean;
+  inset?: boolean;
 }) {
   const long = absence.history.length > 3;
   if (compact && long) {
@@ -161,7 +170,11 @@ function HistorySection({
     );
   }
   return (
-    <Card className={compact ? "mt-6 shadow-none" : "mt-8 shadow-none"}>
+    <Card
+      className={
+        inset ? "shadow-none" : compact ? "mt-6 shadow-none" : "mt-8 shadow-none"
+      }
+    >
       <CardHeader title="History" />
       <CardBody>
         <HistoryList absence={absence} />
@@ -345,6 +358,8 @@ function AbsenceActions({
   timeZone,
   todayIso,
   compact = false,
+  omitEpisode = false,
+  episodeVariant = "ghost",
 }: {
   absence: AbsenceDetail;
   archiveReturnTo?: string;
@@ -352,6 +367,8 @@ function AbsenceActions({
   timeZone?: string;
   todayIso?: string;
   compact?: boolean;
+  omitEpisode?: boolean;
+  episodeVariant?: ButtonVariant;
 }) {
   if (!absenceAllowsCorrectAndArchive(absence.recordStatus)) {
     return null;
@@ -361,7 +378,7 @@ function AbsenceActions({
   if (absence.type === "AWOL" && absence.awol) {
     return (
       <>
-        <ButtonLink href={`/absence/${absence.id}/edit`} size={size}>
+        <ButtonLink href={`/absence/${absence.id}/edit`} size={size} variant="ghost">
           {absenceCorrectActionLabel(absence.type)}
         </ButtonLink>
         <ArchiveAwolDialog
@@ -377,33 +394,36 @@ function AbsenceActions({
   if (absence.type === "SICKNESS" && absence.sickness && timeZone && todayIso) {
     return (
       <>
-        <UpdateSicknessEpisodeDialog
-          absenceId={absence.id}
-          staffName={staffName}
-          reportedDateDisplay={formatLocalDateDisplay(absence.reportedDate)}
-          firstWorkingDayDisplay={formatLocalDateDisplay(
-            absence.sickness.firstWorkingDaySick,
-          )}
-          firstWorkingDaySick={formatLocalDateIso(
-            absence.sickness.firstWorkingDaySick,
-          )}
-          sicknessStartedDate={
-            absence.sickness.sicknessStartedDate
-              ? formatLocalDateIso(absence.sickness.sicknessStartedDate)
-              : ""
-          }
-          currentEpisodeState={absence.sickness.episodeState}
-          currentSicknessEndedDate={
-            absence.sickness.sicknessEndedDate
-              ? formatLocalDateIso(absence.sickness.sicknessEndedDate)
-              : ""
-          }
-          expectedUpdatedAt={absence.updatedAt.toISOString()}
-          todayIso={todayIso}
-          timeZone={timeZone}
-          returnTo={episodeUpdateReturnTo}
-        />
-        <ButtonLink href={`/absence/${absence.id}/edit`} size={size}>
+        {omitEpisode ? null : (
+          <UpdateSicknessEpisodeDialog
+            absenceId={absence.id}
+            staffName={staffName}
+            reportedDateDisplay={formatLocalDateDisplay(absence.reportedDate)}
+            firstWorkingDayDisplay={formatLocalDateDisplay(
+              absence.sickness.firstWorkingDaySick,
+            )}
+            firstWorkingDaySick={formatLocalDateIso(
+              absence.sickness.firstWorkingDaySick,
+            )}
+            sicknessStartedDate={
+              absence.sickness.sicknessStartedDate
+                ? formatLocalDateIso(absence.sickness.sicknessStartedDate)
+                : ""
+            }
+            currentEpisodeState={absence.sickness.episodeState}
+            currentSicknessEndedDate={
+              absence.sickness.sicknessEndedDate
+                ? formatLocalDateIso(absence.sickness.sicknessEndedDate)
+                : ""
+            }
+            expectedUpdatedAt={absence.updatedAt.toISOString()}
+            todayIso={todayIso}
+            timeZone={timeZone}
+            returnTo={episodeUpdateReturnTo}
+            triggerVariant={episodeVariant}
+          />
+        )}
+        <ButtonLink href={`/absence/${absence.id}/edit`} size={size} variant="ghost">
           {absenceCorrectActionLabel(absence.type)}
         </ButtonLink>
         <ArchiveSicknessDialog
@@ -418,7 +438,7 @@ function AbsenceActions({
   if (absence.type === "SICKNESS") {
     return (
       <>
-        <ButtonLink href={`/absence/${absence.id}/edit`} size={size}>
+        <ButtonLink href={`/absence/${absence.id}/edit`} size={size} variant="ghost">
           {absenceCorrectActionLabel(absence.type)}
         </ButtonLink>
         <ArchiveSicknessDialog
@@ -432,7 +452,7 @@ function AbsenceActions({
   }
   return (
     <>
-      <ButtonLink href={`/absence/${absence.id}/edit`} size={size}>
+      <ButtonLink href={`/absence/${absence.id}/edit`} size={size} variant="ghost">
         {absenceCorrectActionLabel(absence.type)}
       </ButtonLink>
       <ArchiveCancellationDialog
@@ -731,20 +751,244 @@ function TypeFields({
   );
 }
 
-function DrawerHeader({
+function recordFollowUpContext(absence: AbsenceDetail): string[] {
+  return followUpContextLines(
+    {
+      type: absence.type,
+      reportedDate: absence.reportedDate,
+      cancellation: absence.cancellation,
+      awol: absence.awol,
+      sickness: absence.sickness
+        ? {
+            firstWorkingDaySick: absence.sickness.firstWorkingDaySick,
+            episodeState: absence.sickness.episodeState,
+          }
+        : null,
+    },
+    sicknessEpisodeStateLabel,
+  );
+}
+
+function NextWorkAction({
   absence,
-  titleId,
+  work,
+  layout,
+  timeZone,
+  todayIso,
+  payPeriods,
+  episodeUpdateReturnTo,
+  followUpReturnTo,
+  evidenceReturnTo,
+  returnToWorkReturnTo,
+}: {
+  absence: AbsenceDetail;
+  work: NextWork;
+  layout: "page" | "drawer";
+  timeZone?: string;
+  todayIso?: string;
+  payPeriods?: PayPeriodChoice[];
+  episodeUpdateReturnTo?: string;
+  followUpReturnTo?: string;
+  evidenceReturnTo?: string;
+  returnToWorkReturnTo?: string;
+}) {
+  const next = work.next;
+  if (!next?.actionable) {
+    return null;
+  }
+  if (next.kind === "confirm-episode" && absence.sickness && timeZone && todayIso) {
+    return (
+      <UpdateSicknessEpisodeDialog
+        absenceId={absence.id}
+        staffName={`${formatStaffName(absence.staff)} (${absence.staff.staffIdNumber})`}
+        reportedDateDisplay={formatLocalDateDisplay(absence.reportedDate)}
+        firstWorkingDayDisplay={formatLocalDateDisplay(
+          absence.sickness.firstWorkingDaySick,
+        )}
+        firstWorkingDaySick={formatLocalDateIso(absence.sickness.firstWorkingDaySick)}
+        sicknessStartedDate={
+          absence.sickness.sicknessStartedDate
+            ? formatLocalDateIso(absence.sickness.sicknessStartedDate)
+            : ""
+        }
+        currentEpisodeState={absence.sickness.episodeState}
+        currentSicknessEndedDate={
+          absence.sickness.sicknessEndedDate
+            ? formatLocalDateIso(absence.sickness.sicknessEndedDate)
+            : ""
+        }
+        expectedUpdatedAt={absence.updatedAt.toISOString()}
+        todayIso={todayIso}
+        timeZone={timeZone}
+        returnTo={episodeUpdateReturnTo}
+        triggerVariant="primary"
+      />
+    );
+  }
+  if (next.kind === "overdue-follow-up" && next.followUpId) {
+    const followUp = absence.followUps.find((item) => item.id === next.followUpId);
+    if (!followUp) {
+      return null;
+    }
+    return (
+      <CompleteFollowUpDialog
+        followUpId={followUp.id}
+        details={followUp.details}
+        expectedUpdatedAt={followUp.updatedAt.toISOString()}
+        staffName={formatStaffName(absence.staff)}
+        staffIdNumber={absence.staff.staffIdNumber}
+        typeLabel={ABSENCE_TYPE_LABELS[absence.type]}
+        context={recordFollowUpContext(absence)}
+        returnTo={followUpReturnTo}
+        triggerVariant="primary"
+      />
+    );
+  }
+  if (next.kind === "fit-note-due") {
+    return (
+      <AddFitNoteDialog
+        absenceId={absence.id}
+        todayIso={todayIso}
+        returnTo={evidenceReturnTo}
+        triggerVariant="primary"
+      />
+    );
+  }
+  if (next.kind === "self-certification" && absence.type === "SICKNESS") {
+    return (
+      <SelfCertificationDialog
+        absenceId={absence.id}
+        status={absence.selfCertification?.status ?? "NOT_RECORDED"}
+        expectedUpdatedAt={
+          absence.selfCertification
+            ? absence.selfCertification.updatedAt.toISOString()
+            : null
+        }
+        returnTo={evidenceReturnTo}
+        triggerVariant="primary"
+        presentation={layout === "page" ? "inline" : "dialog"}
+      />
+    );
+  }
+  if (next.kind === "return-to-work" && absence.sickness) {
+    const record = absence.returnToWork;
+    const status = record?.status ?? "NOT_RECORDED";
+    return (
+      <ReturnToWorkDialog
+        absenceId={absence.id}
+        status={status}
+        completedOn={
+          record?.completedOn && returnToWorkDateApplies(status)
+            ? formatLocalDateIso(record.completedOn)
+            : ""
+        }
+        note={record?.note ?? ""}
+        expectedUpdatedAt={record ? record.updatedAt.toISOString() : null}
+        todayIso={todayIso}
+        returnTo={returnToWorkReturnTo}
+        triggerVariant="primary"
+      />
+    );
+  }
+  if (next.kind === "pay-period") {
+    return (
+      <PayPeriodAssignment
+        absenceId={absence.id}
+        current={absence.payPeriod}
+        periods={payPeriods}
+        submitVariant="primary"
+        showCurrent={false}
+        embedded
+      />
+    );
+  }
+  return null;
+}
+
+function FiledPayPeriod({
+  absence,
+  payPeriods,
+}: {
+  absence: AbsenceDetail;
+  payPeriods?: PayPeriodChoice[];
+}) {
+  if (!absence.payPeriod) {
+    return null;
+  }
+  return (
+    <PayPeriodAssignment
+      absenceId={absence.id}
+      current={absence.payPeriod}
+      periods={payPeriods}
+      submitVariant="secondary"
+    />
+  );
+}
+
+function UnfiledPayPeriod({
+  absence,
+  payPeriods,
+  work,
+}: {
+  absence: AbsenceDetail;
+  payPeriods?: PayPeriodChoice[];
+  work: NextWork;
+}) {
+  if (absence.payPeriod || work.next?.kind === "pay-period") {
+    return null;
+  }
+  return (
+    <PayPeriodAssignment
+      absenceId={absence.id}
+      current={absence.payPeriod}
+      periods={payPeriods}
+      submitVariant="secondary"
+      showCurrent={false}
+    />
+  );
+}
+
+function RecordActions({
+  absence,
+  work,
+  compact,
   archiveReturnTo,
   episodeUpdateReturnTo,
   timeZone,
   todayIso,
 }: {
   absence: AbsenceDetail;
-  titleId: string;
+  work: NextWork;
+  compact: boolean;
   archiveReturnTo?: string;
   episodeUpdateReturnTo?: string;
   timeZone?: string;
   todayIso?: string;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+      {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
+        <AbsenceActions
+          absence={absence}
+          archiveReturnTo={archiveReturnTo}
+          episodeUpdateReturnTo={episodeUpdateReturnTo}
+          timeZone={timeZone}
+          todayIso={todayIso}
+          compact={compact}
+          omitEpisode={work.next?.kind === "confirm-episode"}
+        />
+      ) : null}
+      <LogNewAbsenceLink size={compact ? "sm" : "md"} variant="ghost" />
+    </div>
+  );
+}
+
+function DrawerHeader({
+  absence,
+  titleId,
+}: {
+  absence: AbsenceDetail;
+  titleId: string;
 }) {
   const staffName = formatStaffName(absence.staff);
   const heading =
@@ -765,19 +1009,6 @@ function DrawerHeader({
       <p className="mt-1 text-sm text-slate-600">
         {staffName} · {absence.staff.staffIdNumber}
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
-          <AbsenceActions
-            absence={absence}
-            archiveReturnTo={archiveReturnTo}
-            episodeUpdateReturnTo={episodeUpdateReturnTo}
-            timeZone={timeZone}
-            todayIso={todayIso}
-            compact
-          />
-        ) : null}
-        <LogNewAbsenceLink size="sm" />
-      </div>
     </header>
   );
 }
@@ -813,7 +1044,55 @@ export function AbsenceDetailContent({
 }) {
   const archived = absence.recordStatus === "ARCHIVED";
   const staffName = formatStaffName(absence.staff);
-  const compact = layout === "drawer";
+  const work = buildNextWork(absence, {
+    todayIso,
+    canConfirmEpisode: Boolean(timeZone && todayIso),
+    canFilePayPeriod: (payPeriods?.length ?? 0) > 0,
+  });
+  const nextAction = (
+    <NextWorkAction
+      absence={absence}
+      work={work}
+      layout={layout}
+      timeZone={timeZone}
+      todayIso={todayIso}
+      payPeriods={payPeriods}
+      episodeUpdateReturnTo={episodeUpdateReturnTo}
+      followUpReturnTo={followUpReturnTo}
+      evidenceReturnTo={evidenceReturnTo}
+      returnToWorkReturnTo={returnToWorkReturnTo}
+    />
+  );
+  const workSections = (
+    <>
+      <EvidenceSection
+        absence={absence}
+        todayIso={todayIso}
+        followUpReturnTo={followUpReturnTo}
+        evidenceReturnTo={evidenceReturnTo}
+        compact
+        hideSelfCertification={work.next?.kind === "self-certification"}
+        hideAddFitNote={work.next?.kind === "fit-note-due"}
+      />
+      <ReturnToWorkSection
+        absence={absence}
+        todayIso={todayIso}
+        followUpReturnTo={followUpReturnTo}
+        returnToWorkReturnTo={returnToWorkReturnTo}
+        compact
+        hideRecord={work.next?.kind === "return-to-work"}
+      />
+      <FollowUpsSection
+        absence={absence}
+        todayIso={todayIso}
+        returnTo={followUpReturnTo}
+        compact
+        promotedFollowUpId={
+          work.next?.kind === "overdue-follow-up" ? work.next.followUpId : undefined
+        }
+      />
+    </>
+  );
 
   if (layout === "drawer") {
     return (
@@ -822,43 +1101,34 @@ export function AbsenceDetailContent({
         <DrawerHeader
           absence={absence}
           titleId={titleId ?? "absence-detail-title"}
-          archiveReturnTo={archiveReturnTo}
-          episodeUpdateReturnTo={episodeUpdateReturnTo}
-          timeZone={timeZone}
-          todayIso={todayIso}
         />
         <FlashBanners type={absence.type} flash={flash} archived={archived} />
         <div className="mt-4">
-          <PayPeriodAssignment
-            absenceId={absence.id}
-            current={absence.payPeriod}
-            periods={payPeriods}
-          />
-          <TypeFields
+          <AbsenceNextPanel work={work} action={nextAction} />
+          <UnfiledPayPeriod absence={absence} payPeriods={payPeriods} work={work} />
+          <RecordActions
             absence={absence}
-            onUnauthorisedSaved={onUnauthorisedSaved}
+            work={work}
+            compact
+            archiveReturnTo={archiveReturnTo}
+            episodeUpdateReturnTo={episodeUpdateReturnTo}
+            timeZone={timeZone}
+            todayIso={todayIso}
           />
+          <details className="mt-4 rounded-xl border border-border bg-surface">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-900">
+              Record
+            </summary>
+            <div className="border-t border-border px-4 py-4">
+              <FiledPayPeriod absence={absence} payPeriods={payPeriods} />
+              <TypeFields
+                absence={absence}
+                onUnauthorisedSaved={onUnauthorisedSaved}
+              />
+            </div>
+          </details>
         </div>
-        <EvidenceSection
-          absence={absence}
-          todayIso={todayIso}
-          followUpReturnTo={followUpReturnTo}
-          evidenceReturnTo={evidenceReturnTo}
-          compact
-        />
-        <ReturnToWorkSection
-          absence={absence}
-          todayIso={todayIso}
-          followUpReturnTo={followUpReturnTo}
-          returnToWorkReturnTo={returnToWorkReturnTo}
-          compact
-        />
-        <FollowUpsSection
-          absence={absence}
-          todayIso={todayIso}
-          returnTo={followUpReturnTo}
-          compact
-        />
+        {workSections}
         <HistorySection absence={absence} compact />
       </div>
       </AbsenceRecord>
@@ -924,51 +1194,34 @@ export function AbsenceDetailContent({
         ]}
         title={title}
         description={description}
-        actions={
-          <>
-            {absenceAllowsCorrectAndArchive(absence.recordStatus) ? (
-              <AbsenceActions
-                absence={absence}
-                archiveReturnTo={archiveReturnTo}
-                episodeUpdateReturnTo={episodeUpdateReturnTo}
-                timeZone={timeZone}
-                todayIso={todayIso}
-              />
-            ) : null}
-            <LogNewAbsenceLink size="md" />
-          </>
-        }
       />
       <FlashBanners type={absence.type} flash={flash} archived={archived} />
-      <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
-        <PayPeriodAssignment
-          absenceId={absence.id}
-          current={absence.payPeriod}
-          periods={payPeriods}
-        />
-        <TypeFields
-          absence={absence}
-          onUnauthorisedSaved={onUnauthorisedSaved}
-        />
+      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <div className="order-2 flex flex-col gap-6 lg:order-1">
+          <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+            <FiledPayPeriod absence={absence} payPeriods={payPeriods} />
+            <TypeFields
+              absence={absence}
+              onUnauthorisedSaved={onUnauthorisedSaved}
+            />
+          </div>
+          <HistorySection absence={absence} compact={false} inset />
+        </div>
+        <div className="order-1 lg:order-2">
+          <AbsenceNextPanel work={work} action={nextAction} />
+          <UnfiledPayPeriod absence={absence} payPeriods={payPeriods} work={work} />
+          {workSections}
+          <RecordActions
+            absence={absence}
+            work={work}
+            compact={false}
+            archiveReturnTo={archiveReturnTo}
+            episodeUpdateReturnTo={episodeUpdateReturnTo}
+            timeZone={timeZone}
+            todayIso={todayIso}
+          />
+        </div>
       </div>
-      <EvidenceSection
-        absence={absence}
-        todayIso={todayIso}
-        followUpReturnTo={followUpReturnTo}
-        evidenceReturnTo={evidenceReturnTo}
-      />
-      <ReturnToWorkSection
-        absence={absence}
-        todayIso={todayIso}
-        followUpReturnTo={followUpReturnTo}
-        returnToWorkReturnTo={returnToWorkReturnTo}
-      />
-      <FollowUpsSection
-        absence={absence}
-        todayIso={todayIso}
-        returnTo={followUpReturnTo}
-      />
-      <HistorySection absence={absence} compact={compact} />
     </div>
     </AbsenceRecord>
   );

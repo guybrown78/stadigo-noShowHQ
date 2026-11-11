@@ -16,6 +16,7 @@ import { loadLedgerAbsenceDetail } from "@/app/(app)/ledger/detail-action";
 import type { LedgerAbsenceDetailResult } from "@/app/(app)/ledger/detail-action";
 import { ButtonLink, buttonClassName } from "@/components/ui/button";
 import { Sheet } from "@/components/ui/sheet";
+import { cn } from "@/lib/cn";
 import { LEDGER_FULL_PAGE_LABEL } from "@/lib/absence/display";
 import type { LedgerDrawerPreview } from "@/lib/absence/ledger-drawer-preview";
 
@@ -40,6 +41,77 @@ function withParam(href: string, key: string, value: string): string {
 
 function detailHref(listHref: string, absenceId: string): string {
   return withParam(listHref, "detail", absenceId);
+}
+
+function useLedgerDetail() {
+  const context = useContext(LedgerDetailContext);
+  if (!context) {
+    throw new Error("Ledger row actions must be used inside LedgerDetailHost");
+  }
+  return context;
+}
+
+function openRowFromClick(
+  event: React.MouseEvent,
+  absenceId: string,
+  openDetail: (absenceId: string) => void,
+) {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  if (event.target.closest("[data-ledger-separate], [data-ledger-view]")) {
+    return;
+  }
+  if (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  ) {
+    return;
+  }
+  openDetail(absenceId);
+}
+
+export function LedgerClickRow({
+  absenceId,
+  className,
+  children,
+}: {
+  absenceId: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { openDetail } = useLedgerDetail();
+  return (
+    <tr
+      className={cn("cursor-pointer hover:bg-slate-50", className)}
+      onClick={(event) => openRowFromClick(event, absenceId, openDetail)}
+    >
+      {children}
+    </tr>
+  );
+}
+
+export function LedgerClickCard({
+  absenceId,
+  className,
+  children,
+}: {
+  absenceId: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { openDetail } = useLedgerDetail();
+  return (
+    <div
+      className={cn("cursor-pointer", className)}
+      onClick={(event) => openRowFromClick(event, absenceId, openDetail)}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function ViewAbsenceButton({

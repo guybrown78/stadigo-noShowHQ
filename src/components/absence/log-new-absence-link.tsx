@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink, type ButtonVariant } from "@/components/ui/button";
 import {
   rememberRecordFields,
   recordHasUnsavedChanges,
@@ -34,7 +34,13 @@ export function AbsenceRecord({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function LogNewAbsenceLink({ size }: { size: "sm" | "md" }) {
+export function LogNewAbsenceLink({
+  size,
+  variant = "primary",
+}: {
+  size: "sm" | "md";
+  variant?: ButtonVariant;
+}) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -57,6 +63,7 @@ export function LogNewAbsenceLink({ size }: { size: "sm" | "md" }) {
       <ButtonLink
         href="/absence/new"
         size={size}
+        variant={variant}
         icon={Plus}
         onClick={(event) => {
           if (

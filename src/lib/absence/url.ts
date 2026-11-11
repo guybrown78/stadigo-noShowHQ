@@ -144,6 +144,14 @@ export function safeLedgerReturnTo(value: unknown): string | null {
   }
 }
 
+export function ledgerClearFiltersHref(query: LedgerListQuery): string {
+  return ledgerListHref({
+    view: query.view,
+    sort: query.sort,
+    direction: query.direction,
+  });
+}
+
 export function ledgerViewHref(
   query: LedgerListQuery,
   view: LedgerView,

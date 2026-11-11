@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { ShowAllButton, useListPreview } from "@/components/dashboard/list-preview";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import type { WatchStaff } from "@/lib/absence/watchlists";
 import { ledgerListHref } from "@/lib/absence/url";
@@ -26,6 +29,8 @@ export function AttendanceWatchlist({
   periodId?: string;
 }) {
   const headingId = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const preview = useListPreview(rows.length);
+  const visible = rows.slice(0, preview.visibleCount);
   return (
     <section className="mt-8" aria-labelledby={headingId}>
       <Card>
@@ -35,7 +40,7 @@ export function AttendanceWatchlist({
             <p className="text-sm text-slate-600">{empty}</p>
           ) : (
             <ul className="divide-y divide-border">
-              {rows.map((row) => (
+              {visible.map((row) => (
                 <li key={row.staffId} className="flex items-center justify-between gap-3 py-2">
                   <Link
                     href={ledgerListHref({
@@ -58,6 +63,12 @@ export function AttendanceWatchlist({
               ))}
             </ul>
           )}
+          <ShowAllButton
+            total={rows.length}
+            expanded={preview.expanded}
+            onToggle={() => preview.setExpanded((open) => !open)}
+            className="mt-3"
+          />
         </CardBody>
       </Card>
     </section>
