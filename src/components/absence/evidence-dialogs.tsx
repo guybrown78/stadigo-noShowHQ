@@ -8,7 +8,7 @@ import {
   type EvidenceActionState,
 } from "@/app/(app)/absence/evidence-actions";
 import { FieldError, FormAlert, controlClassName } from "@/components/form";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonVariant } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import {
   FIT_NOTE_STATUSES,
@@ -206,15 +206,20 @@ export function SelfCertificationDialog({
   status,
   expectedUpdatedAt,
   returnTo,
+  triggerVariant = "secondary",
+  presentation = "dialog",
 }: {
   absenceId: string;
   status: SelfCertificationStatus;
   expectedUpdatedAt: string | null;
   returnTo?: string;
+  triggerVariant?: ButtonVariant;
+  presentation?: "dialog" | "inline";
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const dialog = useEvidenceDialog(dialogRef);
+  const [inlineKey, setInlineKey] = useState("");
   const correcting = Boolean(expectedUpdatedAt);
   const action = useMemo(
     () =>
@@ -226,12 +231,107 @@ export function SelfCertificationDialog({
   );
   const [state, formAction, pending] = useActionState(action, initialState);
   const [nextStatus, setNextStatus] = useState(status);
+  useEffect(() => {
+    if (presentation === "inline") {
+      setInlineKey(crypto.randomUUID());
+    }
+  }, [presentation]);
   const [reason, setReason] = useState("");
   usePreserveInvalidInput(formRef, state.fieldErrors);
+  const saveLabel = correcting ? "Save self-certification" : "Record self-certification";
+
+  if (presentation === "inline") {
+    return (
+      <form
+        ref={formRef}
+        action={formAction}
+        noValidate
+        className="space-y-3"
+        onReset={(event) => event.preventDefault()}
+      >
+        <input type="hidden" name="absenceId" value={absenceId} />
+        <input type="hidden" name="idempotencyKey" value={inlineKey} />
+        {expectedUpdatedAt ? (
+          <input type="hidden" name="expectedUpdatedAt" value={expectedUpdatedAt} />
+        ) : null}
+        {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+        <FormAlert>{state.error}</FormAlert>
+        <div
+          role="radiogroup"
+          aria-label="Self-certification"
+          aria-describedby={
+            state.fieldErrors?.status ? `${dialog.formId}-status-error` : undefined
+          }
+          className="flex flex-wrap gap-2"
+        >
+          {SELF_CERTIFICATION_STATUSES.map((option) => {
+            const selected = nextStatus === option;
+            return (
+              <label
+                key={option}
+                className={`inline-flex cursor-pointer items-center rounded-md border px-3 py-1.5 text-sm ${
+                  selected
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white text-slate-800"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  value={option}
+                  checked={nextStatus === option}
+                  className="sr-only"
+                  onChange={() => setNextStatus(option)}
+                />
+                {SELF_CERTIFICATION_STATUS_LABELS[option]}
+              </label>
+            );
+          })}
+        </div>
+        <FieldError
+          id={`${dialog.formId}-status-error`}
+          messages={state.fieldErrors?.status}
+        />
+        {correcting ? (
+          <div>
+            <FieldLabel htmlFor={`${dialog.formId}-reason`} required>
+              Correction reason
+            </FieldLabel>
+            <textarea
+              id={`${dialog.formId}-reason`}
+              name="correctionReason"
+              required
+              rows={3}
+              value={reason}
+              aria-invalid={Boolean(state.fieldErrors?.correctionReason)}
+              aria-describedby={
+                state.fieldErrors?.correctionReason
+                  ? `${dialog.formId}-reason-error`
+                  : undefined
+              }
+              className={controlClassName("w-full")}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            <FieldError
+              id={`${dialog.formId}-reason-error`}
+              messages={state.fieldErrors?.correctionReason}
+            />
+          </div>
+        ) : null}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={pending || !inlineKey || nextStatus === status}
+        >
+          {pending ? "Saving…" : saveLabel}
+        </Button>
+      </form>
+    );
+  }
 
   return (
     <>
-      <Button type="button" size="sm" variant="secondary" onClick={dialog.openDialog}>
+      <Button type="button" size="sm" variant={triggerVariant} onClick={dialog.openDialog}>
         {correcting ? "Edit self-certification" : "Record self-certification"}
       </Button>
       <DialogShell
@@ -420,10 +520,12 @@ export function AddFitNoteDialog({
   absenceId,
   todayIso,
   returnTo,
+  triggerVariant = "secondary",
 }: {
   absenceId: string;
   todayIso?: string;
   returnTo?: string;
+  triggerVariant?: ButtonVariant;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -445,7 +547,7 @@ export function AddFitNoteDialog({
 
   return (
     <>
-      <Button type="button" size="sm" onClick={dialog.openDialog}>
+      <Button type="button" size="sm" variant={triggerVariant} onClick={dialog.openDialog}>
         Add fit note
       </Button>
       <DialogShell

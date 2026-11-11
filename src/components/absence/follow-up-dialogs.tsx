@@ -176,7 +176,7 @@ export function AddFollowUpDialog({
 
   return (
     <>
-      <Button type="button" size="sm" onClick={dialog.openDialog}>
+      <Button type="button" size="sm" variant="secondary" onClick={dialog.openDialog}>
         Add follow-up
       </Button>
       <DialogShell
@@ -455,6 +455,7 @@ export function CompleteFollowUpDialog({
   typeLabel,
   context,
   returnTo,
+  triggerVariant = "secondary",
 }: {
   followUpId: string;
   details: string;
@@ -464,6 +465,7 @@ export function CompleteFollowUpDialog({
   typeLabel: string;
   context: string[];
   returnTo?: string;
+  triggerVariant?: "primary" | "secondary" | "danger" | "ghost";
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -484,7 +486,7 @@ export function CompleteFollowUpDialog({
     <>
       <Button
         type="button"
-        variant="secondary"
+        variant={triggerVariant}
         size="sm"
         onClick={dialog.openDialog}
       >

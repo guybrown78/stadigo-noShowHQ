@@ -2,10 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { LedgerTypeNav } from "@/components/absence/ledger-type-nav";
+import { LedgerActiveFilters } from "@/components/absence/ledger-active-filters";
 import {
+  LedgerClickCard,
+  LedgerClickRow,
   LedgerDetailHost,
   ViewAbsenceButton,
 } from "@/components/absence/ledger-detail-host";
+import { LedgerQuickFilters } from "@/components/absence/ledger-quick-filters";
 import {
   AbsenceTypeBadge,
   NoticeWarningBadges,
@@ -67,6 +71,7 @@ import {
 import { toLedgerDrawerPreview } from "@/lib/absence/ledger-drawer-preview";
 import { getTenantTimezone } from "@/lib/absence/queries";
 import {
+  ledgerClearFiltersHref,
   ledgerCloseDetailHref,
   ledgerListHref,
   ledgerLogAbsenceHref,
@@ -108,10 +113,12 @@ function SortHeader({
   field,
   label,
   query,
+  align = "left",
 }: {
   field: LedgerSortField;
   label: string;
   query: LedgerListQuery;
+  align?: "left" | "right";
 }) {
   const active = query.sort === field;
   const { href, nextDirection } = sortHref(query, field);
@@ -123,10 +130,14 @@ function SortHeader({
   const nextLabel = nextDirection === "asc" ? "ascending" : "descending";
 
   return (
-    <th className="px-4 py-3 font-medium" aria-sort={ariaSort} scope="col">
+    <th
+      className={`px-4 py-3 font-medium ${align === "right" ? "w-44 min-w-44 text-right" : ""}`}
+      aria-sort={ariaSort}
+      scope="col"
+    >
       <Link
         href={href}
-        className="inline-flex items-center gap-1 text-slate-700 hover:text-slate-950 hover:underline"
+        className={`inline-flex items-center gap-1 text-slate-700 hover:text-slate-950 hover:underline ${align === "right" ? "w-full justify-end" : ""}`}
         aria-label={`Sort by ${label}, ${nextLabel}`}
       >
         {label}
@@ -146,43 +157,42 @@ function StaffCell({ row }: { row: LedgerAbsenceRow }) {
   const live = !staff.deletedAt;
   return (
     <>
-      {live ? (
-        <Link
-          href={`/staff/${staff.id}`}
-          className="block truncate font-medium text-slate-900 hover:underline"
-          title={name}
-        >
-          {name}
-        </Link>
-      ) : (
-        <span className="block truncate font-medium text-slate-900" title={name}>
-          {name}
-        </span>
-      )}
+      <span className="block truncate font-medium text-slate-900" title={name}>
+        {name}
+      </span>
       <p className="whitespace-nowrap font-mono text-xs text-slate-500">
         {staff.staffIdNumber}
       </p>
+      {live ? (
+        <Link
+          href={`/staff/${staff.id}`}
+          data-ledger-separate=""
+          className="mt-1 inline-flex text-xs font-medium text-slate-600 hover:underline"
+        >
+          Staff profile
+        </Link>
+      ) : null}
     </>
   );
 }
 
 function EventName({ row, name }: { row: LedgerAbsenceRow; name: string }) {
   const live = Boolean(row.event && !row.event.deletedAt);
-  if (live && row.event) {
-    return (
-      <Link
-        href={`/events/${row.event.id}`}
-        className="block truncate font-medium text-slate-900 hover:underline"
-        title={name}
-      >
-        {name}
-      </Link>
-    );
-  }
   return (
-    <span className="block truncate font-medium text-slate-900" title={name}>
-      {name}
-    </span>
+    <>
+      <span className="block truncate font-medium text-slate-900" title={name}>
+        {name}
+      </span>
+      {live && row.event ? (
+        <Link
+          href={`/events/${row.event.id}`}
+          data-ledger-separate=""
+          className="mt-1 inline-flex text-xs font-medium text-slate-600 hover:underline"
+        >
+          Event
+        </Link>
+      ) : null}
+    </>
   );
 }
 
@@ -199,15 +209,6 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
           >
             {detail.venueNameSnapshot}
           </p>
-        ) : null}
-        <p className="mt-0.5 text-xs text-slate-600">
-          {formatNoticeSummary(detail)}
-        </p>
-        <NoticeWarningBadges detail={detail} />
-        {detail.unauthorised ? (
-          <span className="mt-1 flex flex-wrap gap-1">
-            <Badge tone="warning">Unauthorised</Badge>
-          </span>
         ) : null}
       </div>
     );
@@ -255,11 +256,57 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
 }
 
 function StatusBadge({ row }: { row: LedgerAbsenceRow }) {
-  const archived = row.recordStatus === "ARCHIVED";
+  if (row.recordStatus === "ARCHIVED") {
+    return (
+      <Badge tone="warning">{RECORD_STATUS_LABELS[row.recordStatus]}</Badge>
+    );
+  }
   return (
-    <Badge tone={archived ? "warning" : "success"}>
+    <span className="text-sm text-slate-500">
       {RECORD_STATUS_LABELS[row.recordStatus]}
-    </Badge>
+    </span>
+  );
+}
+
+function TypeCell({ row }: { row: LedgerAbsenceRow }) {
+  return (
+    <div>
+      <AbsenceTypeBadge type={row.type} />
+      {row.type === "CANCELLATION" && row.cancellation?.unauthorised ? (
+        <span className="mt-1 flex">
+          <Badge tone="warning">Unauthorised</Badge>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function AffectedDateValue({
+  row,
+  prefix,
+}: {
+  row: LedgerAbsenceRow;
+  prefix?: string;
+}) {
+  const notice =
+    row.type === "CANCELLATION" && row.cancellation
+      ? formatNoticeSummary(row.cancellation)
+      : null;
+  return (
+    <>
+      <span className="block">
+        {prefix ? `${prefix} ` : null}
+        {row.affectedDate ? formatLocalDateDisplay(row.affectedDate) : "—"}
+      </span>
+      {notice ? (
+        <span className="block text-xs font-normal text-slate-500">
+          Notice {notice}
+        </span>
+      ) : null}
+      {row.type === "CANCELLATION" && row.cancellation ? (
+        <NoticeWarningBadges detail={row.cancellation} />
+      ) : null}
+    </>
   );
 }
 
@@ -415,6 +462,14 @@ export default async function LedgerPage({
   const selectedType = options.eventTypes.find(
     (type) => type.id === query.eventType,
   );
+  const venueChipName =
+    showEventFilters && query.venue
+      ? (selectedVenue?.name ?? "unknown")
+      : "";
+  const eventTypeChipName =
+    showEventFilters && query.eventType
+      ? (selectedType?.name ?? "unknown")
+      : "";
   const empty = emptyState(query, hasFilters);
   const affectedFrom = resolvedLedgerAffectedFrom(query);
   const affectedTo = resolvedLedgerAffectedTo(query);
@@ -471,7 +526,9 @@ export default async function LedgerPage({
         </div>
       ) : null}
 
-      <form method="get" className="mt-4">
+      <LedgerQuickFilters query={query} />
+
+      <form method="get" className="mt-3">
         {query.view !== "all" ? (
           <input type="hidden" name="view" value={query.view} />
         ) : null}
@@ -487,15 +544,20 @@ export default async function LedgerPage({
           active={hasFilters}
           actions={
             <>
-              <Button type="submit" size="sm">
+              <Button type="submit" variant="secondary" size="sm">
                 Apply filters
               </Button>
-              {hasFilters ||
-              preserveSort ||
-              reportedRangeInvalid ||
-              affectedRangeInvalid ? (
-                <ButtonLink href="/ledger" variant="secondary" size="sm">
-                  Reset
+              {preserveSort ? (
+                <ButtonLink
+                  href={ledgerListHref(query, {
+                    sort: defaultSort,
+                    direction: DEFAULT_LEDGER_DIRECTION,
+                    page: 1,
+                  })}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Reset sort
                 </ButtonLink>
               ) : null}
             </>
@@ -507,29 +569,18 @@ export default async function LedgerPage({
               <input type="hidden" name="direction" value={query.direction} />
             </>
           ) : null}
-          {query.view === "sickness" ? (
-            <FilterField
-              label="Fit note evidence"
-              htmlFor="ledger-evidence-status"
-              className="min-w-[16rem]"
-            >
-              <select
-                id="ledger-evidence-status"
-                name="evidenceStatus"
-                defaultValue={query.evidenceStatus}
-                className={filterControlClassName()}
-              >
-                <option value="">All sickness reports</option>
-                <option value="required_unrequested">
-                  Required, not requested
-                </option>
-                <option value="requested_pending">
-                  Requested, awaiting receipt
-                </option>
-                <option value="overdue">Chase overdue</option>
-                <option value="received">Received</option>
-              </select>
-            </FilterField>
+          {query.includeArchived ? (
+            <input type="hidden" name="includeArchived" value="1" />
+          ) : null}
+          {query.view === "cancellations" && query.unauthorised ? (
+            <input type="hidden" name="unauthorised" value="1" />
+          ) : null}
+          {query.view === "sickness" && query.evidenceStatus ? (
+            <input
+              type="hidden"
+              name="evidenceStatus"
+              value={query.evidenceStatus}
+            />
           ) : null}
           <FilterField label="Pay period" htmlFor="ledger-period" className="min-w-[16rem]">
             <select
@@ -648,40 +699,6 @@ export default async function LedgerPage({
               className={filterControlClassName()}
             />
           </FilterField>
-          <div className="flex min-w-[9.5rem] flex-1 items-end pb-1">
-            <label
-              htmlFor="ledger-include-archived"
-              className="flex items-center gap-2 text-sm text-slate-700"
-            >
-              <input
-                id="ledger-include-archived"
-                name="includeArchived"
-                type="checkbox"
-                value="1"
-                defaultChecked={query.includeArchived}
-                className="size-4 rounded border-slate-300"
-              />
-              Show archived
-            </label>
-          </div>
-          {query.view === "cancellations" ? (
-            <div className="flex min-w-[9.5rem] flex-1 items-end pb-1">
-              <label
-                htmlFor="ledger-unauthorised"
-                className="flex items-center gap-2 text-sm text-slate-700"
-              >
-                <input
-                  id="ledger-unauthorised"
-                  name="unauthorised"
-                  type="checkbox"
-                  value="1"
-                  defaultChecked={query.unauthorised}
-                  className="size-4 rounded border-slate-300"
-                />
-                Unauthorised only
-              </label>
-            </div>
-          ) : null}
         </FilterBar>
         {query.view === "all" && showEventFilters ? (
           <p className="mt-2 max-w-3xl text-xs text-slate-500">
@@ -706,33 +723,16 @@ export default async function LedgerPage({
             Affected from date must be on or before the to date.
           </p>
         ) : null}
-        {hasFilters ? (
-          <p className="mt-2 text-xs text-slate-500" aria-live="polite">
-            Active filters:
-            {query.q ? ` search “${query.q}”` : ""}
-            {periodLabel ? ` · Pay period ${periodLabel}` : ""}
-            {showEventFilters && selectedVenue
-              ? ` · Venue ${selectedVenue.name}`
-              : ""}
-            {showEventFilters && selectedType
-              ? ` · Event type ${selectedType.name}`
-              : ""}
-            {!reportedRangeInvalid && (query.reportedFrom || query.reportedTo)
-              ? ` · Recorded ${query.reportedFrom || "…"}–${query.reportedTo || "…"}`
-              : ""}
-            {!affectedRangeInvalid && (affectedFrom || affectedTo)
-              ? ` · Affected ${affectedFrom || "…"}–${affectedTo || "…"}`
-              : ""}
-            {query.includeArchived ? " · Show archived" : ""}
-            {showEventFilters && !selectedVenue && query.venue
-              ? " · Venue (unknown)"
-              : ""}
-            {showEventFilters && !selectedType && query.eventType
-              ? " · Event type (unknown)"
-              : ""}
-          </p>
-        ) : null}
       </form>
+      <LedgerActiveFilters
+        query={query}
+        periodLabel={periodLabel}
+        venueName={venueChipName}
+        eventTypeName={eventTypeChipName}
+        showClear={
+          hasFilters || reportedRangeInvalid || affectedRangeInvalid
+        }
+      />
 
       {rows.length === 0 ? (
         <EmptyState
@@ -741,8 +741,11 @@ export default async function LedgerPage({
           description={empty.description}
           action={
             empty.reset ? (
-              <ButtonLink href="/ledger" variant="secondary">
-                Reset filters
+              <ButtonLink
+                href={ledgerClearFiltersHref(query)}
+                variant="secondary"
+              >
+                Clear filters
               </ButtonLink>
             ) : (
               <ButtonLink href={logHref} icon={Plus}>
@@ -770,16 +773,22 @@ export default async function LedgerPage({
             ))}
           </div>
 
-          <DataTable className="mt-3 hidden xl:block">
-            <DataTableHead>
+          <DataTable className="mt-3 hidden xl:block" stickyHeader>
+            <DataTableHead sticky>
               <tr>
                 <SortHeader field="type" label="Type" query={query} />
                 <SortHeader field="staff" label="Staff" query={query} />
-                <SortHeader field="reported" label="Recorded" query={query} />
+                <SortHeader
+                  field="reported"
+                  label="Recorded"
+                  query={query}
+                  align="right"
+                />
                 <SortHeader
                   field="affected"
                   label="Affected date"
                   query={query}
+                  align="right"
                 />
                 <th className="px-4 py-3 font-medium" scope="col">
                   Context
@@ -794,20 +803,22 @@ export default async function LedgerPage({
             </DataTableHead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100">
+                <LedgerClickRow
+                  key={row.id}
+                  absenceId={row.id}
+                  className="border-b border-slate-100"
+                >
                   <td className="px-4 py-3">
-                    <AbsenceTypeBadge type={row.type} />
+                    <TypeCell row={row} />
                   </td>
                   <td className="max-w-[12rem] px-4 py-3">
                     <StaffCell row={row} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                  <td className="w-44 min-w-44 px-4 py-3 text-right text-slate-700 tabular-nums whitespace-nowrap">
                     {formatLocalDateDisplay(row.recordedDate)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">
-                    {row.affectedDate
-                      ? formatLocalDateDisplay(row.affectedDate)
-                      : "—"}
+                  <td className="w-44 min-w-44 px-4 py-3 text-right text-slate-700 tabular-nums">
+                    <AffectedDateValue row={row} />
                   </td>
                   <td className="max-w-[16rem] px-4 py-3">
                     <ContextCell row={row} />
@@ -818,7 +829,7 @@ export default async function LedgerPage({
                   <td className="px-4 py-3 text-right">
                     <ViewAbsenceLink row={row} />
                   </td>
-                </tr>
+                </LedgerClickRow>
               ))}
             </tbody>
           </DataTable>
@@ -826,30 +837,29 @@ export default async function LedgerPage({
           <ul className="mt-3 space-y-3 xl:hidden">
             {rows.map((row) => (
               <li key={row.id}>
-                <Card className="p-4 shadow-none">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AbsenceTypeBadge type={row.type} />
-                    <StatusBadge row={row} />
-                  </div>
-                  <div className="mt-3">
-                    <StaffCell row={row} />
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Recorded {formatLocalDateDisplay(row.recordedDate)}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Affected date{" "}
-                    {row.affectedDate
-                      ? formatLocalDateDisplay(row.affectedDate)
-                      : "—"}
-                  </p>
-                  <div className="mt-2 text-sm text-slate-700">
-                    <ContextCell row={row} />
-                  </div>
-                  <div className="mt-3">
-                    <ViewAbsenceLink row={row} />
-                  </div>
-                </Card>
+                <LedgerClickCard absenceId={row.id}>
+                  <Card className="p-4 shadow-none">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <TypeCell row={row} />
+                      <StatusBadge row={row} />
+                    </div>
+                    <div className="mt-3">
+                      <StaffCell row={row} />
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600 tabular-nums">
+                      Recorded {formatLocalDateDisplay(row.recordedDate)}
+                    </p>
+                    <div className="text-sm text-slate-600 tabular-nums">
+                      <AffectedDateValue row={row} prefix="Affected date" />
+                    </div>
+                    <div className="mt-2 text-sm text-slate-700">
+                      <ContextCell row={row} />
+                    </div>
+                    <div className="mt-3">
+                      <ViewAbsenceLink row={row} />
+                    </div>
+                  </Card>
+                </LedgerClickCard>
               </li>
             ))}
           </ul>

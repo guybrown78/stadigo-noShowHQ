@@ -23,6 +23,7 @@ import {
   ledgerCloseDetailHref,
   ledgerDetailHref,
   ledgerEpisodeUpdateReturnHref,
+  ledgerClearFiltersHref,
   ledgerListHref,
   ledgerViewHref,
   parseAbsenceReturnOrigin,
@@ -440,6 +441,32 @@ describe("ledgerListHref", () => {
     );
     expect(ledgerViewHref(current, "cancellations")).toBe(
       "/ledger?view=cancellations&q=Patel&venue=venue_1&includeArchived=1&sort=notice&direction=asc",
+    );
+  });
+
+  it("clears filters and keeps the current view and sort", () => {
+    const query = {
+      ...defaultLedgerListQuery("cancellations"),
+      q: "Jamal",
+      venue: "venue_1",
+      unauthorised: true,
+      includeArchived: true,
+      sort: "staff" as const,
+      direction: "asc" as const,
+      page: 2,
+      detail: "absence_1",
+    };
+    expect(ledgerClearFiltersHref(query)).toBe(
+      "/ledger?view=cancellations&sort=staff&direction=asc",
+    );
+    expect(
+      ledgerListHref(query, {
+        q: "",
+        page: 1,
+        detail: "",
+      }),
+    ).toBe(
+      "/ledger?view=cancellations&venue=venue_1&includeArchived=1&sort=staff&direction=asc&unauthorised=1",
     );
   });
 

@@ -43,12 +43,16 @@ export function EvidenceSection({
   followUpReturnTo,
   evidenceReturnTo,
   compact = false,
+  hideSelfCertification = false,
+  hideAddFitNote = false,
 }: {
   absence: AbsenceDetail;
   todayIso?: string;
   followUpReturnTo?: string;
   evidenceReturnTo?: string;
   compact?: boolean;
+  hideSelfCertification?: boolean;
+  hideAddFitNote?: boolean;
 }) {
   if (absence.type !== "SICKNESS" || !absence.sickness) {
     return null;
@@ -105,11 +109,13 @@ export function EvidenceSection({
         action={
           canMutate ? (
             <div className="flex flex-wrap gap-2">
-              <AddFitNoteDialog
-                absenceId={absence.id}
-                todayIso={todayIso}
-                returnTo={evidenceReturnTo}
-              />
+              {hideAddFitNote ? null : (
+                <AddFitNoteDialog
+                  absenceId={absence.id}
+                  todayIso={todayIso}
+                  returnTo={evidenceReturnTo}
+                />
+              )}
               <AddFollowUpDialog
                 absenceId={absence.id}
                 staffName={staffName}
@@ -189,7 +195,7 @@ export function EvidenceSection({
                 </p>
               ) : null}
             </div>
-            {canMutate ? (
+            {canMutate && !hideSelfCertification ? (
               <SelfCertificationDialog
                 absenceId={absence.id}
                 status={selfStatus}

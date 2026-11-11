@@ -3,14 +3,18 @@ import { cn } from "@/lib/cn";
 export function DataTable({
   children,
   className,
+  stickyHeader = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  /** Lets the header stick to the page. Overflow hidden would trap it. */
+  stickyHeader?: boolean;
 }) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-border bg-surface shadow-sm",
+        "rounded-xl border border-border bg-surface shadow-sm",
+        stickyHeader ? "overflow-visible" : "overflow-hidden",
         className,
       )}
     >
@@ -19,9 +23,21 @@ export function DataTable({
   );
 }
 
-export function DataTableHead({ children }: { children: React.ReactNode }) {
+export function DataTableHead({
+  children,
+  sticky = false,
+}: {
+  children: React.ReactNode;
+  sticky?: boolean;
+}) {
   return (
-    <thead className="border-b border-border bg-slate-50 text-slate-600">
+    <thead
+      className={cn(
+        "border-b border-border bg-slate-50 text-slate-600",
+        sticky &&
+          "sticky top-0 z-10 [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-slate-50",
+      )}
+    >
       {children}
     </thead>
   );

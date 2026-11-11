@@ -40,6 +40,7 @@ export function UpdateSicknessEpisodeDialog({
   todayIso,
   timeZone,
   returnTo,
+  triggerVariant = "secondary",
 }: {
   absenceId: string;
   staffName: string;
@@ -53,6 +54,7 @@ export function UpdateSicknessEpisodeDialog({
   todayIso: string;
   timeZone: string;
   returnTo?: string;
+  triggerVariant?: "primary" | "secondary" | "danger" | "ghost";
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -140,7 +142,7 @@ export function UpdateSicknessEpisodeDialog({
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={openDialog}>
+      <Button type="button" variant={triggerVariant} size="sm" onClick={openDialog}>
         {SICKNESS_EPISODE_UPDATE_LABEL}
       </Button>
       <dialog

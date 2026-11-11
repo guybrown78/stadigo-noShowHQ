@@ -36,6 +36,7 @@ vi.mock("@/app/(app)/absence/actions", () => ({
   archiveCancellationAction: vi.fn(),
   setCancellationUnauthorisedAction: vi.fn(),
   updateSicknessEpisodeAction: vi.fn(),
+  changeAbsencePayPeriodAction: vi.fn(),
 }));
 
 vi.mock("@/app/(app)/absence/follow-up-actions", () => ({
@@ -58,6 +59,7 @@ vi.mock("@/app/(app)/absence/return-to-work-actions", () => ({
 
 import { loadLedgerAbsenceDetail } from "@/app/(app)/ledger/detail-action";
 import {
+  LedgerClickRow,
   LedgerDetailHost,
   ViewAbsenceButton,
 } from "@/components/absence/ledger-detail-host";
@@ -394,5 +396,41 @@ describe("ledger detail drawer", () => {
       todayIso: "2026-09-14",
     });
     expect(await screen.findByText("No call")).toBeTruthy();
+  });
+
+  it("opens the drawer from the row and leaves the staff profile link alone", () => {
+    const pendingResult = deferred();
+    loadDetail.mockReturnValue(pendingResult.promise);
+    render(
+      <LedgerDetailHost
+        previews={[
+          preview({
+            id: "cancel-1",
+            type: "CANCELLATION",
+            fullPageLabel: "View full cancellation page",
+          }),
+        ]}
+        listHref="/ledger"
+        initialDetailId=""
+      >
+        <table>
+          <tbody>
+            <LedgerClickRow absenceId="cancel-1">
+              <td>Bary Robson</td>
+              <td>
+                <a href="/staff/staff-1" data-ledger-separate="">
+                  Staff profile
+                </a>
+              </td>
+            </LedgerClickRow>
+          </tbody>
+        </table>
+      </LedgerDetailHost>,
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Staff profile" }));
+    expect(loadDetail).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Bary Robson"));
+    expect(loadDetail).toHaveBeenCalledWith("cancel-1");
   });
 });

@@ -83,6 +83,7 @@ export function ReturnToWorkDialog({
   expectedUpdatedAt,
   todayIso,
   returnTo,
+  triggerVariant = "secondary",
 }: {
   absenceId: string;
   status: ReturnToWorkStatus;
@@ -91,6 +92,7 @@ export function ReturnToWorkDialog({
   expectedUpdatedAt: string | null;
   todayIso?: string;
   returnTo?: string;
+  triggerVariant?: "primary" | "secondary" | "danger" | "ghost";
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -188,7 +190,7 @@ export function ReturnToWorkDialog({
 
   return (
     <>
-      <Button type="button" size="sm" variant="secondary" onClick={dialog.openDialog}>
+      <Button type="button" size="sm" variant={triggerVariant} onClick={dialog.openDialog}>
         {correcting ? "Correct return to work" : "Record return to work"}
       </Button>
       <dialog
