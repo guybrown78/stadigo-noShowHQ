@@ -1,6 +1,9 @@
+"use client";
+
 import { Children } from "react";
 import Link from "next/link";
 import { CountBar } from "@/components/dashboard/count-bar";
+import { ShowAllButton, useListPreview } from "@/components/dashboard/list-preview";
 import { Card, CardHeader } from "@/components/ui/card";
 import type {
   DashboardEventRow,
@@ -94,14 +97,21 @@ function ContextCard({
   children: React.ReactNode;
 }) {
   const rows = Children.toArray(children);
+  const preview = useListPreview(rows.length);
   return (
     <Card className="overflow-hidden">
       <CardHeader title={title} description={description} />
       {rows.length > 0 ? (
-        <ul>{rows}</ul>
+        <ul>{rows.slice(0, preview.visibleCount)}</ul>
       ) : (
         <p className="px-5 py-4 text-sm text-slate-600">{empty}</p>
       )}
+      <ShowAllButton
+        total={rows.length}
+        expanded={preview.expanded}
+        onToggle={() => preview.setExpanded((open) => !open)}
+        className="block w-full border-t border-border px-5 py-3 text-left"
+      />
     </Card>
   );
 }

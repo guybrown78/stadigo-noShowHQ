@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { AbsenceContext } from "@/components/dashboard/absence-context";
 import { AbsenceTotals } from "@/components/dashboard/absence-totals";
 import { AbsenceTrend } from "@/components/dashboard/absence-trend";
@@ -6,6 +7,7 @@ import { DashboardFilters } from "@/components/dashboard/dashboard-filters";
 import { RepeatAbsences } from "@/components/dashboard/repeat-absences";
 import { WorkforceStatus } from "@/components/dashboard/workforce-status";
 import { FollowUpDueSummary } from "@/components/absence/follow-up-due-summary";
+import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { countFollowUpsByDueState } from "@/lib/absence/follow-up-service";
 import {
@@ -191,8 +193,14 @@ export default async function DashboardPage({
       <PageHeader
         title="Dashboard"
         description="Cancellation, AWOL and sickness for the period you choose, and the staff who were absent more than once."
+        actions={
+          <ButtonLink href="/absence/new" icon={Plus}>
+            Log absence
+          </ButtonLink>
+        }
       />
       <DashboardFilters
+        key={selectedPeriod?.id ?? "range"}
         result={resolved}
         venueId={venueId}
         eventId={eventId}
@@ -201,6 +209,7 @@ export default async function DashboardPage({
         periods={periods}
         selectedPeriodId={selectedPeriod?.id ?? ""}
       />
+      {followUps ? <FollowUpDueSummary counts={followUps} /> : null}
       {overview && overviewBounds ? (
         <>
           <AbsenceTotals
@@ -221,7 +230,6 @@ export default async function DashboardPage({
                 : undefined
             }
           />
-          {followUps ? <FollowUpDueSummary counts={followUps} /> : null}
           <RepeatAbsences
             rows={overview.repeats}
             filtersActive={Boolean(venueId || eventId)}
@@ -240,8 +248,6 @@ export default async function DashboardPage({
             toIso={overviewBounds.toIso}
           />
         </>
-      ) : followUps ? (
-        <FollowUpDueSummary counts={followUps} />
       ) : null}
       <WorkforceStatus counts={workforce} />
       <AttendanceWatchlist

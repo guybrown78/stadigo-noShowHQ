@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { CountBar } from "@/components/dashboard/count-bar";
+import { ShowAllButton, useListPreview } from "@/components/dashboard/list-preview";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import type { DashboardRepeatRow } from "@/lib/absence/dashboard-query";
 import { formatStaffName } from "@/lib/staff/display";
@@ -11,6 +14,8 @@ export function RepeatAbsences({
   rows: DashboardRepeatRow[];
   filtersActive: boolean;
 }) {
+  const preview = useListPreview(rows.length);
+  const visible = rows.slice(0, preview.visibleCount);
   return (
     <section className="mt-8" aria-labelledby="repeat-absences-heading">
       <Card className="overflow-hidden">
@@ -52,7 +57,7 @@ export function RepeatAbsences({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {visible.map((row) => {
                   const name = formatStaffName(row);
                   return (
                     <tr key={row.staffId} className="border-b border-border last:border-b-0">
@@ -87,6 +92,12 @@ export function RepeatAbsences({
             </table>
           </div>
         )}
+        <ShowAllButton
+          total={rows.length}
+          expanded={preview.expanded}
+          onToggle={() => preview.setExpanded((open) => !open)}
+          className="block w-full border-t border-border px-5 py-3 text-left"
+        />
       </Card>
     </section>
   );

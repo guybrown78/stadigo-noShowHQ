@@ -369,7 +369,22 @@ describe("follow-up queue links", () => {
       screen.getByRole("link", { name: "Clear filters" }).getAttribute("href"),
     ).toBe("/follow-ups");
     expect(
-      (screen.getByLabelText("Due") as HTMLSelectElement).value,
-    ).toBe("overdue");
+      screen.getByRole("link", { name: "AWOL" }).getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen.getByRole("link", { name: "Overdue" }).getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      screen.getByRole("link", { name: "All types" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&due=overdue");
+    expect(
+      screen.getByRole("link", { name: "Cancellation" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&type=CANCELLATION&due=overdue");
+    expect(
+      screen.getByRole("link", { name: "All open" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&type=AWOL");
+    expect(
+      screen.getByRole("link", { name: "Due today" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&type=AWOL&due=dueToday");
   });
 });
