@@ -34,6 +34,7 @@ import {
 } from "@/app/(app)/absence/follow-up-actions";
 import { AddFollowUpDialog } from "@/components/absence/follow-up-dialogs";
 import { FollowUpDueSummary } from "@/components/absence/follow-up-due-summary";
+import { FollowUpActiveFilters } from "@/components/absence/follow-up-active-filters";
 import { FollowUpQueueFilters } from "@/components/absence/follow-up-queue-filters";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
 import { FORM_CHECK_MESSAGE } from "@/lib/form";
@@ -355,19 +356,39 @@ describe("follow-up queue links", () => {
     ).toBe("/follow-ups?due=upcoming");
 
     render(
-      <FollowUpQueueFilters
-        query={{
-          q: "Cole",
-          type: "AWOL",
-          due: "overdue",
-          page: 1,
-          detail: "",
-        }}
-      />,
+      <>
+        <FollowUpQueueFilters
+          query={{
+            q: "Cole",
+            type: "AWOL",
+            due: "overdue",
+            page: 1,
+            detail: "",
+          }}
+        />
+        <FollowUpActiveFilters
+          query={{
+            q: "Cole",
+            type: "AWOL",
+            due: "overdue",
+            page: 1,
+            detail: "",
+          }}
+        />
+      </>,
     );
     expect(
       screen.getByRole("link", { name: "Clear filters" }).getAttribute("href"),
     ).toBe("/follow-ups");
+    expect(
+      screen.getByRole("link", { name: "Remove search Cole" }).getAttribute("href"),
+    ).toBe("/follow-ups?type=AWOL&due=overdue");
+    expect(
+      screen.getByRole("link", { name: "Remove Type · AWOL" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&due=overdue");
+    expect(
+      screen.getByRole("link", { name: "Remove Due · Overdue" }).getAttribute("href"),
+    ).toBe("/follow-ups?q=Cole&type=AWOL");
     expect(
       screen.getByRole("link", { name: "AWOL" }).getAttribute("aria-current"),
     ).toBe("page");
