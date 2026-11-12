@@ -9,6 +9,7 @@ import { CompleteFollowUpDialog } from "@/components/absence/follow-up-dialogs";
 import { ReturnToWorkSection } from "@/components/absence/return-to-work-section";
 import { ReturnToWorkDialog } from "@/components/absence/return-to-work-dialogs";
 import { FollowUpsSection } from "@/components/absence/follow-ups-section";
+import { MissedShiftsSection } from "@/components/absence/missed-shifts-section";
 import {
   AbsenceRecord,
   LogNewAbsenceLink,
@@ -67,6 +68,7 @@ export type AbsenceDetailFlash = {
   followUp?: string;
   evidence?: string;
   returnToWork?: string;
+  shifts?: string;
 };
 
 function Detail({
@@ -335,6 +337,11 @@ function FlashBanners({
       {flash.returnToWork === "1" ? (
         <Banner tone="success" className="mt-4">
           Return to work saved.
+        </Banner>
+      ) : null}
+      {flash.shifts === "1" ? (
+        <Banner tone="success" className="mt-4">
+          Missed shifts updated.
         </Banner>
       ) : null}
       {flash.archived === "1" ? (
@@ -1028,6 +1035,7 @@ export function AbsenceDetailContent({
   followUpReturnTo,
   evidenceReturnTo,
   returnToWorkReturnTo,
+  shiftsReturnTo,
   onUnauthorisedSaved,
   timeZone,
   todayIso,
@@ -1042,6 +1050,7 @@ export function AbsenceDetailContent({
   followUpReturnTo?: string;
   evidenceReturnTo?: string;
   returnToWorkReturnTo?: string;
+  shiftsReturnTo?: string;
   onUnauthorisedSaved?: () => void;
   timeZone?: string;
   todayIso?: string;
@@ -1070,6 +1079,7 @@ export function AbsenceDetailContent({
   );
   const workSections = (
     <>
+      <MissedShiftsSection absence={absence} returnTo={shiftsReturnTo} />
       <EvidenceSection
         absence={absence}
         todayIso={todayIso}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MISSED_SHIFT_DUPLICATE_MESSAGE } from "@/lib/absence/missed-shift";
 import { calculateNotice, coerceLocalDateIso } from "@/lib/absence/notice";
 import {
   ALL_LEDGER_SORT_FIELDS,
@@ -503,10 +504,26 @@ export const sicknessInputSchema = z
     sicknessEndedDate: optionalSicknessEndedSchema,
     idempotencyKey: idempotencyKeySchema,
     payPeriodId: optionalPayPeriodId,
+    missedShiftEventIds: z
+      .array(z.string().trim().min(1))
+      .max(20, "Add up to 20 booked shifts")
+      .optional(),
   })
   .superRefine((value, ctx) => {
     refineSicknessDates(value, ctx, "create");
     refineCreateSicknessStatus(value, ctx);
+    const seen = new Set<string>();
+    for (const eventId of value.missedShiftEventIds ?? []) {
+      if (seen.has(eventId)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["missedShiftEventIds"],
+          message: MISSED_SHIFT_DUPLICATE_MESSAGE,
+        });
+        return;
+      }
+      seen.add(eventId);
+    }
   });
 
 export const correctSicknessInputSchema = z
@@ -723,6 +740,13 @@ export function parseSicknessFormData(formData: FormData) {
     episodeState: formData.get("episodeState") ?? "",
     sicknessEndedDate: formData.get("sicknessEndedDate") ?? "",
     idempotencyKey: formData.get("idempotencyKey") ?? "",
+    missedShiftEventIds: formData
+      .getAll("missedShiftEventId")
+      .filter(
+        (value): value is string =>
+          typeof value === "string" && value.trim().length > 0,
+      )
+      .map((value) => value.trim()),
   });
 }
 

@@ -87,6 +87,19 @@ const ledgerListSelect = {
       staffIdNumberSnapshot: true,
     },
   },
+  missedShifts: {
+    orderBy: [
+      { eventDateSnapshot: "asc" as const },
+      { eventStartTimeSnapshot: "asc" as const },
+      { id: "asc" as const },
+    ],
+    select: {
+      id: true,
+      eventDateSnapshot: true,
+      eventStartTimeSnapshot: true,
+      eventNameSnapshot: true,
+    },
+  },
 } satisfies Prisma.AbsenceSelect;
 
 type LedgerSelectRow = Prisma.AbsenceGetPayload<{

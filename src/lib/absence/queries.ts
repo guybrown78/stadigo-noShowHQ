@@ -85,6 +85,14 @@ export const absenceDetailInclude = {
       cancelledBy: { select: { firstName: true, lastName: true } },
     },
   },
+  missedShifts: {
+    orderBy: [
+      { eventDateSnapshot: "asc" as const },
+      { eventStartTimeSnapshot: "asc" as const },
+      { eventNameSnapshot: "asc" as const },
+      { id: "asc" as const },
+    ],
+  },
   history: {
     orderBy: { createdAt: "desc" as const },
     include: {
@@ -658,6 +666,29 @@ function compareEventAbsenceRows(
     return firstName;
   }
   return a.id.localeCompare(b.id);
+}
+
+export async function findActiveMissedShift(
+  db: DbClient,
+  params: {
+    tenantId: string;
+    staffId: string;
+    eventId: string;
+    excludeAbsenceId?: string;
+  },
+) {
+  return db.sicknessMissedShift.findFirst({
+    where: {
+      tenantId: params.tenantId,
+      staffId: params.staffId,
+      eventId: params.eventId,
+      active: true,
+      ...(params.excludeAbsenceId
+        ? { absenceId: { not: params.excludeAbsenceId } }
+        : {}),
+    },
+    select: { id: true, absenceId: true },
+  });
 }
 
 export async function findActiveCancellationOrAwol(

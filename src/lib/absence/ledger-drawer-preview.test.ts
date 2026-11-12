@@ -30,6 +30,7 @@ function row(
     recordedDate: reported,
     affectedDate: reported,
     issueSummaryPresent: false,
+    missedShifts: [],
     ...overrides,
   };
 }
@@ -64,18 +65,72 @@ describe("toLedgerDrawerPreview", () => {
       ABSENCE_DETAIL_LABEL.dateSicknessReported,
       ABSENCE_DETAIL_LABEL.firstDaySick,
       ABSENCE_DETAIL_LABEL.sicknessStarted,
+      "Missed shifts",
+    ]);
+    expect(preview.fields.find((field) => field.label === "Missed shifts")?.lines).toEqual([
+      "0 missed shifts",
     ]);
     expect(preview.fields.find((field) => field.label === ABSENCE_DETAIL_LABEL.sicknessStarted)?.lines).toEqual([
       "Not recorded",
     ]);
     expect(preview.pendingLabels).toContain(ABSENCE_DETAIL_LABEL.issueSummary);
     expect(preview.sectionSkeletons).toEqual([
+      "Missed shifts",
       "Evidence",
       "Return to work",
       "Follow-ups",
       "History",
     ]);
     expect(JSON.stringify(preview)).not.toContain("Issue summary recorded");
+  });
+
+  it("counts missed shifts and leaves each date on the sickness record", () => {
+    const friday = new Date("2026-09-11T00:00:00.000Z");
+    const saturday = new Date("2026-09-12T00:00:00.000Z");
+    const monday = new Date("2026-09-14T00:00:00.000Z");
+    const preview = toLedgerDrawerPreview(
+      row({
+        type: "SICKNESS",
+        firstWorkingDaySick: friday,
+        sickness: {
+          firstWorkingDaySick: friday,
+          sicknessStartedDate: null,
+          sicknessEndedDate: null,
+          episodeState: "ONGOING",
+          staffFirstNameSnapshot: "Jamie",
+          staffLastNameSnapshot: "Cole",
+          staffIdNumberSnapshot: "ST-9",
+        },
+        missedShifts: [
+          {
+            id: "shift-fri",
+            eventDateSnapshot: friday,
+            eventStartTimeSnapshot: "18:00",
+            eventNameSnapshot: "Friday night",
+          },
+          {
+            id: "shift-sat",
+            eventDateSnapshot: saturday,
+            eventStartTimeSnapshot: "14:00",
+            eventNameSnapshot: "Saturday match",
+          },
+          {
+            id: "shift-mon",
+            eventDateSnapshot: monday,
+            eventStartTimeSnapshot: null,
+            eventNameSnapshot: "Monday cover",
+          },
+        ],
+      }),
+    );
+    const lines =
+      preview.fields.find((field) => field.label === "Missed shifts")?.lines ??
+      [];
+    expect(lines).toEqual(["3 missed shifts"]);
+    const rendered = JSON.stringify(preview);
+    expect(rendered).not.toContain("Friday night");
+    expect(rendered).not.toContain("Saturday match");
+    expect(rendered).not.toContain("Monday cover");
   });
 
   it("shows cancellation event, venue, and notice without the reason", () => {

@@ -45,6 +45,10 @@ export function returnToWorkActionReturnHref(href: string): string {
   return href.includes("?") ? `${href}&returnToWork=1` : `${href}?returnToWork=1`;
 }
 
+export function missedShiftActionReturnHref(href: string): string {
+  return href.includes("?") ? `${href}&shifts=1` : `${href}?shifts=1`;
+}
+
 const ALLOWED_PATH = /^\/(?:follow-ups|ledger|absence\/[A-Za-z0-9]+)$/;
 
 export function safeFollowUpReturnTo(value: unknown): string | null {

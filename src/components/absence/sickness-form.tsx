@@ -1,6 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Check } from "lucide-react";
 import {
   correctSicknessAction,
@@ -13,6 +20,7 @@ import {
   PayPeriodField,
   type PayPeriodChoice,
 } from "@/components/absence/pay-period-field";
+import { MissedShiftDraft } from "@/components/absence/missed-shift-draft";
 import { StaffSearchPicker } from "@/components/absence/staff-search-picker";
 import {
   FieldError,
@@ -27,7 +35,8 @@ import {
   OptionalDetails,
 } from "@/components/absence/log-form-chrome";
 import { type SicknessEpisodeState } from "@/lib/absence/catalog";
-import type { AbsenceStaffOption } from "@/lib/absence/queries";
+import { missedShiftCountLabel } from "@/lib/absence/missed-shift";
+import type { AbsenceEventOption, AbsenceStaffOption } from "@/lib/absence/queries";
 import {
   parseCorrectSicknessFormData,
   parseSicknessFormData,
@@ -116,6 +125,7 @@ export function SicknessForm({
   const [sicknessEndedDate, setSicknessEndedDate] = useState("");
   const [correctionReason, setCorrectionReason] = useState("");
   const [advanceConfirmed, setAdvanceConfirmed] = useState(false);
+  const [missedShifts, setMissedShifts] = useState<AbsenceEventOption[]>([]);
 
   useEffect(() => {
     if (!state.fieldErrors) {
@@ -126,6 +136,19 @@ export function SicknessForm({
     );
     firstInvalid?.focus();
   }, [state.fieldErrors]);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form || !episodeState) {
+      return;
+    }
+    const input = form.querySelector<HTMLInputElement>(
+      `input[name="episodeState"][value="${episodeState}"]`,
+    );
+    if (input && !input.checked) {
+      input.checked = true;
+    }
+  }, [episodeState, state]);
 
   const needsAdvanceConfirmation =
     parseLocalDate(firstWorkingDaySick) != null &&
@@ -150,6 +173,7 @@ export function SicknessForm({
     setEpisodeState("");
     setSicknessEndedDate("");
     setAdvanceConfirmed(false);
+    setMissedShifts([]);
   }
 
   const typeCards = hideTypeSelector ? null : (
@@ -371,6 +395,21 @@ export function SicknessForm({
 
       {mode === "create" ? (
         <OptionalDetails
+          summary="Booked shifts they'll miss"
+          forceOpen={Boolean(state.fieldErrors?.missedShiftEventIds)}
+        >
+          <MissedShiftDraft
+            key={formKey}
+            shifts={missedShifts}
+            onChange={setMissedShifts}
+            errorId={`${formId}-shifts-error`}
+            errorMessages={state.fieldErrors?.missedShiftEventIds}
+          />
+        </OptionalDetails>
+      ) : null}
+
+      {mode === "create" ? (
+        <OptionalDetails
           key={formKey}
           summary="Issue summary"
           forceOpen={Boolean(state.fieldErrors?.issueSummary)}
@@ -512,6 +551,9 @@ export function SicknessForm({
               <>
                 <span className="font-medium text-sickness">Sickness</span>
                 {selectedStaff ? ` → ${formatStaffName(selectedStaff)}` : ""}
+                {missedShifts.length > 0
+                  ? ` · ${missedShiftCountLabel(missedShifts.length)}`
+                  : ""}
               </>
             }
             payPeriod={

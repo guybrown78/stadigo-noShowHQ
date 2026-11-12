@@ -29,6 +29,7 @@ import {
   evidenceActionReturnHref,
   followUpActionReturnHref,
   returnToWorkActionReturnHref,
+  missedShiftActionReturnHref,
   followUpCloseDetailHref,
   followUpDetailHref,
   followUpQueueHref,
@@ -319,6 +320,7 @@ export default async function FollowUpsPage({
               followUp: first(raw.followUp),
               evidence: first(raw.evidence),
               returnToWork: first(raw.returnToWork),
+              shifts: first(raw.shifts),
             }}
             layout="drawer"
             titleId="follow-up-absence-detail-title"
@@ -329,6 +331,9 @@ export default async function FollowUpsPage({
               followUpDetailHref(query, detailAbsence.id),
             )}
             returnToWorkReturnTo={returnToWorkActionReturnHref(
+              followUpDetailHref(query, detailAbsence.id),
+            )}
+            shiftsReturnTo={missedShiftActionReturnHref(
               followUpDetailHref(query, detailAbsence.id),
             )}
             timeZone={timeZone || undefined}

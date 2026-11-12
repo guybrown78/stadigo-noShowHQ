@@ -186,6 +186,8 @@ export const HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> = {
   RETURN_TO_WORK_CORRECTED: "Return to work corrected",
   UNAUTHORISED_UPDATED: "Unauthorised mark updated",
   PERIOD_CHANGED: "Pay period changed",
+  MISSED_SHIFT_ADDED: "Missed shift added",
+  MISSED_SHIFT_REMOVED: "Missed shift removed",
 };
 
 export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string> =
@@ -204,6 +206,8 @@ export const SICKNESS_HISTORY_ACTION_LABELS: Record<AbsenceHistoryAction, string
     RETURN_TO_WORK_CORRECTED: "Return to work corrected",
     UNAUTHORISED_UPDATED: "Unauthorised mark updated",
     PERIOD_CHANGED: "Pay period changed",
+    MISSED_SHIFT_ADDED: "Missed shift added",
+    MISSED_SHIFT_REMOVED: "Missed shift removed",
   };
 
 export const HISTORY_FIELD_LABELS: Record<string, string> = {
@@ -233,6 +237,7 @@ export const HISTORY_FIELD_LABELS: Record<string, string> = {
   sicknessEndedDate: "Sickness ended",
   episodeState: "Sickness status",
   issueSummary: "Issue summary",
+  missedShift: "Missed shift",
   futureFirstWorkingDayConfirmed: "Advance report confirmed",
   followUpDueDate: "Follow-up due date",
   followUpDetails: "Follow-up details",

@@ -16,6 +16,7 @@ import {
   inclusiveCalendarDaySpan,
   sicknessEpisodeStateLabel,
 } from "@/lib/absence/sickness";
+import { missedShiftCountLabel } from "@/lib/absence/missed-shift";
 import { formatLocalDateDisplay, formatLocalDateIso } from "@/lib/events/dates";
 import { formatStaffName } from "@/lib/staff/display";
 
@@ -75,7 +76,7 @@ function archivedLabel(row: LedgerAbsenceRow): string[] {
 function sharedSections(type: AbsenceType): string[] {
   const sections = ["Follow-ups", "History"];
   if (type === "SICKNESS") {
-    return ["Evidence", "Return to work", ...sections];
+    return ["Missed shifts", "Evidence", "Return to work", ...sections];
   }
   return sections;
 }
@@ -186,6 +187,10 @@ function sicknessPreview(row: LedgerAbsenceRow): LedgerDrawerPreviewField[] {
       ],
     },
   ];
+  fields.push({
+    label: "Missed shifts",
+    lines: [missedShiftCountLabel(row.missedShifts.length)],
+  });
   if (ended && detail.sicknessEndedDate) {
     fields.push({
       label: ABSENCE_DETAIL_LABEL.sicknessEnded,
