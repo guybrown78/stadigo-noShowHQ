@@ -4,6 +4,7 @@ import { AbsenceAccessError } from "@/lib/absence/errors";
 import {
   cancelFollowUp,
   completeFollowUp,
+  countActionableFollowUps,
   createFollowUp,
   listFollowUpQueue,
   updateFollowUp,
@@ -16,10 +17,13 @@ import {
 } from "@/lib/absence/queries";
 import { defaultLedgerListQuery } from "@/lib/absence/schema";
 import {
+  archiveAwol,
   archiveCancellation,
+  archiveSickness,
   createAwol,
   createCancellation,
   createSickness,
+  updateSicknessEpisode,
 } from "@/lib/absence/service";
 import { listAbsencesForLedger } from "@/lib/absence/ledger-query";
 import { prisma } from "@/lib/db";
@@ -209,6 +213,9 @@ afterAll(async () => {
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.absenceFollowUp.deleteMany({
+    where: { tenantId: { in: tenantIds } },
+  });
+  await prisma.sicknessMissedShift.deleteMany({
     where: { tenantId: { in: tenantIds } },
   });
   await prisma.sicknessDetail.deleteMany({
@@ -836,5 +843,468 @@ describe("manual follow-ups", () => {
     expect(
       staffHistory.absences.some((absence) => absence.followUpRecorded),
     ).toBe(true);
+  });
+});
+
+describe("automatic follow-up visibility", () => {
+  async function person(label: string) {
+    const staffIdNumber = `VIS-${label}-${key()}`;
+    const created = await createStaff(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: staffInput(label, staffIdNumber),
+    });
+    if (!created.ok) throw new Error("Failed to create visibility staff");
+    return { id: created.id, staffIdNumber };
+  }
+
+  async function ongoingSickness(
+    staffId: string,
+    eventIds: string[] = [],
+    firstDay = "2026-09-11",
+  ) {
+    const created = await createSickness(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      now,
+      input: {
+        type: "SICKNESS",
+        staffId,
+        reportedDate: firstDay,
+        firstWorkingDaySick: firstDay,
+        sicknessStartedDate: null,
+        issueSummary: null,
+        futureFirstWorkingDayConfirmed: false,
+        episodeState: "ONGOING",
+        sicknessEndedDate: null,
+        missedShiftEventIds: eventIds,
+        idempotencyKey: key(),
+      },
+    });
+    if (!created.ok) throw new Error(created.error);
+    return created.id;
+  }
+
+  function forStaff(staffIdNumber: string, due: FollowUpQueueQuery["due"] = "") {
+    return listFollowUpQueue(
+      prisma,
+      tenantA.tenant.id,
+      queue({ q: staffIdNumber, due }),
+      today,
+    );
+  }
+
+  it("shows an existing ongoing sickness and an active AWOL without writing a follow-up", async () => {
+    const member = await person("shown");
+    const sicknessId = await ongoingSickness(member.id);
+    const eventId = await extraEvent(`shown-${key()}`);
+    const awolCreated = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        type: "AWOL",
+        staffId: member.id,
+        eventId,
+        reportedDate: "2026-09-14",
+        notes: null,
+        sameDayStartUnknownConfirmed: false,
+        idempotencyKey: key(),
+      },
+    });
+    if (!awolCreated.ok) throw new Error(awolCreated.error);
+    const beforeHistory = await prisma.absenceHistory.count({
+      where: { absenceId: { in: [sicknessId, awolCreated.id] } },
+    });
+    const beforeFollowUps = await prisma.absenceFollowUp.count({
+      where: { absenceId: { in: [sicknessId, awolCreated.id] } },
+    });
+
+    const listed = await forStaff(member.staffIdNumber);
+    const again = await forStaff(member.staffIdNumber);
+
+    expect(listed.rows.map((row) => row.absenceId).sort()).toEqual(
+      [sicknessId, awolCreated.id].sort(),
+    );
+    expect(listed.rows.every((row) => row.kind === "visibility")).toBe(true);
+    expect(listed.rows.every((row) => row.dueDate === null)).toBe(true);
+    expect(
+      listed.rows.find((row) => row.absenceId === sicknessId)?.details,
+    ).toBe("Ongoing sickness");
+    expect(
+      listed.rows.find((row) => row.absenceId === sicknessId)?.context.join(" "),
+    ).toContain("First day sick 2026-09-11");
+    expect(
+      listed.rows.find((row) => row.absenceId === awolCreated.id)?.details,
+    ).toBe("Unresolved AWOL");
+    expect(
+      listed.rows.find((row) => row.absenceId === awolCreated.id)?.context.join(" "),
+    ).toContain("Affected date 2026-09-12");
+    expect(again.rows.map((row) => row.id).sort()).toEqual(
+      listed.rows.map((row) => row.id).sort(),
+    );
+    expect(
+      await prisma.absenceHistory.count({
+        where: { absenceId: { in: [sicknessId, awolCreated.id] } },
+      }),
+    ).toBe(beforeHistory);
+    expect(
+      await prisma.absenceFollowUp.count({
+        where: { absenceId: { in: [sicknessId, awolCreated.id] } },
+      }),
+    ).toBe(beforeFollowUps);
+
+    const datedId = await sickness(member.id, "2026-09-10");
+    await createFollowUp(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        absenceId: datedId,
+        dueDate: "2026-09-01",
+        details: "Dated reminder",
+        idempotencyKey: key(),
+      },
+    });
+    const ordered = await forStaff(member.staffIdNumber);
+    const followUpIndex = ordered.rows.findIndex((row) => row.absenceId === datedId);
+    const lastVisibility = ordered.rows.reduce(
+      (last, row, index) => (row.kind === "visibility" ? index : last),
+      -1,
+    );
+    expect(lastVisibility).toBeGreaterThanOrEqual(0);
+    expect(lastVisibility).toBeLessThan(followUpIndex);
+  });
+
+  it("leaves out sickness that is not ongoing, archived AWOL, and cancellations without a follow-up", async () => {
+    const member = await person("quiet");
+    const confirmed = await sickness(member.id, "2026-09-10");
+    const endedId = await ongoingSickness(member.id);
+    const endedRecord = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      endedId,
+    );
+    const ended = await updateSicknessEpisode(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      absenceId: endedId,
+      now,
+      input: {
+        episodeState: "ENDED",
+        sicknessEndedDate: "2026-09-14",
+        correctionReason: null,
+        confirmClearEndDate: false,
+        expectedUpdatedAt: endedRecord.updatedAt.toISOString(),
+        idempotencyKey: key(),
+      },
+    });
+    expect(ended.ok).toBe(true);
+    const archivedSicknessId = await ongoingSickness(member.id, [], "2026-09-08");
+    const archivedSickness = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      archivedSicknessId,
+    );
+    expect(
+      (
+        await archiveSickness(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          absenceId: archivedSicknessId,
+          input: {
+            archiveReason: "Recorded for the wrong week",
+            confirmArchive: true,
+            expectedUpdatedAt: archivedSickness.updatedAt.toISOString(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const eventId = await extraEvent(`quiet-${key()}`);
+    const awolCreated = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        type: "AWOL",
+        staffId: member.id,
+        eventId,
+        reportedDate: "2026-09-14",
+        notes: null,
+        sameDayStartUnknownConfirmed: false,
+        idempotencyKey: key(),
+      },
+    });
+    if (!awolCreated.ok) throw new Error(awolCreated.error);
+    const awolRecord = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      awolCreated.id,
+    );
+    expect(
+      (
+        await archiveAwol(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          absenceId: awolCreated.id,
+          input: {
+            archiveReason: "Attendance was later confirmed",
+            confirmArchive: true,
+            expectedUpdatedAt: awolRecord.updatedAt.toISOString(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const cancelEvent = await extraEvent(`quiet-cancel-${key()}`);
+    const cancelCreated = await createCancellation(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        type: "CANCELLATION",
+        staffId: member.id,
+        eventId: cancelEvent,
+        reportedDate: "2026-09-12",
+        reportedTime: null,
+        reason: "Family emergency",
+        notes: null,
+        retrospectiveConfirmed: false,
+      },
+    });
+    if (!cancelCreated.ok) throw new Error(cancelCreated.error);
+
+    const listed = await forStaff(member.staffIdNumber);
+    expect(listed.rows).toEqual([]);
+    expect(listed.rows.some((row) => row.absenceId === confirmed)).toBe(false);
+  });
+
+  it("keeps one item for a sickness with several booked shifts", async () => {
+    const member = await person("shifts");
+    const first = await extraEvent(`shift-a-${key()}`);
+    const second = await extraEvent(`shift-b-${key()}`);
+    const sicknessId = await ongoingSickness(member.id, [first, second]);
+    const listed = await forStaff(member.staffIdNumber);
+    expect(listed.rows.map((row) => row.absenceId)).toEqual([sicknessId]);
+    expect(
+      await prisma.absenceFollowUp.count({ where: { absenceId: sicknessId } }),
+    ).toBe(0);
+    expect(
+      await prisma.sicknessMissedShift.count({ where: { absenceId: sicknessId } }),
+    ).toBe(2);
+  });
+
+  it("uses an open follow-up as the only row, then shows the absence again when that follow-up closes", async () => {
+    const member = await person("shared");
+    const sicknessId = await ongoingSickness(member.id);
+    const before = await countActionableFollowUps(prisma, tenantA.tenant.id);
+    const first = await createFollowUp(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        absenceId: sicknessId,
+        dueDate: "2026-09-13",
+        details: "Phone the venue",
+        idempotencyKey: key(),
+      },
+    });
+    const second = await createFollowUp(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        absenceId: sicknessId,
+        dueDate: "2026-09-20",
+        details: "Check the certificate",
+        idempotencyKey: key(),
+      },
+    });
+    if (!first.ok || !second.ok) throw new Error("follow-up was not created");
+    const withManual = await forStaff(member.staffIdNumber);
+    expect(withManual.rows).toHaveLength(2);
+    expect(withManual.rows.every((row) => row.kind === "follow-up")).toBe(true);
+    expect(withManual.rows.every((row) => row.visibility === "ongoing-sickness")).toBe(
+      true,
+    );
+    expect(await countActionableFollowUps(prisma, tenantA.tenant.id)).toBe(
+      before + 1,
+    );
+    const filtered = await forStaff(member.staffIdNumber, "overdue");
+    expect(filtered.rows.every((row) => row.kind === "follow-up")).toBe(true);
+
+    if (!first.ok) return;
+    const open = await prisma.absenceFollowUp.findFirstOrThrow({
+      where: { id: first.id },
+    });
+    expect(
+      (
+        await completeFollowUp(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          now,
+          input: {
+            followUpId: open.id,
+            completionNotes: "Spoke to the venue",
+            expectedUpdatedAt: open.updatedAt.toISOString(),
+            idempotencyKey: key(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect((await forStaff(member.staffIdNumber)).rows).toHaveLength(1);
+
+    const system = await prisma.absenceFollowUp.create({
+      data: {
+        tenantId: tenantA.tenant.id,
+        absenceId: sicknessId,
+        dueDate: today,
+        details: "Request the fit note",
+        provenance: "SYSTEM",
+        purpose: "REQUEST_FIT_NOTE",
+        systemActor: true,
+        state: "OPEN",
+      },
+    });
+    const withSystem = await forStaff(member.staffIdNumber);
+    expect(withSystem.rows.map((row) => row.kind).sort()).toEqual([
+      "follow-up",
+      "follow-up",
+    ]);
+    expect(withSystem.rows.some((row) => row.details === "Request the fit note")).toBe(
+      true,
+    );
+    const systemRow = await prisma.absenceFollowUp.findFirstOrThrow({
+      where: { id: system.id },
+    });
+    expect(
+      (
+        await completeFollowUp(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          now,
+          input: {
+            followUpId: systemRow.id,
+            completionNotes: "Fit note was requested separately",
+            expectedUpdatedAt: systemRow.updatedAt.toISOString(),
+            idempotencyKey: key(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const remaining = await prisma.absenceFollowUp.findFirstOrThrow({
+      where: { id: second.ok ? second.id : "" },
+    });
+    expect(
+      (
+        await cancelFollowUp(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          now,
+          input: {
+            followUpId: remaining.id,
+            cancellationReason: "No longer required",
+            expectedUpdatedAt: remaining.updatedAt.toISOString(),
+            idempotencyKey: key(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const restored = await forStaff(member.staffIdNumber);
+    expect(restored.rows).toHaveLength(1);
+    expect(restored.rows[0]?.kind).toBe("visibility");
+    expect(restored.rows[0]?.details).toBe("Ongoing sickness");
+  });
+
+  it("drops the item when the sickness ends or the AWOL is archived, and restores a sickness set back to ongoing", async () => {
+    const member = await person("cycle");
+    const sicknessId = await ongoingSickness(member.id);
+    const eventId = await extraEvent(`cycle-${key()}`);
+    const awolCreated = await createAwol(prisma, {
+      tenantId: tenantA.tenant.id,
+      userId: tenantA.user.id,
+      input: {
+        type: "AWOL",
+        staffId: member.id,
+        eventId,
+        reportedDate: "2026-09-14",
+        notes: null,
+        sameDayStartUnknownConfirmed: false,
+        idempotencyKey: key(),
+      },
+    });
+    if (!awolCreated.ok) throw new Error(awolCreated.error);
+    expect((await forStaff(member.staffIdNumber)).total).toBe(2);
+
+    const current = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      sicknessId,
+    );
+    expect(
+      (
+        await updateSicknessEpisode(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          absenceId: sicknessId,
+          now,
+          input: {
+            episodeState: "ENDED",
+            sicknessEndedDate: "2026-09-14",
+            correctionReason: null,
+            confirmClearEndDate: false,
+            expectedUpdatedAt: current.updatedAt.toISOString(),
+            idempotencyKey: key(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (await forStaff(member.staffIdNumber)).rows.map((row) => row.absenceId),
+    ).toEqual([awolCreated.id]);
+
+    const ended = await getAbsenceForTenant(prisma, tenantA.tenant.id, sicknessId);
+    expect(
+      (
+        await updateSicknessEpisode(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          absenceId: sicknessId,
+          now,
+          input: {
+            episodeState: "ONGOING",
+            sicknessEndedDate: null,
+            correctionReason: "End date was incorrect",
+            confirmClearEndDate: true,
+            expectedUpdatedAt: ended.updatedAt.toISOString(),
+            idempotencyKey: key(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    expect((await forStaff(member.staffIdNumber)).total).toBe(2);
+    expect(
+      await prisma.absenceHistory.count({
+        where: { absenceId: sicknessId, action: "FOLLOW_UP_CREATED" },
+      }),
+    ).toBe(0);
+
+    const awolRecord = await getAbsenceForTenant(
+      prisma,
+      tenantA.tenant.id,
+      awolCreated.id,
+    );
+    expect(
+      (
+        await archiveAwol(prisma, {
+          tenantId: tenantA.tenant.id,
+          userId: tenantA.user.id,
+          absenceId: awolCreated.id,
+          input: {
+            archiveReason: "Attendance was later confirmed",
+            confirmArchive: true,
+            expectedUpdatedAt: awolRecord.updatedAt.toISOString(),
+          },
+        })
+      ).ok,
+    ).toBe(true);
+    const afterArchive = await forStaff(member.staffIdNumber);
+    expect(afterArchive.rows.map((row) => row.absenceId)).toEqual([sicknessId]);
+    expect(
+      await getAbsenceForTenant(prisma, tenantA.tenant.id, awolCreated.id),
+    ).toMatchObject({ recordStatus: "ARCHIVED" });
   });
 });

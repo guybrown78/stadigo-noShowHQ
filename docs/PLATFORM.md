@@ -53,7 +53,7 @@ Three absence types share one record and one ledger:
 | --- | --- | --- |
 | Cancellation | One staff member and one event | Reason, reported date, optional reported time. The system stores event and venue snapshots and calculates notice. |
 | AWOL | One staff member and one event | Date recorded, event snapshots, and a same-day confirmation when the event has no briefing or start time. No reason, no notice. |
-| Sickness | One staff member only. An event is forbidden. | Date reported, first working day affected, optional start, optional end, and a short operational issue summary. Not a diagnosis. |
+| Sickness | One staff member. The absence itself has no event. | Date reported, first working day affected, optional start, optional end, and a short operational issue summary. The administrator can also name the booked shifts that sickness covers. The ledger shows the count, including zero. The individual shifts stay on the record. Not a diagnosis. |
 
 Logging an absence does not change employment status, event status, or staffing figures, and does not send email or SMS.
 
@@ -66,6 +66,8 @@ Pay periods are names for date ranges that absences are filed under. They do not
 ### Follow up inside the app
 
 Manual follow-ups can be added, edited, completed, and cancelled on an active cancellation, AWOL, or sickness record. The queue is `/follow-ups`. Completed and cancelled rows stay as history. Archiving the parent hides open follow-ups from the queue and does not delete them.
+
+Ongoing sickness and active AWOL also appear in that queue without a follow-up row and without a due date. Opening one does not remove it. It leaves when the sickness ends or the AWOL is archived. If that absence already has an open follow-up, the follow-up is the only row and is labelled Ongoing sickness or Unresolved AWOL. Completing or cancelling the last one brings the absence back while it still qualifies. Due-date filters, and the dashboard overdue, due today, and upcoming counts, stay counts of dated follow-ups. The navigation badge also counts a qualifying absence that has no open follow-up.
 
 Sickness also has two system follow-ups, created by a daily job and by evidence saves:
 
@@ -89,7 +91,7 @@ Bulk import creates new staff only. It does not update existing people, create l
 
 Events belong to one tenant: name, optional reference, date, optional briefing and start and end times, overnight flag, staff required, fill-rate thresholds, status, type, subtype, and venue. Statuses are Planned, Confirmed, Cancelled, Postponed, and Completed.
 
-The event page counts active cancellations and AWOL logged against it and shows an estimated fill rate from `staff required` minus those absences. Sickness is not included. There is no rota, and dropping under a threshold does not send an alert.
+The event page counts active cancellations and AWOL logged against it and shows an estimated fill rate from `staff required` minus those absences. Sickness is not included, including shifts named on a sickness record. There is no rota, and dropping under a threshold does not send an alert.
 
 Events can be archived and restored. Archived events stay readable and editable and are hidden from the working lists and from absence event search. Soft-deleted events disappear from normal lists.
 
@@ -118,7 +120,7 @@ These are product boundaries, not missing polish. Do not add them as a side effe
 
 - No payroll, wages, charges, or payment status. Pay periods only name the dates an absence is filed under.
 - No medical record. Issue summary is an operational note. It is not shown in search, staff history lists, or the ledger row. Fit notes do not store documents or clinical judgments.
-- No rota, shift pattern, or check-in feed. Fill rate is an estimate from logged cancellations and AWOL.
+- No rota, shift pattern, or check-in feed. Fill rate is an estimate from logged cancellations and AWOL. Shifts named on a sickness record are not a rota and are not part of that estimate.
 - No email, SMS, push, or notification centre. Probation and fit-note chasing happen in the app.
 - No staff, manager, or worker login.
 - No self-serve password reset by email.
@@ -138,6 +140,7 @@ Platform owner (SUPER_ADMIN)
         ├── Staff and probation cycles
         └── Absences → cancellation | AWOL | sickness
               ├── snapshots of the event or staff as recorded
+              ├── booked shifts a sickness covers
               ├── evidence and return to work (sickness only)
               └── follow-ups
 ```
@@ -154,8 +157,8 @@ Dates that mean a calendar day are stored as UTC midnight. Do not persist a brow
 2. **Staff are not users.** Do not create a login, send a message, or require an email address in order to record a person.
 3. **Absences do not mutate neighbours.** Saving or archiving an absence must not change employment status, event status, or the other absence workflows (evidence, return to work, and manual follow-ups stay independent).
 4. **Snapshots stay.** Cancellation and AWOL keep the event and venue text the administrator saw. Sickness keeps the staff name and staff ID as recorded. Live links are for navigation. Later edits to the event or the person must not rewrite history.
-5. **Sickness has no event.** A sickness payload that includes an event id is rejected. Search and filters must not pretend it has one.
-6. **Duplicate slots.** At most one active cancellation or AWOL per staff member per event. At most one active sickness per staff member per first working day. Archive frees the slot. Idempotency keys make a double-submit return the original row for 24 hours. The same key with a different payload creates nothing.
+5. **Sickness has no event.** The parent sickness record cannot store an event id; a payload that includes one is rejected. Booked shifts the sickness covers are separate rows. They do not attach the sickness to an event, change fill rate, or turn the days in between into shifts. Search and filters must not pretend the sickness itself has an event.
+6. **Duplicate slots.** At most one active cancellation or AWOL per staff member per event. At most one active sickness per staff member per first working day. A booked shift on a sickness cannot occupy a staff member and event that already has an active cancellation, AWOL, or missed shift, and the reverse is refused too. Archive frees the slot. Idempotency keys make a double-submit return the original row for 24 hours. The same key with a different payload creates nothing.
 7. **Audit is append-only.** Absence history, probation history, and settings audit have no edit or delete screen. Sensitive text (issue summary, fit-note note, return-to-work note) appears on the authorised detail and its history, and is redacted everywhere else.
 8. **Policy changes are forward.** A new probation length or fit-note day applies to later cycles and episodes. Existing rows change only through an explicit, confirmed backfill where one exists.
 9. **Forms share one schema.** Data-entry forms validate with the same Zod schema on the client and the server, with the shared field-error UI. Do not use the browser’s native validation bubble. Filter forms that only change the query string are exempt.
@@ -199,11 +202,15 @@ Recorded deferrals, as of the last sync:
 - Sickness contact attempts, a first day back, or automatic closure of an episode.
 - A reports area beyond the dashboard that already ships.
 
+Recorded ideas, with no decision to build:
+
+- An AWOL dealt-with state, so an AWOL can leave Follow-ups and stay on the ledger. Archive stays for a record logged by mistake.
+
 ## Document status
 
 | | |
 | --- | --- |
 | Last synced | 12 November 2026 |
-| Branch | `main` |
-| Commit | `aa7c5bc` |
-| Describes | The product on that commit. Uncommitted work is not included until the next `/sync-docs`. |
+| Branch | `feat/automatic-ongoing-follow-ups` |
+| Commit | `e6b90ae` |
+| Describes | This branch, including follow-up visibility on top of `e6b90ae`. |

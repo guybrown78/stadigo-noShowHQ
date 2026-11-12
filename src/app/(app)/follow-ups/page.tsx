@@ -18,7 +18,11 @@ import { requireTenant } from "@/lib/authz";
 import { prisma } from "@/lib/db";
 import { ABSENCE_TYPE_LABELS } from "@/lib/absence/display";
 import { AbsenceAccessError } from "@/lib/absence/errors";
-import { FOLLOW_UP_DUE_LABELS } from "@/lib/absence/follow-up";
+import {
+  FOLLOW_UP_DUE_LABELS,
+  FOLLOW_UP_VISIBILITY_DUE_LABELS,
+  FOLLOW_UP_VISIBILITY_LABELS,
+} from "@/lib/absence/follow-up";
 import { FOLLOW_UP_QUEUE_PAGE_SIZE } from "@/lib/absence/catalog";
 import {
   followUpQueueHasFilters,
@@ -103,7 +107,7 @@ export default async function FollowUpsPage({
     <div>
       <PageHeader
         title="Follow-ups"
-        description="Open operational actions for this organisation, ordered by overdue, due today, then upcoming."
+        description="Ongoing sickness and unresolved AWOL stay here until the sickness ends or the AWOL is archived. Dated follow-ups are ordered by overdue, due today, then upcoming."
       />
       {first(raw.followUp) === "1" ? (
         <Banner tone="success" className="mt-4">
@@ -137,7 +141,7 @@ export default async function FollowUpsPage({
             description={
               hasFilters
                 ? "Try a different search, or clear the filters."
-                : "Follow-ups you add on an active absence will appear here."
+                : "Ongoing sickness, unresolved AWOL, and follow-ups added on an active absence appear here."
             }
             action={
               hasFilters ? (
@@ -152,9 +156,7 @@ export default async function FollowUpsPage({
           <>
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
               <p className="text-sm text-muted">
-                {list.total === 1
-                  ? "1 open follow-up"
-                  : `${list.total} open follow-ups`}
+                {list.total === 1 ? "1 to review" : `${list.total} to review`}
               </p>
               <FollowUpActiveFilters query={query} />
             </div>
@@ -186,12 +188,20 @@ export default async function FollowUpsPage({
                     className="align-top"
                   >
                     <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">
-                        {FOLLOW_UP_DUE_LABELS[row.dueState]}
-                      </p>
-                      <p className="text-muted">
-                        {formatLocalDateDisplay(row.dueDate)}
-                      </p>
+                      {row.kind === "visibility" && row.visibility ? (
+                        <p className="font-medium text-foreground">
+                          {FOLLOW_UP_VISIBILITY_DUE_LABELS[row.visibility]}
+                        </p>
+                      ) : row.dueState && row.dueDate ? (
+                        <>
+                          <p className="font-medium text-foreground">
+                            {FOLLOW_UP_DUE_LABELS[row.dueState]}
+                          </p>
+                          <p className="text-muted">
+                            {formatLocalDateDisplay(row.dueDate)}
+                          </p>
+                        </>
+                      ) : null}
                     </td>
                     <td className="max-w-[12rem] px-4 py-3">
                       <p className="break-words font-medium text-foreground">
@@ -208,9 +218,16 @@ export default async function FollowUpsPage({
                       </ul>
                     </td>
                     <td className="max-w-[20rem] px-4 py-3">
-                      <p className="whitespace-pre-wrap break-words text-foreground">
-                        {row.details}
-                      </p>
+                      {row.kind === "follow-up" && row.visibility ? (
+                        <p className="text-foreground">
+                          {FOLLOW_UP_VISIBILITY_LABELS[row.visibility]}
+                        </p>
+                      ) : null}
+                      {row.details ? (
+                        <p className="whitespace-pre-wrap break-words text-foreground">
+                          {row.details}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3" data-follow-up-separate>
                       <div className="flex flex-col items-start gap-2">
@@ -221,16 +238,18 @@ export default async function FollowUpsPage({
                         >
                           Open absence
                         </Link>
-                        <CompleteFollowUpDialog
-                          followUpId={row.id}
-                          details={row.details}
-                          expectedUpdatedAt={row.updatedAt.toISOString()}
-                          staffName={formatStaffName(row.staff)}
-                          staffIdNumber={row.staff.staffIdNumber}
-                          typeLabel={ABSENCE_TYPE_LABELS[row.absenceType]}
-                          context={row.context}
-                          returnTo={rowReturnTo}
-                        />
+                        {row.kind === "follow-up" ? (
+                          <CompleteFollowUpDialog
+                            followUpId={row.id}
+                            details={row.details}
+                            expectedUpdatedAt={row.updatedAt.toISOString()}
+                            staffName={formatStaffName(row.staff)}
+                            staffIdNumber={row.staff.staffIdNumber}
+                            typeLabel={ABSENCE_TYPE_LABELS[row.absenceType]}
+                            context={row.context}
+                            returnTo={rowReturnTo}
+                          />
+                        ) : null}
                       </div>
                     </td>
                   </FollowUpClickRow>
@@ -245,12 +264,20 @@ export default async function FollowUpsPage({
                   <Card className="p-4 shadow-none">
                     <div className="flex flex-wrap items-center gap-2">
                       <AbsenceTypeBadge type={row.absenceType} />
-                      <span className="text-sm font-medium text-foreground">
-                        {FOLLOW_UP_DUE_LABELS[row.dueState]}
-                      </span>
-                      <span className="text-sm text-muted">
-                        {formatLocalDateDisplay(row.dueDate)}
-                      </span>
+                      {row.kind === "visibility" && row.visibility ? (
+                        <span className="text-sm font-medium text-foreground">
+                          {FOLLOW_UP_VISIBILITY_DUE_LABELS[row.visibility]}
+                        </span>
+                      ) : row.dueState && row.dueDate ? (
+                        <>
+                          <span className="text-sm font-medium text-foreground">
+                            {FOLLOW_UP_DUE_LABELS[row.dueState]}
+                          </span>
+                          <span className="text-sm text-muted">
+                            {formatLocalDateDisplay(row.dueDate)}
+                          </span>
+                        </>
+                      ) : null}
                     </div>
                     <p className="mt-3 break-words font-medium text-foreground">
                       {formatStaffName(row.staff)}
@@ -263,9 +290,16 @@ export default async function FollowUpsPage({
                         <li key={line}>{line}</li>
                       ))}
                     </ul>
-                    <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
-                      {row.details}
-                    </p>
+                    {row.kind === "follow-up" && row.visibility ? (
+                      <p className="mt-2 text-sm text-foreground">
+                        {FOLLOW_UP_VISIBILITY_LABELS[row.visibility]}
+                      </p>
+                    ) : null}
+                    {row.details ? (
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
+                        {row.details}
+                      </p>
+                    ) : null}
                     <div className="mt-3 flex flex-wrap gap-2" data-follow-up-separate>
                       <Link
                         href={followUpDetailHref(query, row.absenceId)}
@@ -274,16 +308,18 @@ export default async function FollowUpsPage({
                       >
                         Open absence
                       </Link>
-                      <CompleteFollowUpDialog
-                        followUpId={row.id}
-                        details={row.details}
-                        expectedUpdatedAt={row.updatedAt.toISOString()}
-                        staffName={formatStaffName(row.staff)}
-                        staffIdNumber={row.staff.staffIdNumber}
-                        typeLabel={ABSENCE_TYPE_LABELS[row.absenceType]}
-                        context={row.context}
-                        returnTo={rowReturnTo}
-                      />
+                      {row.kind === "follow-up" ? (
+                        <CompleteFollowUpDialog
+                          followUpId={row.id}
+                          details={row.details}
+                          expectedUpdatedAt={row.updatedAt.toISOString()}
+                          staffName={formatStaffName(row.staff)}
+                          staffIdNumber={row.staff.staffIdNumber}
+                          typeLabel={ABSENCE_TYPE_LABELS[row.absenceType]}
+                          context={row.context}
+                          returnTo={rowReturnTo}
+                        />
+                      ) : null}
                     </div>
                   </Card>
                   </FollowUpClickCard>
@@ -298,7 +334,7 @@ export default async function FollowUpsPage({
               total={list.total}
               from={(list.page - 1) * FOLLOW_UP_QUEUE_PAGE_SIZE + 1}
               to={Math.min(list.page * FOLLOW_UP_QUEUE_PAGE_SIZE, list.total)}
-              itemLabel="follow-ups"
+              itemLabel="items"
               hrefForPage={(nextPage) =>
                 followUpQueueHref(query, { page: nextPage })
               }

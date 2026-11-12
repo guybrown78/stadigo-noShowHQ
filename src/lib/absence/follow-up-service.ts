@@ -18,6 +18,8 @@ import {
   dateOnlyIso,
   followUpContextLines,
   followUpDueState,
+  followUpVisibilityFor,
+  FOLLOW_UP_VISIBILITY_LABELS,
   followUpEditIsNoChange,
   followUpMutationsAllowed,
   followUpUpdateChanges,
@@ -29,6 +31,7 @@ import {
   FOLLOW_UP_UNSUPPORTED_MESSAGE,
   isSupportedFollowUpAbsenceType,
   type FollowUpDueState,
+  type FollowUpVisibility,
 } from "@/lib/absence/follow-up";
 import type {
   CancelFollowUpInput,
@@ -857,7 +860,21 @@ export async function countActionableFollowUps(
   db: PrismaClient,
   tenantId: string,
 ): Promise<number> {
-  return db.absenceFollowUp.count({ where: openActiveWhere(tenantId) });
+  const [tasks, visible] = await Promise.all([
+    db.absenceFollowUp.count({ where: openActiveWhere(tenantId) }),
+    db.absence.count({
+      where: {
+        tenantId,
+        recordStatus: "ACTIVE",
+        followUps: { none: { state: "OPEN" } },
+        OR: [
+          { type: "AWOL" },
+          { type: "SICKNESS", sickness: { episodeState: "ONGOING" } },
+        ],
+      },
+    }),
+  ]);
+  return tasks + visible;
 }
 
 export async function countFollowUpsByDueState(
@@ -882,8 +899,10 @@ export async function countFollowUpsByDueState(
 export type FollowUpQueueRow = {
   id: string;
   absenceId: string;
-  dueDate: Date;
-  dueState: FollowUpDueState;
+  kind: "follow-up" | "visibility";
+  visibility: FollowUpVisibility | null;
+  dueDate: Date | null;
+  dueState: FollowUpDueState | null;
   details: string;
   createdAt: Date;
   updatedAt: Date;
@@ -899,6 +918,85 @@ export type FollowUpQueueRow = {
   context: string[];
 };
 
+const queueAbsenceSelect = {
+  id: true,
+  type: true,
+  reportedDate: true,
+  updatedAt: true,
+  staff: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      staffIdNumber: true,
+      deletedAt: true,
+    },
+  },
+  cancellation: {
+    select: {
+      eventNameSnapshot: true,
+      eventDateSnapshot: true,
+      venueNameSnapshot: true,
+    },
+  },
+  awol: {
+    select: {
+      eventNameSnapshot: true,
+      eventDateSnapshot: true,
+      venueNameSnapshot: true,
+    },
+  },
+  sickness: {
+    select: {
+      firstWorkingDaySick: true,
+      episodeState: true,
+      staffFirstNameSnapshot: true,
+      staffLastNameSnapshot: true,
+      staffIdNumberSnapshot: true,
+    },
+  },
+} satisfies Prisma.AbsenceSelect;
+
+type QueueAbsence = Prisma.AbsenceGetPayload<{ select: typeof queueAbsenceSelect }>;
+
+function queueStaff(absence: QueueAbsence) {
+  if (absence.type === "SICKNESS" && absence.sickness) {
+    return {
+      id: absence.staff.id,
+      firstName: absence.sickness.staffFirstNameSnapshot,
+      lastName: absence.sickness.staffLastNameSnapshot,
+      staffIdNumber: absence.sickness.staffIdNumberSnapshot,
+      deletedAt: absence.staff.deletedAt,
+    };
+  }
+  return absence.staff;
+}
+
+function queueContext(absence: QueueAbsence) {
+  return followUpContextLines(
+    {
+      type: absence.type,
+      reportedDate: absence.reportedDate,
+      cancellation: absence.cancellation,
+      awol: absence.awol,
+      sickness: absence.sickness
+        ? {
+            firstWorkingDaySick: absence.sickness.firstWorkingDaySick,
+            episodeState: absence.sickness.episodeState,
+          }
+        : null,
+    },
+    sicknessEpisodeStateLabel,
+  );
+}
+
+function visibilityOf(absence: QueueAbsence): FollowUpVisibility | null {
+  return followUpVisibilityFor({
+    type: absence.type,
+    episodeState: absence.sickness?.episodeState ?? null,
+  });
+}
+
 export async function listFollowUpQueue(
   db: PrismaClient,
   tenantId: string,
@@ -911,7 +1009,8 @@ export async function listFollowUpQueue(
   pageCount: number;
 }> {
   const todayIso = dateOnlyIso(today);
-  const whereSql = Prisma.sql`
+  const includeVisibility = query.due === "";
+  const taskWhere = Prisma.sql`
     f."tenantId" = ${tenantId}
     AND f."state" = 'OPEN'
     AND a."recordStatus" = 'ACTIVE'
@@ -932,110 +1031,176 @@ export async function listFollowUpQueue(
     }
     ${staffSearchSql(query.q)}
   `;
-  const countRows = await db.$queryRaw<{ count: number }[]>`
+  const visibilityWhere = Prisma.sql`
+    a."tenantId" = ${tenantId}
+    AND a."recordStatus" = 'ACTIVE'
+    AND (
+      a.type::text = 'AWOL'
+      OR (a.type::text = 'SICKNESS' AND s."episodeState" = 'ONGOING')
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM "AbsenceFollowUp" open_follow_up
+      WHERE open_follow_up."absenceId" = a.id
+        AND open_follow_up."tenantId" = a."tenantId"
+        AND open_follow_up.state = 'OPEN'
+    )
+    ${
+      query.type
+        ? Prisma.sql`AND a.type::text = ${query.type}`
+        : Prisma.empty
+    }
+    ${staffSearchSql(query.q)}
+  `;
+  const taskCountRows = await db.$queryRaw<{ count: number }[]>`
     SELECT COUNT(*)::int AS count
     FROM "AbsenceFollowUp" f
     INNER JOIN "Absence" a ON a.id = f."absenceId" AND a."tenantId" = f."tenantId"
     INNER JOIN "Staff" st ON st.id = a."staffId" AND st."tenantId" = a."tenantId"
     LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id AND s."tenantId" = a."tenantId"
-    WHERE ${whereSql}
+    WHERE ${taskWhere}
   `;
-  const total = Number(countRows[0]?.count ?? 0);
+  const visibilityCountRows = includeVisibility
+    ? await db.$queryRaw<{ count: number }[]>`
+        SELECT COUNT(*)::int AS count
+        FROM "Absence" a
+        INNER JOIN "Staff" st ON st.id = a."staffId" AND st."tenantId" = a."tenantId"
+        LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id AND s."tenantId" = a."tenantId"
+        WHERE ${visibilityWhere}
+      `
+    : [{ count: 0 }];
+  const total =
+    Number(taskCountRows[0]?.count ?? 0) +
+    Number(visibilityCountRows[0]?.count ?? 0);
   const pageCount = Math.max(1, Math.ceil(total / FOLLOW_UP_QUEUE_PAGE_SIZE));
   if (total === 0 || query.page > pageCount) {
     return { rows: [], total, page: query.page, pageCount };
   }
   const skip = (query.page - 1) * FOLLOW_UP_QUEUE_PAGE_SIZE;
-  const ordered = await db.$queryRaw<{ id: string }[]>`
-    SELECT f.id
+  const visibilitySelect = includeVisibility
+    ? Prisma.sql`
+        SELECT
+          a.id,
+          'visibility' AS kind,
+          0 AS rank,
+          NULL::date AS "dueDate",
+          NULL::timestamp AS "createdAt"
+        FROM "Absence" a
+        INNER JOIN "Staff" st ON st.id = a."staffId" AND st."tenantId" = a."tenantId"
+        LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id AND s."tenantId" = a."tenantId"
+        WHERE ${visibilityWhere}
+      `
+    : Prisma.empty;
+  const taskSelect = Prisma.sql`
+    SELECT
+      f.id,
+      'follow-up' AS kind,
+      CASE
+        WHEN f."dueDate" < CAST(${todayIso} AS date) THEN 1
+        WHEN f."dueDate" = CAST(${todayIso} AS date) THEN 2
+        ELSE 3
+      END AS rank,
+      f."dueDate",
+      f."createdAt"
     FROM "AbsenceFollowUp" f
     INNER JOIN "Absence" a ON a.id = f."absenceId" AND a."tenantId" = f."tenantId"
     INNER JOIN "Staff" st ON st.id = a."staffId" AND st."tenantId" = a."tenantId"
     LEFT JOIN "SicknessDetail" s ON s."absenceId" = a.id AND s."tenantId" = a."tenantId"
-    WHERE ${whereSql}
-    ORDER BY
-      CASE
-        WHEN f."dueDate" < CAST(${todayIso} AS date) THEN 0
-        WHEN f."dueDate" = CAST(${todayIso} AS date) THEN 1
-        ELSE 2
-      END ASC,
-      CASE WHEN f."dueDate" < CAST(${todayIso} AS date) THEN f."dueDate" END ASC,
-      CASE WHEN f."dueDate" = CAST(${todayIso} AS date) THEN f."createdAt" END ASC,
-      CASE WHEN f."dueDate" > CAST(${todayIso} AS date) THEN f."dueDate" END ASC,
-      f.id ASC
-    LIMIT ${FOLLOW_UP_QUEUE_PAGE_SIZE}
-    OFFSET ${skip}
+    WHERE ${taskWhere}
   `;
+  const ordered = includeVisibility
+    ? await db.$queryRaw<{ id: string; kind: string }[]>`
+        SELECT combined.id, combined.kind
+        FROM (
+          ${visibilitySelect}
+          UNION ALL
+          ${taskSelect}
+        ) combined
+        ORDER BY
+          combined.rank ASC,
+          CASE WHEN combined.rank = 1 THEN combined."dueDate" END ASC,
+          CASE WHEN combined.rank = 2 THEN combined."createdAt" END ASC,
+          CASE WHEN combined.rank = 3 THEN combined."dueDate" END ASC,
+          combined.id ASC
+        LIMIT ${FOLLOW_UP_QUEUE_PAGE_SIZE}
+        OFFSET ${skip}
+      `
+    : await db.$queryRaw<{ id: string; kind: string }[]>`
+        SELECT combined.id, combined.kind
+        FROM (${taskSelect}) combined
+        ORDER BY
+          combined.rank ASC,
+          CASE WHEN combined.rank = 1 THEN combined."dueDate" END ASC,
+          CASE WHEN combined.rank = 2 THEN combined."createdAt" END ASC,
+          CASE WHEN combined.rank = 3 THEN combined."dueDate" END ASC,
+          combined.id ASC
+        LIMIT ${FOLLOW_UP_QUEUE_PAGE_SIZE}
+        OFFSET ${skip}
+      `;
   if (ordered.length === 0) {
     return { rows: [], total, page: query.page, pageCount };
   }
-  const loaded = await db.absenceFollowUp.findMany({
-    where: { tenantId, id: { in: ordered.map((row) => row.id) } },
-    select: {
-      id: true,
-      absenceId: true,
-      dueDate: true,
-      details: true,
-      createdAt: true,
-      updatedAt: true,
-      createdBy: { select: { firstName: true, lastName: true } },
-      absence: {
-        select: {
-          id: true,
-          type: true,
-          reportedDate: true,
-          staff: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              staffIdNumber: true,
-              deletedAt: true,
-            },
+  const followUpIds = ordered
+    .filter((row) => row.kind === "follow-up")
+    .map((row) => row.id);
+  const visibilityIds = ordered
+    .filter((row) => row.kind === "visibility")
+    .map((row) => row.id);
+  const [loadedFollowUps, loadedAbsences] = await Promise.all([
+    followUpIds.length
+      ? db.absenceFollowUp.findMany({
+          where: { tenantId, id: { in: followUpIds } },
+          select: {
+            id: true,
+            absenceId: true,
+            dueDate: true,
+            details: true,
+            createdAt: true,
+            updatedAt: true,
+            createdBy: { select: { firstName: true, lastName: true } },
+            absence: { select: queueAbsenceSelect },
           },
-          cancellation: {
-            select: {
-              eventNameSnapshot: true,
-              eventDateSnapshot: true,
-              venueNameSnapshot: true,
-            },
-          },
-          awol: {
-            select: {
-              eventNameSnapshot: true,
-              eventDateSnapshot: true,
-              venueNameSnapshot: true,
-            },
-          },
-          sickness: {
-            select: {
-              firstWorkingDaySick: true,
-              episodeState: true,
-              staffFirstNameSnapshot: true,
-              staffLastNameSnapshot: true,
-              staffIdNumberSnapshot: true,
-            },
-          },
-        },
-      },
-    },
-  });
-  const order = new Map(ordered.map((row, index) => [row.id, index]));
-  loaded.sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
-  const rows: FollowUpQueueRow[] = loaded.map((row) => {
-    const sicknessStaff =
-      row.absence.type === "SICKNESS" && row.absence.sickness
-        ? {
-            id: row.absence.staff.id,
-            firstName: row.absence.sickness.staffFirstNameSnapshot,
-            lastName: row.absence.sickness.staffLastNameSnapshot,
-            staffIdNumber: row.absence.sickness.staffIdNumberSnapshot,
-            deletedAt: row.absence.staff.deletedAt,
-          }
-        : row.absence.staff;
-    return {
+        })
+      : [],
+    visibilityIds.length
+      ? db.absence.findMany({
+          where: { tenantId, id: { in: visibilityIds } },
+          select: queueAbsenceSelect,
+        })
+      : [],
+  ]);
+  const followUpsById = new Map(loadedFollowUps.map((row) => [row.id, row]));
+  const absencesById = new Map(loadedAbsences.map((row) => [row.id, row]));
+  const rows: FollowUpQueueRow[] = [];
+  for (const item of ordered) {
+    if (item.kind === "visibility") {
+      const absence = absencesById.get(item.id);
+      if (!absence) continue;
+      const visibility = visibilityOf(absence);
+      rows.push({
+        id: `visibility:${absence.id}`,
+        absenceId: absence.id,
+        kind: "visibility",
+        visibility,
+        dueDate: null,
+        dueState: null,
+        details: visibility ? FOLLOW_UP_VISIBILITY_LABELS[visibility] : "",
+        createdAt: absence.updatedAt,
+        updatedAt: absence.updatedAt,
+        createdByName: "",
+        staff: queueStaff(absence),
+        absenceType: absence.type,
+        context: queueContext(absence),
+      });
+      continue;
+    }
+    const row = followUpsById.get(item.id);
+    if (!row) continue;
+    rows.push({
       id: row.id,
       absenceId: row.absenceId,
+      kind: "follow-up",
+      visibility: visibilityOf(row.absence),
       dueDate: row.dueDate,
       dueState:
         followUpDueState(dateOnlyIso(row.dueDate), todayIso, "OPEN") ??
@@ -1046,25 +1211,11 @@ export async function listFollowUpQueue(
       createdByName: row.createdBy
         ? formatStaffName(row.createdBy)
         : "NoShowHQ",
-      staff: sicknessStaff,
+      staff: queueStaff(row.absence),
       absenceType: row.absence.type,
-      context: followUpContextLines(
-        {
-          type: row.absence.type,
-          reportedDate: row.absence.reportedDate,
-          cancellation: row.absence.cancellation,
-          awol: row.absence.awol,
-          sickness: row.absence.sickness
-            ? {
-                firstWorkingDaySick: row.absence.sickness.firstWorkingDaySick,
-                episodeState: row.absence.sickness.episodeState,
-              }
-            : null,
-        },
-        sicknessEpisodeStateLabel,
-      ),
-    };
-  });
+      context: queueContext(row.absence),
+    });
+  }
   return { rows, total, page: query.page, pageCount };
 }
 

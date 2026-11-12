@@ -13,6 +13,31 @@ export const FOLLOW_UP_DUE_LABELS: Record<FollowUpDueState, string> = {
   upcoming: "Upcoming",
 };
 
+export type FollowUpVisibility = "ongoing-sickness" | "unresolved-awol";
+
+export const FOLLOW_UP_VISIBILITY_LABELS: Record<FollowUpVisibility, string> = {
+  "ongoing-sickness": "Ongoing sickness",
+  "unresolved-awol": "Unresolved AWOL",
+};
+
+export const FOLLOW_UP_VISIBILITY_DUE_LABELS: Record<FollowUpVisibility, string> = {
+  "ongoing-sickness": "Ongoing",
+  "unresolved-awol": "Unresolved",
+};
+
+export function followUpVisibilityFor(absence: {
+  type: AbsenceType;
+  episodeState?: "NOT_CONFIRMED" | "ONGOING" | "ENDED" | null;
+}): FollowUpVisibility | null {
+  if (absence.type === "AWOL") {
+    return "unresolved-awol";
+  }
+  if (absence.type === "SICKNESS" && absence.episodeState === "ONGOING") {
+    return "ongoing-sickness";
+  }
+  return null;
+}
+
 export const FOLLOW_UP_STATE_LABELS: Record<AbsenceFollowUpState, string> = {
   OPEN: "Open",
   COMPLETED: "Completed",

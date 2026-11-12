@@ -49,7 +49,7 @@ These come from the current product boundaries and from notes already in the mod
 
 - **Status:** `deferred`
 - **What:** A rota or assignment of named staff to an event, and a fill rate based on that assignment rather than on logged absences.
-- **Why it is waiting:** Fill rate is `max(0, staff required − active cancellations and AWOL) / staff required`. Sickness is excluded because it cannot reference an event.
+- **Why it is waiting:** Fill rate is `max(0, staff required − active cancellations and AWOL) / staff required`. Sickness is excluded, including shifts named on a sickness record.
 - **Source:** `docs/events.md`.
 
 ### Fill-rate alerts
@@ -82,7 +82,14 @@ These come from the current product boundaries and from notes already in the mod
 
 ## Ideas
 
-None recorded yet. `/sync-docs` adds an idea here when the conversation or the branch describes future work that is not in the code and is not already listed above.
+`/sync-docs` adds an idea here when the conversation or the branch describes future work that is not in the code and is not already listed above.
+
+### AWOL dealt with
+
+- **Status:** `idea`
+- **What:** A dealt-with state on an AWOL, separate from Active and Archived. Still open keeps the AWOL in Follow-ups. Dealt with keeps it on the ledger as a real AWOL and removes it from Follow-ups. It can be marked open again. Archive remains the way to withdraw a record that was logged by mistake.
+- **Why it is waiting:** Follow-ups lists every active AWOL until it is archived. Archive also removes the record from the working lists and cannot be undone, so it is a poor way to say the AWOL has been looked at.
+- **Source:** Review of automatic follow-up visibility on `feat/automatic-ongoing-follow-ups`, 12 November 2026.
 
 ## Shipped
 
