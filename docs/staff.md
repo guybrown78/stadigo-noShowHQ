@@ -1,13 +1,15 @@
 # Staff data model
 
-Tenant-scoped operational staff records. This module is the record later features (absence logging, escalation, bulk import, certificates) attach to. Creating a staff member does **not** create a NoShowHQ login or send any communication.
+Product context is in [PLATFORM.md](PLATFORM.md). This file is the field contract.
+
+Tenant-scoped operational staff records. Absence logging, probation follow-up, and bulk import already attach to these records. Creating a staff member does **not** create a NoShowHQ login or send any communication. Certificate files are not stored.
 
 ## Entities
 
 ### Staff
 Belongs to exactly one tenant. Soft-deleted with `deletedAt` / `deletedById`; deleted staff are excluded from lists, search, get/edit, and new manager selection.
 
-Key fields: tenant-unique `staffIdNumber` (display value after trim), `staffIdNormalized` (lowercase uniqueness key among non-deleted rows in the tenant), `firstName`, `lastName`, optional `email` (stored lowercase; not a login) and `phone`, optional `department`, required `roleTitle`, optional `managerStaffId` (same-tenant staff), `employmentStatus` (`ACTIVE` | `MONITORING` | `CONTACT_REQUIRED` | `DISABLED` | `INACTIVE`), optional `startDate`, denormalised probation summary fields, `securityClearanceStatus` (summary only), clearance expiry (required when status is Valid or Expired; otherwise stored as empty), `notes`. The same Staff ID may exist in another tenant. Bulk import uses `staffInputSchema` then `createStaff`; it cannot skip mandatory fields, and a retry of the same live Staff ID is rejected rather than inserting a second row.
+Key fields: tenant-unique `staffIdNumber` (display value after trim), `staffIdNormalized` (lowercase uniqueness key among non-deleted rows in the tenant), `firstName`, `lastName`, optional `email` (stored lowercase; not a login) and `phone`, optional `department`, required `roleTitle`, optional `managerStaffId` (same-tenant staff), `employmentStatus` (`ACTIVE` | `MONITORING` | `CONTACT_REQUIRED` | `DISABLED` | `INACTIVE` | `LONG_TERM_SICK`), optional `startDate`, denormalised probation summary fields, `securityClearanceStatus` (summary only), clearance expiry (required when status is Valid or Expired; otherwise stored as empty), `notes`. The same Staff ID may exist in another tenant. Bulk import uses `staffInputSchema` then `createStaff`; it cannot skip mandatory fields, and a retry of the same live Staff ID is rejected rather than inserting a second row.
 
 `tenantId`, `createdById`, and `updatedById` always come from the authenticated session, never from the client.
 

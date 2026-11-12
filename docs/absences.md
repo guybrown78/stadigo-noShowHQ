@@ -1,5 +1,7 @@
 # Absence data model
 
+Product context is in [PLATFORM.md](PLATFORM.md). This file is the field contract.
+
 Tenant-scoped unified absence records. Cancellation, AWOL, and Sickness attach to the same parent without changing tenant, staff, type, or audit relationships.
 
 Logging an absence does **not** change staff employment status, event status, or staffing figures, and does not send email or SMS.

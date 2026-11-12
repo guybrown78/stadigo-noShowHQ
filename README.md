@@ -1,6 +1,8 @@
 # NoShowHQ
 
-Multi-tenant foundation for event-staffing businesses: Auth.js authentication, Prisma/PostgreSQL, platform admin tenant provisioning, and a tenant app shell.
+Multi-tenant operations system for event-staffing businesses: organisations, staff, events, and attendance records (cancellation, AWOL, sickness), with Auth.js, Prisma, and PostgreSQL.
+
+Product behaviour is specified in [docs/PLATFORM.md](docs/PLATFORM.md). Paste that file into another model when it needs to know what the platform does, what it refuses to do, and what is only planned. The index is [docs/README.md](docs/README.md). `/sync-docs` updates those documents from the current branch.
 
 ## Stack
 
@@ -9,7 +11,7 @@ Multi-tenant foundation for event-staffing businesses: Auth.js authentication, P
 - PostgreSQL + Prisma
 - Local Postgres via Docker Compose
 
-**Later (not required for local foundation):** deploy on Vercel Hobby, Neon free Postgres, and Vercel Blob for uploads.
+Production deploy (Vercel and Neon) is documented below. File upload via Vercel Blob is not built yet.
 
 ## Prerequisites
 
@@ -88,18 +90,12 @@ Open [http://localhost:3000](http://localhost:3000). Sign in as the super admin,
 
 | Role | Access |
 | --- | --- |
-| `SUPER_ADMIN` | `/admin` platform area — list/create tenants and initial admins; **Open** a tenant to view its app shell |
-| `ADMIN` | Tenant shell — `/dashboard`, `/staff`, `/events`, `/ledger`, `/absence/new`, `/settings` |
+| `SUPER_ADMIN` | `/admin` — list and create tenants and their admins; **Open** a tenant to use its app |
+| `ADMIN` | Tenant app — dashboard, log absence, ledger, follow-ups, events, staff, settings |
 
-Events are tenant-isolated records (type, subtype, venue, date, staffing, risk thresholds). See [docs/events.md](docs/events.md). New tenants receive the standard type/subtype catalogue automatically; existing tenants are filled in on first visit to Events, or via `npm run provision-event-catalog`. Venues are managed from **Events → Venues** (also linked from Settings), and can also be added from the create-event form when a search finds no match.
+What those screens do, and what they must not do, is in [docs/PLATFORM.md](docs/PLATFORM.md). Field rules are in [docs/events.md](docs/events.md), [docs/staff.md](docs/staff.md), and [docs/absences.md](docs/absences.md).
 
-Staff are tenant-isolated operational records (staff ID, name, role, department, manager, employment status, clearance summary, and a tenant-safe probation workflow). See [docs/staff.md](docs/staff.md). Creating a staff member does not create a login. New tenants receive a 90-day probation default under **Settings → Probation**; changing it applies to staff created afterwards only. Due and overdue reviews are chased in-app from **Staff → Probation** (no email or SMS).
-
-Absences are tenant-isolated records attached to Staff and, for Cancellation and AWOL, Events. See [docs/absences.md](docs/absences.md). The Ledger defaults to All absences, with Cancellations, AWOL and Sickness as type filters. Logging an absence does not change employment or event status.
-
-Run `npm run reconcile-probation` (or the daily `/api/cron/probation-reconcile` cron with `CRON_SECRET`) to backfill legacy dates and create missing in-app tasks.
-
-Sickness fit-note day and chase timing are under **Settings → Sickness evidence** (defaults: day 8 and 5). The daily `/api/cron/sickness-evidence-evaluate` route uses `CRON_SECRET` and each tenant's timezone. It creates internal follow-ups. Existing episodes are updated only when an administrator applies the current counts.
+Run `npm run reconcile-probation` (or the daily `/api/cron/probation-reconcile` cron with `CRON_SECRET`) to backfill legacy probation dates and create missing in-app tasks. The daily `/api/cron/sickness-evidence-evaluate` route uses the same secret and each tenant's timezone.
 
 Unauthenticated visitors are sent to `/login`. Wrong-role access returns a safe not-found response.
 
