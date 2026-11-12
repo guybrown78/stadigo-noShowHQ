@@ -23,9 +23,17 @@ import {
   evaluateAwolEventEligibility,
   evaluateAwolReportedDate,
 } from "@/lib/absence/eligibility";
+import { MISSED_SHIFT_BLOCKS_ABSENCE } from "@/lib/absence/missed-shift";
+import {
+  attachMissedShifts,
+  deactivateMissedShifts,
+  MissedShiftAttachFailure,
+  retargetMissedShiftStaff,
+} from "@/lib/absence/missed-shift-service";
 import {
   findActiveCancellationOrAwol,
   findActiveDuplicateCancellation,
+  findActiveMissedShift,
   findActiveSicknessDuplicate,
   getAbsenceForTenant,
   getTenantTimezone,
@@ -345,6 +353,20 @@ async function resolveCancellationWrite(
   });
   if (existing) {
     return conflictResult(existing.id, existing.type, "CANCELLATION");
+  }
+
+  const missed = await findActiveMissedShift(db, {
+    tenantId: params.tenantId,
+    staffId: staff.id,
+    eventId: event.id,
+  });
+  if (missed) {
+    return {
+      ok: false,
+      error: MISSED_SHIFT_BLOCKS_ABSENCE,
+      fieldErrors: { eventId: [MISSED_SHIFT_BLOCKS_ABSENCE] },
+      existingAbsenceId: missed.absenceId,
+    };
   }
 
   return { ok: true, staff, event, reportedDate, notice };
@@ -964,6 +986,20 @@ async function resolveAwolWrite(
     return conflictResult(existing.id, existing.type, "AWOL");
   }
 
+  const missed = await findActiveMissedShift(db, {
+    tenantId: params.tenantId,
+    staffId: staff.id,
+    eventId: event.id,
+  });
+  if (missed) {
+    return {
+      ok: false,
+      error: MISSED_SHIFT_BLOCKS_ABSENCE,
+      fieldErrors: { eventId: [MISSED_SHIFT_BLOCKS_ABSENCE] },
+      existingAbsenceId: missed.absenceId,
+    };
+  }
+
   return {
     ok: true,
     staff,
@@ -1425,6 +1461,7 @@ function sicknessPayloadHash(input: {
   futureFirstWorkingDayConfirmed: boolean;
   episodeState: string;
   sicknessEndedDate: string | null;
+  missedShiftEventIds?: string[];
 }): string {
   return createHash("sha256")
     .update(
@@ -1437,6 +1474,7 @@ function sicknessPayloadHash(input: {
         futureFirstWorkingDayConfirmed: input.futureFirstWorkingDayConfirmed,
         episodeState: input.episodeState,
         sicknessEndedDate: input.sicknessEndedDate,
+        missedShiftEventIds: input.missedShiftEventIds ?? [],
       }),
     )
     .digest("hex");
@@ -1844,6 +1882,20 @@ export async function createSickness(
             now,
           });
 
+          const eventIds = params.input.missedShiftEventIds ?? [];
+          if (eventIds.length > 0) {
+            const attached = await attachMissedShifts(tx, {
+              tenantId: params.tenantId,
+              userId: params.userId,
+              absenceId: absence.id,
+              staffId: resolved.staff.id,
+              eventIds,
+            });
+            if (!attached.ok) {
+              throw new MissedShiftAttachFailure(attached);
+            }
+          }
+
           await tx.absenceIdempotencyKey.updateMany({
             where: {
               tenantId: params.tenantId,
@@ -1861,7 +1913,13 @@ export async function createSickness(
           }
           throw error;
         }
-      }),
+      })
+        .catch((error: unknown) => {
+          if (error instanceof MissedShiftAttachFailure) {
+            return error.result;
+          }
+          throw error;
+        }),
   );
 }
 
@@ -2063,6 +2121,17 @@ export async function correctSickness(
           return { ok: false, error: SICKNESS_NO_CHANGE_MESSAGE };
         }
 
+        if (resolved.staff.id !== existing.staffId) {
+          const transfer = await retargetMissedShiftStaff(tx, {
+            tenantId: params.tenantId,
+            absenceId: existing.id,
+            staffId: resolved.staff.id,
+          });
+          if (!transfer.ok) {
+            return transfer;
+          }
+        }
+
         try {
           await tx.absence.update({
             where: { id: existing.id },
@@ -2152,6 +2221,11 @@ export async function archiveSickness(
         archiveReason: params.input.archiveReason,
         updatedById: params.userId,
       },
+    });
+
+    await deactivateMissedShifts(tx, {
+      tenantId: params.tenantId,
+      absenceId: existing.id,
     });
 
     await writeAbsenceHistory(tx, {

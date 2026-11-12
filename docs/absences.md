@@ -52,6 +52,20 @@ One-to-one type-specific row for a Sickness report:
 
 `Absence.firstWorkingDaySick` is a denormalised copy of the detail date used only for the race-safe active duplicate index. Writes copy both values in the same transaction.
 
+### SicknessMissedShift
+
+Booked shifts covered by one sickness record. The parent `Absence.eventId` stays null. Each row stores the event the administrator chose, plus the same kind of event and venue snapshots used by AWOL. There is no rota, so days between the sickness start and end are not turned into shifts, and existing sickness records are not given historical shifts. The create form can optionally include the shifts named on the call. Leaving that list empty still saves the sickness on its own.
+
+- One sickness can hold several shifts, including non-consecutive dates and more than one event on the same day. The event, not the date, identifies the shift.
+- The same event cannot be added twice to one sickness record. An active shift also cannot occupy a staff member and event that already has an active cancellation, AWOL, or missed shift. The save is refused and links to the existing record. Nothing is merged or converted.
+- Adding or removing a shift does not create another sickness and does not change certificates, return to work, follow-ups, episode state, or pay period.
+- Removing a shift deletes that row and writes `MISSED_SHIFT_REMOVED`, so the same shift can be added again. The sickness record stays.
+- Archiving the sickness sets `active` false, keeps the rows visible on the archived record, and frees the staff/event slot.
+- Changing the staff member on a correction moves the shifts only when the new staff member does not already have one of those events recorded.
+- Live uniqueness: `SicknessMissedShift_tenant_staff_event_active_key` on `(tenantId, staffId, eventId) WHERE active = true`.
+
+Missed-shift totals stay on the sickness record and in the Ledger context. They are not added to dashboard totals, pay-period totals, or event fill rate. No wages or sick-pay entitlement are calculated.
+
 Sickness is an operational absence record, not a medical record. Issue summary is never previewed in Staff history or general lists. Raw text is returned only on the authorised Sickness detail and correction paths, and in the tenant-scoped `AbsenceHistory` payload rendered on that detail page. The Sickness Ledger returns only an **Issue summary recorded** presence flag. Episode state and end date appear on authorised detail, Ledger Context, Staff history and audit History; they are not placed in URLs, search, or unauthorised responses.
 
 Advance-report acknowledgement is request-only. When a future first working day is saved, the create or correction audit event records `futureFirstWorkingDayConfirmed` with the confirmed date. It is not stored on `SicknessDetail`.
@@ -113,7 +127,7 @@ Process, fields, and access for this release:
 This does not create deadlines, reminders, queues, reports, document uploads, or a clinical assessment.
 
 ### AbsenceHistory
-Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`, `RETURN_TO_WORK_RECORDED`, `RETURN_TO_WORK_CORRECTED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness status updated**, **Evidence recorded/corrected**, and **Return to work recorded/corrected**.
+Append-only. Actions: `CREATED`, `CORRECTED`, `ARCHIVED`, `EPISODE_UPDATED`, `FOLLOW_UP_CREATED`, `FOLLOW_UP_UPDATED`, `FOLLOW_UP_COMPLETED`, `FOLLOW_UP_CANCELLED`, `EVIDENCE_RECORDED`, `EVIDENCE_CORRECTED`, `RETURN_TO_WORK_RECORDED`, `RETURN_TO_WORK_CORRECTED`, `MISSED_SHIFT_ADDED`, `MISSED_SHIFT_REMOVED`. Stores actor, timestamp, optional reason, and JSON `{ field, previous, next }` changes. There is no edit/delete UI. Compact history is shown on the detail page. On AWOL detail, `reportedDate` is labelled **Date recorded**. On Sickness detail, history actions are labelled **Sickness report created/corrected/archived**, **Sickness status updated**, **Evidence recorded/corrected**, **Return to work recorded/corrected**, and **Missed shift added/removed**.
 
 Raw Issue summary old/new values belong only on the authorised Sickness detail. A public-feed helper redacts them to **Issue summary changed**.
 
@@ -210,7 +224,7 @@ Filters: Recorded From/To (`reportedFrom`/`reportedTo`), Affected From/To (`affe
 
 The results summary distinguishes filtered matching counts from overall active totals. When filters are off, All absences shows the active total plus type totals. When filters are on, it shows the matching count (and matching types on All), then an explicitly labelled overall active total. Show archived is called out on the matching line. Page size is 25.
 
-The table uses shared columns (Type, Staff, Recorded, Affected date, Context, Status, View) plus a compact type-aware Context cell: Cancellation event/venue/notice, AWOL event/venue/reference, Sickness episode status (and end date when Ended), started date, and **Issue summary recorded** when present. Raw Issue summary, full notes, and full Cancellation reasons are never selected or returned. Staff display uses live Staff for Cancellation/AWOL and Sickness snapshots. Status is Active or Archived only. Ended active Sickness records remain in default active results and counts.
+The table uses shared columns (Type, Staff, Recorded, Affected date, Context, Status, View) plus a compact type-aware Context cell: Cancellation event/venue/notice, AWOL event/venue/reference, Sickness episode status (and end date when Ended), started date, the missed-shift total including zero, and **Issue summary recorded** when present. Individual shift dates stay on the sickness record. The affected-date column stays the first day sick. Raw Issue summary, full notes, and full Cancellation reasons are never selected or returned. Staff display uses live Staff for Cancellation/AWOL and Sickness snapshots. Status is Active or Archived only. Ended active Sickness records remain in default active results and counts.
 
 **View** opens a type-aware detail drawer on the Ledger immediately from the row already on the page. The click writes `?detail=[absence-id]` with the history API and does not reload the list, so the current filters, sort, and page stay put. The header and the fields already on the row (type, status, staff, dates, and type context) show at once. Issue summary text, reasons, notes, staff role, created and updated by, Evidence, return to work, follow-ups, history, and the Correct, Archive, and Update sickness actions load after the drawer is open, with skeleton placeholders until `getAbsenceForTenant` returns. An icon at the top of the drawer opens `/absence/[id]` for Cancellation, AWOL, and Sickness. Desktop uses a right-hand sheet; narrow screens use a full-screen sheet. Cancellation detail shows the stored Venue name snapshot from `CancellationDetail` (the same snapshot as the Ledger row), not a live Event lookup. Closing the drawer (Close, Escape, or Back) restores the originating View action and does not reset filters. Sickness Issue summary and fit note notes stay on authorised detail views and are never placed in the URL.
 

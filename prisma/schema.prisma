@@ -64,6 +64,7 @@ model Tenant {
   cancellationDetails          CancellationDetail[]
   awolDetails                  AwolDetail[]
   sicknessDetails              SicknessDetail[]
+  sicknessMissedShifts         SicknessMissedShift[]
   sicknessSelfCertifications   SicknessSelfCertification[]
   sicknessFitNotes             SicknessFitNote[]
   sicknessReturnToWork         SicknessReturnToWork[]
@@ -129,6 +130,7 @@ model User {
   sicknessFitNotesUpdated      SicknessFitNote[]         @relation("SicknessFitNoteUpdatedBy")
   sicknessReturnToWorkCreated  SicknessReturnToWork[]    @relation("SicknessReturnToWorkCreatedBy")
   sicknessReturnToWorkUpdated  SicknessReturnToWork[]    @relation("SicknessReturnToWorkUpdatedBy")
+  sicknessMissedShiftsCreated  SicknessMissedShift[]     @relation("SicknessMissedShiftCreatedBy")
   createdAt                    DateTime                  @default(now())
   updatedAt                    DateTime                  @updatedAt
 
@@ -237,6 +239,7 @@ model Venue {
   importVenuesCreated     EventImportVenue[] @relation("EventImportVenueCreated")
   cancellationSnapshots   CancellationDetail[]
   awolSnapshots           AwolDetail[]
+  sicknessMissedShifts    SicknessMissedShift[]
 
   @@unique([id, tenantId])
   @@unique([tenantId, nameNormalized])
@@ -282,6 +285,7 @@ model Event {
   archivedBy       User?        @relation("EventArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
   importRows       EventImportRow[]
   absences         Absence[]
+  sicknessMissedShifts SicknessMissedShift[]
 
   @@unique([id, tenantId])
   @@unique([tenantId, reference])
@@ -498,6 +502,7 @@ model Staff {
   probationHistory             StaffProbationHistory[]
   probationTasks               StaffProbationTask[]
   absences                     Absence[]
+  sicknessMissedShifts         SicknessMissedShift[]
   importRows                   StaffImportRow[]
   awolFollowUp                 StaffAwolFollowUp?
 
@@ -678,6 +683,8 @@ enum AbsenceHistoryAction {
   RETURN_TO_WORK_CORRECTED
   UNAUTHORISED_UPDATED
   PERIOD_CHANGED
+  MISSED_SHIFT_ADDED
+  MISSED_SHIFT_REMOVED
 }
 
 enum PayPeriodStatus {
@@ -799,6 +806,7 @@ model Absence {
   selfCertification SicknessSelfCertification?
   fitNotes       SicknessFitNote[]
   returnToWork   SicknessReturnToWork?
+  missedShifts   SicknessMissedShift[]
 
   @@unique([id, tenantId])
   // Live uniqueness: Absence_tenantId_staffId_eventId_active_cancellation_awol_key
@@ -885,6 +893,45 @@ model SicknessDetail {
   @@unique([absenceId, tenantId])
   @@index([tenantId])
   @@index([tenantId, firstWorkingDaySick])
+}
+
+// Booked shifts covered by one sickness. The parent Absence still has no
+// eventId. `active` is true only while the sickness record is active, so
+// archiving frees the staff/event slot. Live uniqueness is SQL-only:
+// SicknessMissedShift_tenant_staff_event_active_key
+// (tenantId, staffId, eventId) WHERE active = true.
+model SicknessMissedShift {
+  id                     String   @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  absenceId              String
+  absence                Absence  @relation(fields: [absenceId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  staffId                String
+  staff                  Staff    @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  eventId                String
+  event                  Event    @relation(fields: [eventId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  active                 Boolean  @default(true)
+  eventNameSnapshot      String
+  eventReferenceSnapshot String?
+  eventDateSnapshot      DateTime @db.Date
+  eventStartTimeSnapshot String?
+  eventEndTimeSnapshot   String?
+  venueIdSnapshot        String?
+  venueSnapshot          Venue?   @relation(fields: [venueIdSnapshot, tenantId], references: [id, tenantId], onDelete: Restrict)
+  venueNameSnapshot      String?
+  eventTypeSnapshot      String?
+  eventSubtypeSnapshot   String?
+  createdAt              DateTime @default(now())
+  createdById            String
+  createdBy              User     @relation("SicknessMissedShiftCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([id, tenantId])
+  @@unique([absenceId, eventId])
+  @@index([tenantId, absenceId])
+  @@index([tenantId, eventDateSnapshot])
+  @@index([staffId])
+  @@index([eventId])
+  @@index([createdById])
 }
 
 // Manual sickness evidence. One self-certification row per episode, created

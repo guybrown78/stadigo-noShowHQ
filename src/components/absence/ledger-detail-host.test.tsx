@@ -187,6 +187,7 @@ function absence(type: AbsenceDetail["type"], text: string): AbsenceDetail {
     fitNotes: [],
     returnToWork: null,
     followUps: [],
+    missedShifts: [],
     history: [],
   } as unknown as AbsenceDetail;
 }

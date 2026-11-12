@@ -46,6 +46,7 @@ import {
   ledgerSearchPlaceholder,
   ledgerViewDetailsLabel,
 } from "@/lib/absence/display";
+import { missedShiftCountLabel } from "@/lib/absence/missed-shift";
 import {
   isLedgerAffectedDateRangeInvalid,
   isLedgerDateRangeInvalid,
@@ -245,6 +246,9 @@ function ContextCell({ row }: { row: LedgerAbsenceRow }) {
           {row.sickness.sicknessStartedDate
             ? formatLocalDateDisplay(row.sickness.sicknessStartedDate)
             : NO_SICKNESS_STARTED_RECORDED}
+        </p>
+        <p className="mt-2 text-sm font-medium text-foreground">
+          {missedShiftCountLabel(row.missedShifts.length)}
         </p>
         {row.issueSummaryPresent ? (
           <p className="text-xs text-muted">{ISSUE_SUMMARY_PRESENT_LABEL}</p>
@@ -496,6 +500,7 @@ export default async function LedgerPage({
         followUp: first(raw.followUp),
         evidence: first(raw.evidence),
         returnToWork: first(raw.returnToWork),
+        shifts: first(raw.shifts),
       }}
     >
       <div>

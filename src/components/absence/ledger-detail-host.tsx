@@ -467,6 +467,11 @@ export function LedgerDetailHost({
             "returnToWork",
             "1",
           )}
+          shiftsReturnTo={withParam(
+            detailHref(listHref, shownId),
+            "shifts",
+            "1",
+          )}
           onUnauthorisedSaved={reloadDetail}
           timeZone={loadedForShown.timeZone}
           todayIso={loadedForShown.todayIso}

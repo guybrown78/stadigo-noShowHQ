@@ -745,6 +745,28 @@ describe("sicknessInputSchema", () => {
     }
   });
 
+  it("accepts the booked shifts named on the call", () => {
+    const data = sicknessData();
+    data.append("missedShiftEventId", "event_a");
+    data.append("missedShiftEventId", "event_b");
+    const parsed = parseSicknessFormData(data);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.missedShiftEventIds).toEqual(["event_a", "event_b"]);
+  });
+
+  it("rejects the same booked shift twice", () => {
+    const data = sicknessData();
+    data.append("missedShiftEventId", "event_a");
+    data.append("missedShiftEventId", "event_a");
+    const parsed = parseSicknessFormData(data);
+    expect(parsed.success).toBe(false);
+    if (parsed.success) return;
+    expect(
+      parsed.error.issues.some((issue) => issue.path[0] === "missedShiftEventIds"),
+    ).toBe(true);
+  });
+
   it("rejects an Event ID rather than stripping it", () => {
     const parsed = parseSicknessFormData(
       sicknessData({ eventId: "event_1" }),
@@ -754,6 +776,11 @@ describe("sicknessInputSchema", () => {
     expect(
       parsed.error.issues.some((issue) => issue.path[0] === "eventId"),
     ).toBe(true);
+
+    const alongside = sicknessData({ eventId: "event_1" });
+    alongside.append("missedShiftEventId", "event_a");
+    const stillRejected = parseSicknessFormData(alongside);
+    expect(stillRejected.success).toBe(false);
   });
 
   it("rejects Cancellation and AWOL fields", () => {
