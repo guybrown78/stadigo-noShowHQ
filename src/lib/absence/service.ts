@@ -1677,7 +1677,7 @@ export async function createSickness(
       firstWorkingDaySick: firstWorkingDaySick ?? new Date(0),
     },
     () =>
-      db.$transaction(async (tx) => {
+      db.$transaction(async (tx): Promise<AbsenceMutationResult> => {
         await tx.absenceIdempotencyKey.deleteMany({
           where: {
             tenantId: params.tenantId,

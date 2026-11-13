@@ -37,12 +37,14 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 
 export type MissedShiftMutationResult =
   | { ok: true; absenceId: string; staffId: string; shiftId: string | null }
-  | {
-      ok: false;
-      error: string;
-      fieldErrors?: Record<string, string[]>;
-      existingAbsenceId?: string;
-    };
+  | MissedShiftFailure;
+
+type MissedShiftFailure = {
+  ok: false;
+  error: string;
+  fieldErrors?: Record<string, string[]>;
+  existingAbsenceId?: string;
+};
 
 function payloadHash(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -230,7 +232,7 @@ async function loadLiveEvent(db: DbClient, tenantId: string, eventId: string) {
 async function shiftConflict(
   db: DbClient,
   params: { tenantId: string; staffId: string; eventId: string; absenceId: string },
-): Promise<MissedShiftMutationResult | null> {
+): Promise<MissedShiftFailure | null> {
   const same = await db.sicknessMissedShift.findUnique({
     where: {
       absenceId_eventId: {
@@ -278,9 +280,9 @@ async function shiftConflict(
 }
 
 export class MissedShiftAttachFailure extends Error {
-  readonly result: Extract<MissedShiftMutationResult, { ok: false }>;
+  readonly result: MissedShiftFailure;
 
-  constructor(result: Extract<MissedShiftMutationResult, { ok: false }>) {
+  constructor(result: MissedShiftFailure) {
     super(result.error);
     this.name = "MissedShiftAttachFailure";
     this.result = result;
@@ -289,8 +291,8 @@ export class MissedShiftAttachFailure extends Error {
 
 function namedShiftFailure(
   eventName: string,
-  failure: Extract<MissedShiftMutationResult, { ok: false }>,
-): Extract<MissedShiftMutationResult, { ok: false }> {
+  failure: MissedShiftFailure,
+): MissedShiftFailure {
   const detail = failure.fieldErrors?.eventId?.[0] ?? failure.error;
   const message = `${eventName}: ${detail}`;
   return {
@@ -310,7 +312,7 @@ export async function attachMissedShifts(
     staffId: string;
     eventIds: string[];
   },
-): Promise<{ ok: true } | Extract<MissedShiftMutationResult, { ok: false }>> {
+): Promise<{ ok: true } | MissedShiftFailure> {
   for (const eventId of params.eventIds) {
     const event = await loadLiveEvent(db, params.tenantId, eventId);
     if (!event) {
@@ -669,7 +671,7 @@ export async function deactivateMissedShifts(
 export async function retargetMissedShiftStaff(
   db: DbClient,
   params: { tenantId: string; absenceId: string; staffId: string },
-): Promise<{ ok: true } | Extract<MissedShiftMutationResult, { ok: false }>> {
+): Promise<{ ok: true } | MissedShiftFailure> {
   const shifts = await db.sicknessMissedShift.findMany({
     where: {
       tenantId: params.tenantId,
